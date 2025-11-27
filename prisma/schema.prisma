@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  phone     String?
+  licenseNumber String?
+  vehicleType String? // MOTORCYCLE, CAR, VAN
+  latitude    Float?
+  longitude   Float?
+  role      String   @default("DRIVER") // ADMIN, DRIVER
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  deliveries Delivery[]
+}
+
+model Package {
+  id            String   @id @default(cuid())
+  trackingId    String   @unique
+  recipientName String
+  address       String
+  postalCode    String
+  latitude      Float?
+  longitude     Float?
+  weight        Float?
+  size          String?  // SMALL, MEDIUM, LARGE
+  instructions  String?
+  leaveWithSecurity Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  deliveries    Delivery[]
+}
+
+model Delivery {
+  id        String   @id @default(cuid())
+  status    String   @default("PENDING") // PENDING, ASSIGNED, PICKED_UP, IN_TRANSIT, DELIVERED, FAILED
+  
+  packageId String
+  package   Package @relation(fields: [packageId], references: [id])
+  
+  driverId  String?
+  driver    User?   @relation(fields: [driverId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  evidenceUrl String?
+
+  history   DeliveryHistory[]
+}
+
+model DeliveryHistory {
+  id         String   @id @default(cuid())
+  status     String
+  timestamp  DateTime @default(now())
+  
+  deliveryId String
+  delivery   Delivery @relation(fields: [deliveryId], references: [id])
+}
