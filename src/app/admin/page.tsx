@@ -175,7 +175,7 @@ export default function AdminDashboard() {
         <div className="container">
             <h1 style={{ fontSize: '2rem', marginBottom: '2rem', fontWeight: 'bold' }}>{t('adminDashboard')}</h1>
 
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+            <div className="responsive-actions">
                 <div style={{ position: 'relative', zIndex: 10 }}>
                     <button
                         className="btn btn-success"

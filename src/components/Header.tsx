@@ -18,14 +18,16 @@ export default function Header() {
             background: 'rgba(255, 255, 255, 0.8)',
             backdropFilter: 'blur(12px)',
             borderBottom: '1px solid var(--border)',
-            padding: '1rem 2rem',
+            padding: '1rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             position: 'sticky',
             top: 0,
             zIndex: 100,
-            boxShadow: 'var(--shadow-sm)'
+            boxShadow: 'var(--shadow-sm)',
+            flexWrap: 'wrap',
+            gap: '0.5rem'
         }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 {!isHome && (
