@@ -4,6 +4,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
+import ThemeToggle from './ThemeToggle';
 
 export default function Header() {
     const pathname = usePathname();
@@ -15,7 +16,7 @@ export default function Header() {
 
     return (
         <header style={{
-            background: 'rgba(255, 255, 255, 0.8)',
+            background: 'var(--card-bg)',
             backdropFilter: 'blur(12px)',
             borderBottom: '1px solid var(--border)',
             padding: '1rem',
@@ -39,7 +40,12 @@ export default function Header() {
                             background: 'transparent',
                             color: 'var(--foreground)',
                             fontSize: '1.2rem',
-                            border: '1px solid var(--border)'
+                            border: '1px solid var(--border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '40px',
+                            width: '40px'
                         }}
                         aria-label="Go back"
                     >
@@ -51,19 +57,22 @@ export default function Header() {
                 </h1>
             </div>
 
-            <button
-                className="btn"
-                style={{
-                    background: 'white',
-                    border: '1px solid var(--border)',
-                    color: 'var(--foreground)',
-                    fontSize: '0.9rem',
-                    padding: '0.5rem 1rem'
-                }}
-                onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
-            >
-                {language === 'es' ? '🇬🇧 EN' : '🇪🇸 ES'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <ThemeToggle />
+                <button
+                    className="btn"
+                    style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--foreground)',
+                        fontSize: '0.9rem',
+                        padding: '0.5rem 1rem'
+                    }}
+                    onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
+                >
+                    {language === 'es' ? '🇬🇧 EN' : '🇪🇸 ES'}
+                </button>
+            </div>
         </header>
     );
 }
