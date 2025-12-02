@@ -44,10 +44,10 @@ export default function Home() {
             </div>
 
             <div className="responsive-grid" style={{ width: '100%', maxWidth: '1000px', gap: '2rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: '1 1 0', minWidth: '280px' }}>
                     <Link href="/admin" className="card card-interactive" style={{
                         textDecoration: 'none',
-                        color: 'inherit',
+                        color: 'var(--foreground)',
                         textAlign: 'center',
                         padding: '3rem 2rem',
                         display: 'flex',
@@ -57,7 +57,8 @@ export default function Home() {
                         transition: 'all 0.3s ease',
                         border: '1px solid var(--border)',
                         background: 'var(--card-bg)',
-                        height: '100%'
+                        height: '100%',
+                        width: '100%'
                     }}>
                         <div style={{ fontSize: '4rem', marginBottom: '1.5rem', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>📊</div>
                         <h2 style={{ fontSize: '1.75rem', marginBottom: '0.75rem', fontWeight: '700' }}>{t('adminDashboard')}</h2>
@@ -73,10 +74,10 @@ export default function Home() {
                     {showAdminGuide && <AdminInstructions />}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: '1 1 0', minWidth: '280px' }}>
                     <Link href="/driver" className="card card-interactive" style={{
                         textDecoration: 'none',
-                        color: 'inherit',
+                        color: 'var(--foreground)',
                         textAlign: 'center',
                         padding: '3rem 2rem',
                         display: 'flex',
@@ -86,7 +87,8 @@ export default function Home() {
                         transition: 'all 0.3s ease',
                         border: '1px solid var(--border)',
                         background: 'var(--card-bg)',
-                        height: '100%'
+                        height: '100%',
+                        width: '100%'
                     }}>
                         <div style={{ fontSize: '4rem', marginBottom: '1.5rem', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>🚚</div>
                         <h2 style={{ fontSize: '1.75rem', marginBottom: '0.75rem', fontWeight: '700' }}>{t('driverApp')}</h2>
