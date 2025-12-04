@@ -40,8 +40,8 @@ export default function QuotePage() {
                 <form onSubmit={calculateQuote} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
                     {/* Locations */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div style={{ flex: '1 1 300px' }}>
                             <label className="text-sm font-medium text-gray-700" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <MapPin size={16} /> Origen
                             </label>
@@ -54,7 +54,7 @@ export default function QuotePage() {
                                 onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
                             />
                         </div>
-                        <div>
+                        <div style={{ flex: '1 1 300px' }}>
                             <label className="text-sm font-medium text-gray-700" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <MapPin size={16} /> Destino
                             </label>
@@ -74,8 +74,8 @@ export default function QuotePage() {
                         <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Package size={20} /> Detalles del Paquete
                         </h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                            <div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+                            <div style={{ flex: '1 1 200px' }}>
                                 <label className="text-sm font-medium text-gray-700">Peso (kg)</label>
                                 <input
                                     type="number"
@@ -87,7 +87,7 @@ export default function QuotePage() {
                                     onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                                 />
                             </div>
-                            <div>
+                            <div style={{ flex: '1 1 200px' }}>
                                 <label className="text-sm font-medium text-gray-700">Tipo</label>
                                 <select
                                     className="input"
@@ -100,8 +100,8 @@ export default function QuotePage() {
                                 </select>
                             </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                            <div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                            <div style={{ flex: '1 1 150px' }}>
                                 <label className="text-sm font-medium text-gray-700">Largo (cm)</label>
                                 <input
                                     type="number"
@@ -112,7 +112,7 @@ export default function QuotePage() {
                                     onChange={(e) => setFormData({ ...formData, length: e.target.value })}
                                 />
                             </div>
-                            <div>
+                            <div style={{ flex: '1 1 150px' }}>
                                 <label className="text-sm font-medium text-gray-700">Ancho (cm)</label>
                                 <input
                                     type="number"
@@ -123,7 +123,7 @@ export default function QuotePage() {
                                     onChange={(e) => setFormData({ ...formData, width: e.target.value })}
                                 />
                             </div>
-                            <div>
+                            <div style={{ flex: '1 1 150px' }}>
                                 <label className="text-sm font-medium text-gray-700">Alto (cm)</label>
                                 <input
                                     type="number"
