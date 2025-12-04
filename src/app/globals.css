@@ -3,32 +3,30 @@
 }
 
 :root {
-  /* Modern Slate & Blue Palette */
+  /* JFC Cargo Destino Palette */
   --background: #f8fafc;
-  --foreground: #0f172a;
+  --foreground: #1f4a5e;
+  /* Dark Blue as primary text color for strong contrast */
 
   /* Primary Brand Colors */
-  --primary: #2563eb;
-  /* Blue 600 */
-  --primary-hover: #1d4ed8;
-  /* Blue 700 */
-  --primary-light: #eff6ff;
-  /* Blue 50 */
+  --primary: #1f4a5e;
+  /* Dark Blue */
+  --primary-hover: #163645;
+  --primary-light: #e8f1f5;
+  /* Light Blue tint */
 
   /* Secondary/Neutral Colors */
-  --secondary: #64748b;
-  /* Slate 500 */
-  --secondary-bg: #e2e8f0;
-  /* Slate 200 */
+  --secondary: #6daec7;
+  /* Light Blue */
+  --secondary-bg: #f1f5f9;
 
   /* Accent Colors */
-  --accent: #8b5cf6;
-  /* Violet 500 */
+  --accent: #d9bd82;
+  /* Gold/Beige */
 
   /* Surface Colors */
   --card-bg: #ffffff;
   --border: #e2e8f0;
-  /* Slate 200 */
 
   /* Status Colors */
   --success: #10b981;
@@ -759,32 +757,4 @@
     width: 100%;
     justify-content: center;
   }
-}
-[data-theme='dark'] {
-  /* Dark Mode Palette */
-  --background: #0f172a;
-  --foreground: #f8fafc;
-
-  /* Primary Brand Colors */
-  --primary: #3b82f6;
-  --primary-hover: #60a5fa;
-  --primary-light: #1e293b;
-
-  /* Secondary/Neutral Colors */
-  --secondary: #94a3b8;
-  --secondary-bg: #1e293b;
-
-  /* Accent Colors */
-  --accent: #a78bfa;
-
-  /* Surface Colors */
-  --card-bg: #1e293b;
-  --border: #334155;
-
-  /* Status Colors */
-  --success: #34d399;
-  --error: #f87171;
-  
-  /* Shadow */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
 }

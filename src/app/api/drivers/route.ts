@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, email, phone, licenseNumber, vehicleType } = body;
+        const { name, email, phone, licenseNumber } = body;
 
         const newDriver = await prisma.user.create({
             data: {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
                 email,
                 phone,
                 licenseNumber,
-                vehicleType,
+
                 role: 'DRIVER',
             },
         });

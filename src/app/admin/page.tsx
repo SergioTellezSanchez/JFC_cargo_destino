@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { MapPin, Truck } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
 import { APIProvider, Map, AdvancedMarker, Pin, MapMouseEvent } from '@vis.gl/react-google-maps';
@@ -238,7 +239,7 @@ export default function AdminDashboard() {
                                                 className="btn btn-secondary"
                                                 style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
                                             >
-                                                🗺️ {t('viewMap')}
+                                                <MapPin size={16} /> {t('viewMap')}
                                             </a>
                                         ) : (
                                             <span style={{ color: '#94a3b8' }}>{t('noLocation')}</span>
@@ -261,7 +262,7 @@ export default function AdminDashboard() {
                                                 title={t('driverLocation')}
                                                 style={{ fontSize: '1.5rem', textDecoration: 'none' }}
                                             >
-                                                🚗
+                                                <Truck size={16} />
                                             </a>
                                         ) : (
                                             <span style={{ color: '#94a3b8' }}>-</span>

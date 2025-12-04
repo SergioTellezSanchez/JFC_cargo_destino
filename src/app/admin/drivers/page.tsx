@@ -16,7 +16,6 @@ export default function DriversPage() {
         email: '',
         phone: '',
         licenseNumber: '',
-        vehicleType: 'MOTORCYCLE',
     });
 
     useEffect(() => {
@@ -88,7 +87,6 @@ export default function DriversPage() {
                     email: '',
                     phone: '',
                     licenseNumber: '',
-                    vehicleType: 'MOTORCYCLE',
                 });
                 fetchDrivers();
             }
@@ -119,7 +117,6 @@ export default function DriversPage() {
                             <th>Email</th>
                             <th>Teléfono</th>
                             <th>Licencia</th>
-                            <th>Vehículo</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -130,7 +127,6 @@ export default function DriversPage() {
                                 <td>{driver.email}</td>
                                 <td>{driver.phone || '-'}</td>
                                 <td>{driver.licenseNumber || '-'}</td>
-                                <td>{driver.vehicleType || '-'}</td>
                                 <td>
                                     <button className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }} onClick={() => setEditingDriver(driver)}>
                                         ✏️ Editar
@@ -166,14 +162,7 @@ export default function DriversPage() {
                                     <input className="input" style={{ width: '100%' }} value={newDriver.licenseNumber} onChange={e => setNewDriver({ ...newDriver, licenseNumber: e.target.value })} placeholder="Licencia..." />
                                 </div>
                             </div>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Tipo de Vehículo</label>
-                                <select className="input" style={{ width: '100%' }} value={newDriver.vehicleType} onChange={e => setNewDriver({ ...newDriver, vehicleType: e.target.value })}>
-                                    <option value="MOTORCYCLE">Motocicleta</option>
-                                    <option value="CAR">Automóvil</option>
-                                    <option value="VAN">Camioneta</option>
-                                </select>
-                            </div>
+
                             <div style={{ display: 'flex', gap: '1rem' }}>
                                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Crear</button>
                                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowCreateForm(false)}>Cancelar</button>
@@ -210,14 +199,7 @@ export default function DriversPage() {
                                     <input className="input" style={{ width: '100%' }} value={editingDriver.licenseNumber || ''} onChange={e => setEditingDriver({ ...editingDriver, licenseNumber: e.target.value })} />
                                 </div>
                             </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Vehículo</label>
-                                <select className="input" style={{ width: '100%' }} value={editingDriver.vehicleType || 'MOTORCYCLE'} onChange={e => setEditingDriver({ ...editingDriver, vehicleType: e.target.value })}>
-                                    <option value="MOTORCYCLE">Motocicleta</option>
-                                    <option value="CAR">Automóvil</option>
-                                    <option value="VAN">Camioneta</option>
-                                </select>
-                            </div>
+
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Actualizar</button>
                                 <button type="button" className="btn btn-danger" style={{ flex: 1 }} onClick={() => handleDelete(editingDriver.id)}>Eliminar</button>

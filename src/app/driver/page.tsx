@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { CheckCircle, AlertTriangle, Clock, Scale, Package, Navigation, Camera, Check, Truck } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
 import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from '@vis.gl/react-google-maps';
@@ -154,7 +155,7 @@ export default function DriverApp() {
                                 onClick={() => setCurrentDriverId(driver.id)}
                             >
                                 <span style={{ fontWeight: 'bold' }}>{driver.name}</span>
-                                <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{driver.vehicleType}</span>
+                                <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Driver</span>
                             </button>
                         ))}
                         {drivers.length === 0 && (
@@ -235,14 +236,23 @@ export default function DriverApp() {
                                                 <div style={{ display: 'flex', gap: '1rem', background: 'var(--background)', padding: '0.75rem', borderRadius: '8px' }}>
                                                     {pkg.weight && (
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            <span style={{ fontSize: '1.2rem' }}>⚖️</span>
-                                                            <span style={{ fontWeight: '600' }}>{pkg.weight} kg</span>
+                                                            <div style={{ background: 'var(--secondary-bg)', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                                                                <span style={{ fontSize: '1.2rem' }}><Scale size={20} /></span>
+                                                            </div>
+                                                            <div>
+                                                                <div style={{ fontSize: '0.8rem', color: 'var(--secondary)' }}>Peso</div>
+                                                                <div style={{ fontWeight: 'bold' }}>{pkg.weight} kg</div>
+                                                            </div>
                                                         </div>
                                                     )}
                                                     {pkg.size && (
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            <span style={{ fontSize: '1.2rem' }}>📦</span>
-                                                            <span style={{ fontWeight: '600' }}>{pkg.size}</span>
+                                                            <div style={{ background: 'var(--secondary-bg)', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                                                                <span style={{ fontSize: '1.2rem' }}><Package size={20} /></span>
+                                                            </div>
+                                                            <div>
+                                                                <span style={{ fontWeight: '600' }}>{pkg.size}</span>
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -254,10 +264,10 @@ export default function DriverApp() {
                                             {/* Navigation Button (Secondary) */}
                                             <button
                                                 className="btn btn-secondary"
-                                                style={{ width: '100%', justifyContent: 'center' }}
+                                                style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                                                 onClick={() => openNavigation(pkg)}
                                             >
-                                                📍 Navegar
+                                                <Navigation size={18} /> Navegar
                                             </button>
 
                                             {/* Primary Actions based on Status */}
@@ -287,9 +297,9 @@ export default function DriverApp() {
                                                         <label
                                                             htmlFor={`evidence-${delivery.id}`}
                                                             className={`btn ${evidenceFile ? 'btn-success' : 'btn-secondary'}`}
-                                                            style={{ flex: 1, justifyContent: 'center', cursor: 'pointer', border: evidenceFile ? 'none' : '2px dashed var(--border)' }}
+                                                            style={{ flex: 1, justifyContent: 'center', cursor: 'pointer', border: evidenceFile ? 'none' : '2px dashed var(--border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                                                         >
-                                                            {evidenceFile ? '✅ Foto Lista' : '📷 Tomar Foto'}
+                                                            {evidenceFile ? <><Check size={18} /> Foto Lista</> : <><Camera size={18} /> Tomar Foto</>}
                                                         </label>
                                                         <input
                                                             id={`evidence-${delivery.id}`}
@@ -344,7 +354,7 @@ export default function DriverApp() {
                         >
                             {driverLocation && (
                                 <AdvancedMarker position={driverLocation}>
-                                    <div style={{ fontSize: '2rem' }}>🚚</div>
+                                    <div style={{ color: 'var(--secondary)' }}><Truck size={48} /></div>
                                 </AdvancedMarker>
                             )}
 
@@ -363,9 +373,9 @@ export default function DriverApp() {
                                         onClick={() => setSelectedDelivery(delivery)}
                                     >
                                         <div style={{ fontSize: '2rem', cursor: 'pointer' }}>
-                                            {delivery.status === 'DELIVERED' ? '✅' :
-                                                delivery.status === 'FAILED' ? '⚠️' :
-                                                    '🕒'}
+                                            {delivery.status === 'DELIVERED' ? <CheckCircle size={24} color="var(--success)" /> :
+                                                delivery.status === 'FAILED' ? <AlertTriangle size={24} color="var(--error)" /> :
+                                                    <Clock size={24} color="var(--secondary)" />}
                                         </div>
                                     </AdvancedMarker>
                                 );

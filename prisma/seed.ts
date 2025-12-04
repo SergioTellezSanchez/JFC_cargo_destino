@@ -2,121 +2,151 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
+const DRIVER_NAMES = [
+    'Juan Pérez', 'María López', 'Carlos Ramírez', 'Ana Martínez', 'Luis Hernández',
+    'Sofía González', 'Jorge Rodríguez', 'Carmen Sánchez', 'Miguel Torres', 'Patricia Flores',
+    'Fernando Rivera', 'Diana Gómez', 'Ricardo Díaz', 'Gabriela Cruz', 'Antonio Reyes',
+    'Verónica Morales', 'Héctor Ortiz', 'Rosa Gutiérrez', 'Javier Castro', 'Claudia Ruiz',
+    'Alejandro Vargas', 'Mónica Jiménez', 'Roberto Silva', 'Adriana Ramos', 'Daniel Medina',
+    'Teresa Aguilar', 'Eduardo Mendoza', 'Yolanda Castillo', 'Francisco Romero', 'Isabel Delgado'
+];
+
+const WAREHOUSE_LOCATIONS = [
+    'Atlacomulco Norte', 'Atlacomulco Sur', 'Toluca Industrial', 'Toluca Aeropuerto',
+    'Jilotepec Centro', 'Polotitlán Logística', 'San Felipe del Progreso', 'Ixtlahuaca Distribución',
+    'El Oro Almacén', 'Acambay Bodega', 'Temascalcingo Ruta', 'Jocotitlán Parque'
+];
+
+const ORIGINS = ['CDMX', 'Monterrey', 'Guadalajara', 'Laredo', 'Manzanillo', 'Veracruz', 'Tijuana', 'Querétaro'];
+
 async function main() {
-    console.log('🌱 Starting seed...')
+    console.log('🌱 Starting JFC Cargo Destino seed...')
 
     // Clear existing data
     await prisma.deliveryHistory.deleteMany()
     await prisma.delivery.deleteMany()
+    await prisma.packagePhoto.deleteMany()
     await prisma.package.deleteMany()
+    await prisma.temporaryStorage.deleteMany()
+    await prisma.vehicle.deleteMany()
     await prisma.user.deleteMany()
     console.log('🧹 Database cleared')
 
     // Create Admin User
-    const admin = await prisma.user.create({
+    await prisma.user.create({
         data: {
-            email: 'admin@cafer.com',
-            name: 'Administrador CAFER',
+            email: 'admin@jfc.com',
+            name: 'Admin JFC',
             role: 'ADMIN',
         },
     })
     console.log('✅ Admin created')
 
-    // Create 4 Drivers
-    const driverData = [
-        { name: 'Juan Pérez García', email: 'juan.perez@cafer.com' },
-        { name: 'María López Hernández', email: 'maria.lopez@cafer.com' },
-        { name: 'Carlos Ramírez Torres', email: 'carlos.ramirez@cafer.com' },
-        { name: 'Ana Martínez Flores', email: 'ana.martinez@cafer.com' },
-    ]
-
+    // Create 30 Drivers
     const drivers = []
-    for (const driver of driverData) {
+    for (let i = 0; i < 30; i++) {
+        const name = DRIVER_NAMES[i] || `Conductor ${i + 1}`;
         const d = await prisma.user.create({
             data: {
-                email: driver.email,
-                name: driver.name,
+                email: `driver${i + 1}@jfc.com`,
+                name: name,
                 role: 'DRIVER',
-                vehicleType: 'MOTORCYCLE',
+                phone: `55${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`,
+                licenseNumber: `LIC-${Math.floor(Math.random() * 1000000)}`,
             },
         })
         drivers.push(d)
     }
-    console.log('✅ 4 Drivers created')
+    console.log('✅ 30 Drivers created')
 
-    // Create 20 Packages
-    const packageData = [
-        // Atlacomulco Centro (50450)
-        { recipientName: 'Roberto González', address: 'Av. Hidalgo 123, Centro', postalCode: '50450', weight: 3.5, size: 'MEDIUM' },
-        { recipientName: 'Laura Jiménez', address: 'Calle Morelos 45, Centro', postalCode: '50450', weight: 1.2, size: 'SMALL' },
-        { recipientName: 'Pedro Ramírez', address: 'Av. Juárez 89, Centro', postalCode: '50450', weight: 5.8, size: 'LARGE' },
-        { recipientName: 'Carmen Flores', address: 'Calle Allende 67, Centro', postalCode: '50450', weight: 2.3, size: 'SMALL' },
-        { recipientName: 'Miguel Ángel Torres', address: 'Av. Independencia 234, Centro', postalCode: '50450', weight: 4.1, size: 'MEDIUM' },
+    // Create 50 Vehicles
+    const vehicles = []
+    const vehicleTypes = ['Nissan NP300', 'Ford Transit', 'Kenworth T680', 'Isuzu ELF', 'Volkswagen Transporter'];
+    for (let i = 0; i < 50; i++) {
+        const type = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
+        const v = await prisma.vehicle.create({
+            data: {
+                make: type.split(' ')[0],
+                model: type.split(' ')[1],
+                year: 2018 + Math.floor(Math.random() * 6),
+                plate: `JFC-${Math.floor(Math.random() * 1000)}-${String.fromCharCode(65 + Math.floor(Math.random() * 26))}`,
+                capacityVolume: Math.floor(Math.random() * 20) + 5,
+                capacityWeight: Math.floor(Math.random() * 5000) + 1000,
+                fuelType: Math.random() > 0.7 ? 'DIESEL' : 'GASOLINE',
+                fuelPerformance: Math.floor(Math.random() * 10) + 5,
+                marketValue: Math.floor(Math.random() * 500000) + 200000,
+                usefulLifeDays: 365 * 10,
+            },
+        })
+        vehicles.push(v)
+    }
+    console.log('✅ 50 Vehicles created')
 
-        // Atlacomulco Colonias (50458)
-        { recipientName: 'Sofía Hernández', address: 'Col. San Isidro, Calle 5 de Mayo 12', postalCode: '50458', weight: 2.7, size: 'MEDIUM' },
-        { recipientName: 'Jorge Luis Méndez', address: 'Col. Ejido de Atlacomulco, Calle Reforma 78', postalCode: '50458', weight: 3.9, size: 'MEDIUM' },
-        { recipientName: 'Patricia Ruiz', address: 'Col. San Pedro, Av. Revolución 156', postalCode: '50458', weight: 1.5, size: 'SMALL' },
-        { recipientName: 'Fernando Castro', address: 'Col. Guadalupe, Calle Insurgentes 34', postalCode: '50458', weight: 6.2, size: 'LARGE' },
-        { recipientName: 'Diana Morales', address: 'Col. San Antonio, Calle Zaragoza 90', postalCode: '50458', weight: 2.1, size: 'SMALL' },
+    // Create 12 Warehouses
+    const warehouses = []
+    for (let i = 0; i < 12; i++) {
+        const w = await prisma.temporaryStorage.create({
+            data: {
+                location: WAREHOUSE_LOCATIONS[i],
+                capacity: Math.floor(Math.random() * 500) + 100,
+                currentLoad: 0,
+            },
+        })
+        warehouses.push(w)
+    }
+    console.log('✅ 12 Warehouses created')
 
-        // Atlacomulco Colonias (50459)
-        { recipientName: 'Ricardo Vargas', address: 'Col. Emiliano Zapata, Calle Niños Héroes 23', postalCode: '50459', weight: 4.5, size: 'MEDIUM' },
-        { recipientName: 'Gabriela Ortiz', address: 'Col. Benito Juárez, Av. Constitución 145', postalCode: '50459', weight: 3.2, size: 'MEDIUM' },
-        { recipientName: 'Antonio Reyes', address: 'Col. Miguel Hidalgo, Calle Guerrero 67', postalCode: '50459', weight: 1.8, size: 'SMALL' },
-        { recipientName: 'Verónica Guzmán', address: 'Col. Lázaro Cárdenas, Av. Progreso 89', postalCode: '50459', weight: 5.3, size: 'LARGE' },
-        { recipientName: 'Héctor Navarro', address: 'Col. Francisco Villa, Calle Libertad 112', postalCode: '50459', weight: 2.9, size: 'MEDIUM' },
-
-        // San Felipe del Progreso (50600)
-        { recipientName: 'Mariana Silva', address: 'Centro, Calle Principal 45', postalCode: '50600', weight: 3.7, size: 'MEDIUM' },
-        { recipientName: 'Luis Alberto Campos', address: 'Barrio de San Miguel, Calle del Carmen 23', postalCode: '50600', weight: 2.4, size: 'SMALL' },
-        { recipientName: 'Rosa María Delgado', address: 'Col. Centro, Av. Juárez 78', postalCode: '50600', weight: 4.8, size: 'MEDIUM' },
-        { recipientName: 'Javier Mendoza', address: 'Barrio de Santiago, Calle Hidalgo 56', postalCode: '50600', weight: 1.9, size: 'SMALL' },
-        { recipientName: 'Claudia Estrada', address: 'Col. Guadalupe, Calle Morelos 134', postalCode: '50600', weight: 6.5, size: 'LARGE' },
-    ]
-
+    // Create 300 Packages
     const packages = []
-    for (let i = 0; i < packageData.length; i++) {
-        const pkg = packageData[i]
-        const trackingId = `CAFER-${String(i + 1).padStart(4, '0')}`
+    for (let i = 0; i < 300; i++) {
+        const origin = ORIGINS[Math.floor(Math.random() * ORIGINS.length)];
+        const isBackhaul = Math.random() > 0.8; // 20% backhaul chance
 
         const p = await prisma.package.create({
             data: {
-                trackingId,
-                recipientName: pkg.recipientName,
-                address: pkg.address,
-                postalCode: pkg.postalCode,
-                weight: pkg.weight,
-                size: pkg.size,
+                trackingId: `JFC-${String(i + 1).padStart(5, '0')}`,
+                recipientName: `Cliente ${i + 1}`,
+                address: `Calle ${i + 1}, Col. Centro, Atlacomulco, Edo Mex`,
+                postalCode: '50450',
+                weight: Math.floor(Math.random() * 50) + 1,
+                size: ['SMALL', 'MEDIUM', 'LARGE'][Math.floor(Math.random() * 3)],
+                declaredValue: Math.floor(Math.random() * 10000) + 500,
+                insurance: Math.random() > 0.5,
+                isBackhaul: isBackhaul,
+                instructions: `Procedente de ${origin}`,
+                storageId: Math.random() > 0.7 ? warehouses[Math.floor(Math.random() * warehouses.length)].id : null,
             },
         })
         packages.push(p)
     }
-    console.log('✅ 20 Packages created')
+    console.log('✅ 300 Packages created')
 
-    // Create Deliveries for all packages (initially PENDING)
+    // Create Deliveries (Assign some to drivers)
+    let assignedCount = 0;
     for (const pkg of packages) {
-        await prisma.delivery.create({
-            data: {
-                id: `delivery-${pkg.id}`,
-                packageId: pkg.id,
-                status: 'PENDING',
-                history: {
-                    create: {
-                        status: 'PENDING',
-                    },
+        // 60% assigned, 40% pending
+        if (Math.random() > 0.4) {
+            const driver = drivers[Math.floor(Math.random() * drivers.length)];
+            await prisma.delivery.create({
+                data: {
+                    packageId: pkg.id,
+                    driverId: driver.id,
+                    status: ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'][Math.floor(Math.random() * 4)],
                 },
-            },
-        })
+            })
+            assignedCount++;
+        } else {
+            await prisma.delivery.create({
+                data: {
+                    packageId: pkg.id,
+                    status: 'PENDING',
+                },
+            })
+        }
     }
-    console.log('✅ 20 Deliveries created')
+    console.log(`✅ Deliveries created (${assignedCount} assigned)`)
 
-    console.log('🎉 Seed completed successfully!')
-    console.log(`📊 Summary:`)
-    console.log(`   - 1 Admin`)
-    console.log(`   - 4 Drivers`)
-    console.log(`   - 20 Packages`)
-    console.log(`   - 20 Deliveries (PENDING)`)
+    console.log('🎉 JFC Demo Seed Completed!')
 }
 
 main()

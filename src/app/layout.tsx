@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from 'next-themes';
+
 import { LanguageProvider } from "@/lib/LanguageContext";
 import Header from "@/components/Header";
 
@@ -20,12 +20,10 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <body className={inter.className}>
-                <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-                    <LanguageProvider>
-                        <Header />
-                        {children}
-                    </LanguageProvider>
-                </ThemeProvider>
+                <LanguageProvider>
+                    <Header />
+                    {children}
+                </LanguageProvider>
             </body>
         </html>
     );

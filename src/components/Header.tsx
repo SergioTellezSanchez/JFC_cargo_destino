@@ -4,7 +4,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
-import ThemeToggle from './ThemeToggle';
+
 
 export default function Header() {
     const pathname = usePathname();
@@ -52,13 +52,13 @@ export default function Header() {
                         ←
                     </button>
                 )}
-                <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'var(--foreground)', letterSpacing: '-0.025em' }}>
-                    Logistics<span style={{ color: 'var(--primary)' }}>App</span>
+                <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.025em' }}>
+                    JFC <span style={{ color: 'var(--accent)' }}>Cargo Destino</span>
                 </h1>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ThemeToggle />
+
                 <button
                     className="btn"
                     style={{

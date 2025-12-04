@@ -7,7 +7,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     try {
         const { id } = await params;
         const body = await request.json();
-        const { name, email, phone, licenseNumber, vehicleType } = body;
+        const { name, email, phone, licenseNumber } = body;
 
         const updatedDriver = await prisma.user.update({
             where: { id },
@@ -16,7 +16,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
                 email,
                 phone,
                 licenseNumber,
-                vehicleType,
+
             },
         });
 
