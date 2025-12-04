@@ -28,6 +28,8 @@ export default function QuotePage() {
         setQuote(Math.round(total * 100) / 100);
     };
 
+    const isValid = Object.values(formData).every(value => value !== '');
+
     return (
         <div className="container" style={{ maxWidth: '800px', padding: '2rem' }}>
             <h1 className="text-gradient" style={{ fontSize: '2.5rem', marginBottom: '2rem', fontWeight: 'bold', textAlign: 'center' }}>
@@ -135,7 +137,19 @@ export default function QuotePage() {
                         </div>
                     </div>
 
-                    <button type="submit" className="btn btn-primary" style={{ fontSize: '1.1rem', padding: '1rem' }}>
+                    <button
+                        type="submit"
+                        className="btn"
+                        disabled={!isValid}
+                        style={{
+                            fontSize: '1.1rem',
+                            padding: '1rem',
+                            background: isValid ? 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)' : 'var(--border)',
+                            color: isValid ? 'white' : 'var(--secondary)',
+                            cursor: isValid ? 'pointer' : 'not-allowed',
+                            transition: 'all 0.3s ease'
+                        }}
+                    >
                         <Calculator size={20} /> Calcular Costo
                     </button>
                 </form>

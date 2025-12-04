@@ -1,3 +1,24 @@
+:root {
+  --primary: #1f4a5e;
+  --primary-hover: #163a4a;
+  --primary-light: rgba(31, 74, 94, 0.1);
+  --secondary: #6daec7;
+  --secondary-bg: #f0f9ff;
+  --accent: #d9bd82;
+  --background: #ffffff;
+  --foreground: #1f2937;
+  --card-bg: #ffffff;
+  --border: #e5e7eb;
+  --success: #10b981;
+  --error: #ef4444;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
 .badge-failed {
   background: #fee2e2;
   color: var(--error);
