@@ -81,6 +81,7 @@ model Package {
   // Storage relation
   storageId     String?
   storage       TemporaryStorage? @relation(fields: [storageId], references: [id])
+  storageStatus String   @default("NONE") // NONE, REQUESTED, APPROVED, STORED, REJECTED
 }
 
 model PackagePhoto {

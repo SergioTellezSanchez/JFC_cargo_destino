@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const trackingId = searchParams.get('trackingId');
+    const storageStatus = searchParams.get('storageStatus');
 
-export async function GET() {
+    const whereClause: any = {};
+    if (trackingId) {
+        whereClause.trackingId = { contains: trackingId };
+    }
+    if (storageStatus) {
+        whereClause.storageStatus = storageStatus;
+    }
+
     const packages = await prisma.package.findMany({
+        where: whereClause,
         include: {
             deliveries: {
                 include: {

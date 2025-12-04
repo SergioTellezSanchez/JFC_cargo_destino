@@ -90,6 +90,8 @@ async function main() {
                 location: WAREHOUSE_LOCATIONS[i],
                 capacity: Math.floor(Math.random() * 500) + 100,
                 currentLoad: 0,
+                createdAt: new Date('2026-01-01'),
+                updatedAt: new Date('2026-01-01'),
             },
         })
         warehouses.push(w)
@@ -101,6 +103,25 @@ async function main() {
     for (let i = 0; i < 300; i++) {
         const origin = ORIGINS[Math.floor(Math.random() * ORIGINS.length)];
         const isBackhaul = Math.random() > 0.8; // 20% backhaul chance
+
+        // Random date in 2026
+        const month = Math.floor(Math.random() * 12);
+        const day = Math.floor(Math.random() * 28) + 1;
+        const date = new Date(2026, month, day);
+
+        // Storage logic
+        let storageStatus = 'NONE';
+        let storageId = null;
+        const rand = Math.random();
+        if (rand > 0.9) {
+            storageStatus = 'REQUESTED';
+        } else if (rand > 0.8) {
+            storageStatus = 'APPROVED';
+            storageId = warehouses[Math.floor(Math.random() * warehouses.length)].id;
+        } else if (rand > 0.7) {
+            storageStatus = 'STORED';
+            storageId = warehouses[Math.floor(Math.random() * warehouses.length)].id;
+        }
 
         const p = await prisma.package.create({
             data: {
@@ -114,7 +135,10 @@ async function main() {
                 insurance: Math.random() > 0.5,
                 isBackhaul: isBackhaul,
                 instructions: `Procedente de ${origin}`,
-                storageId: Math.random() > 0.7 ? warehouses[Math.floor(Math.random() * warehouses.length)].id : null,
+                storageId: storageId,
+                storageStatus: storageStatus,
+                createdAt: date,
+                updatedAt: date,
             },
         })
         packages.push(p)
@@ -127,11 +151,16 @@ async function main() {
         // 60% assigned, 40% pending
         if (Math.random() > 0.4) {
             const driver = drivers[Math.floor(Math.random() * drivers.length)];
+            const deliveryDate = new Date(pkg.createdAt);
+            deliveryDate.setDate(deliveryDate.getDate() + 1); // Delivery 1 day after creation
+
             await prisma.delivery.create({
                 data: {
                     packageId: pkg.id,
                     driverId: driver.id,
                     status: ['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'][Math.floor(Math.random() * 4)],
+                    createdAt: deliveryDate,
+                    updatedAt: deliveryDate,
                 },
             })
             assignedCount++;
@@ -140,6 +169,8 @@ async function main() {
                 data: {
                     packageId: pkg.id,
                     status: 'PENDING',
+                    createdAt: pkg.createdAt,
+                    updatedAt: pkg.createdAt,
                 },
             })
         }
