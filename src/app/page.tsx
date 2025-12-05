@@ -4,15 +4,20 @@ import { useRouter } from 'next/navigation';
 import { Truck, Package, Users, Warehouse, Settings, FileText, ShieldCheck } from 'lucide-react';
 import { useUser } from '@/lib/UserContext';
 
+import { useLanguage } from '@/lib/LanguageContext';
+import { useTranslation } from '@/lib/i18n';
+
 export default function Dashboard() {
     const router = useRouter();
     const { user, loading, loginWithGoogle, isAdmin } = useUser();
+    const { language } = useLanguage();
+    const t = useTranslation(language);
 
     if (loading) {
         return (
             <main className="container" style={{ minHeight: '90vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div className="text-center">
-                    <h2 className="text-xl font-bold">Cargando...</h2>
+                    <h2 className="text-xl font-bold">{t('loading')}</h2>
                 </div>
             </main>
         );
@@ -68,68 +73,86 @@ export default function Dashboard() {
             <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                     <h1 className="text-gradient" style={{ fontSize: '2.5rem', fontWeight: '800' }}>
-                        Panel de Control
+                        {t('dashboardTitle')}
                     </h1>
                     <p style={{ fontSize: '1.1rem', color: 'var(--secondary)' }}>
-                        Bienvenido, {user.name}
+                        {t('welcome')}, {user.name}
                     </p>
                 </div>
             </div>
 
-            {/* Modules Grid */}
-            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-                {/* Cotizador - Public */}
+            {/* Section: Mis Servicios */}
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: 'var(--foreground)' }}>
+                {t('myServices')}
+            </h2>
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+                {/* Cotizador */}
                 <ModuleCard
-                    title="Cotizar Envío"
-                    description="Calcula costos y tiempos para tus envíos nacionales e internacionales."
-                    icon={<FileText size={32} />}
+                    title={t('quoteTitle')}
+                    description={t('quoteDesc')}
+                    icon={<FileText size={32} color="white" />}
                     onClick={() => router.push('/quote')}
-                    color="var(--primary)"
+                    gradient="linear-gradient(135deg, #FF6B6B 0%, #EE5D5D 100%)"
                 />
 
-                {/* Rastrear - Public */}
+                {/* Rastrear */}
                 <ModuleCard
-                    title="Rastrear Paquete"
-                    description="Consulta el estatus en tiempo real de tu carga."
-                    icon={<Package size={32} />}
+                    title={t('trackTitle')}
+                    description={t('trackDesc')}
+                    icon={<Package size={32} color="white" />}
                     onClick={() => router.push('/tracking')}
-                    color="var(--accent)"
+                    gradient="linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)"
                 />
 
-                {/* Vehículos - Public/Admin */}
+                {/* Mis Servicios (New) */}
                 <ModuleCard
-                    title="Flota de Vehículos"
-                    description={isAdmin ? "Gestiona y monitorea la flota." : "Conoce nuestra flota disponible."}
-                    icon={<Truck size={32} />}
+                    title={t('myServices')}
+                    description="Gestiona tus paquetes y consulta tu historial de envíos."
+                    icon={<ShieldCheck size={32} color="white" />}
+                    onClick={() => router.push('/admin?tab=packages&filter=mine')}
+                    gradient="linear-gradient(135deg, #667EEA 0%, #764BA2 100%)"
+                />
+            </div>
+
+            {/* Section: Gestión */}
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: 'var(--foreground)' }}>
+                {t('management')}
+            </h2>
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>
+                {/* Vehículos */}
+                <ModuleCard
+                    title={t('fleetTitle')}
+                    description={t('fleetDesc')}
+                    icon={<Truck size={32} color="white" />}
                     onClick={() => router.push('/vehicles')}
-                    color="var(--secondary)"
+                    gradient="linear-gradient(135deg, #43E97B 0%, #38F9D7 100%)"
                 />
 
-                {/* Conductores - Public/Admin */}
+                {/* Conductores */}
                 <ModuleCard
-                    title="Conductores"
-                    description={isAdmin ? "Administra el personal operativo." : "Únete a nuestro equipo de conductores."}
-                    icon={<Users size={32} />}
+                    title={t('driversTitle')}
+                    description={t('driversDesc')}
+                    icon={<Users size={32} color="white" />}
                     onClick={() => router.push('/drivers')}
-                    color="var(--secondary)"
+                    gradient="linear-gradient(135deg, #FA709A 0%, #FEE140 100%)"
                 />
 
-                {/* Almacenes - Public/Admin */}
+                {/* Almacenes */}
                 <ModuleCard
-                    title="Almacenes"
-                    description={isAdmin ? "Gestión de inventario y capacidad." : "Solicita servicios de almacenaje."}
-                    icon={<Warehouse size={32} />}
+                    title={t('warehousesTitle')}
+                    description={t('warehousesDesc')}
+                    icon={<Warehouse size={32} color="white" />}
                     onClick={() => router.push('/storage')}
-                    color="var(--secondary)"
+                    gradient="linear-gradient(135deg, #F83600 0%, #F9D423 100%)"
                 />
 
-                {/* Admin - Protected */}
+                {/* Admin */}
                 <ModuleCard
-                    title="Administración"
-                    description="Panel de control general, reportes y configuraciones."
-                    icon={<Settings size={32} />}
+                    title={t('adminTitle')}
+                    description={t('adminPanelDesc')}
+                    icon={<Settings size={32} color="white" />}
                     onClick={() => router.push('/admin')}
-                    color="var(--primary)"
+                    gradient="linear-gradient(135deg, #30CFD0 0%, #330867 100%)"
                     disabled={!isAdmin}
                     locked={!isAdmin}
                 />
@@ -138,20 +161,34 @@ export default function Dashboard() {
     );
 }
 
-function ModuleCard({ title, description, icon, onClick, color, disabled = false, locked = false }: any) {
+function ModuleCard({ title, description, icon, onClick, gradient, disabled = false, locked = false }: any) {
     return (
         <div
             className="card"
             style={{
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 opacity: disabled ? 0.6 : 1,
-                borderTop: `4px solid ${color}`,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '1rem',
-                position: 'relative'
+                position: 'relative',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                border: 'none',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
             }}
             onClick={!disabled ? onClick : undefined}
+            onMouseEnter={(e) => {
+                if (!disabled) {
+                    e.currentTarget.style.transform = 'translateY(-5px)';
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
+                }
+            }}
+            onMouseLeave={(e) => {
+                if (!disabled) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+                }
+            }}
         >
             {locked && (
                 <div style={{ position: 'absolute', top: '1rem', right: '1rem', color: 'var(--secondary)' }}>
@@ -159,14 +196,14 @@ function ModuleCard({ title, description, icon, onClick, color, disabled = false
                 </div>
             )}
             <div style={{
-                background: 'var(--secondary-bg)',
+                background: gradient || 'var(--secondary-bg)',
                 width: '60px',
                 height: '60px',
-                borderRadius: '12px',
+                borderRadius: '16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: color
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
             }}>
                 {icon}
             </div>

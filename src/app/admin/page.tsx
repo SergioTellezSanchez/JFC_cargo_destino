@@ -42,18 +42,21 @@ function AdminContent() {
     useEffect(() => {
         const tab = searchParams.get('tab');
         const modal = searchParams.get('modal');
+        const filter = searchParams.get('filter');
 
         if (tab && ['packages', 'vehicles', 'drivers', 'warehouses'].includes(tab)) {
             setActiveTab(tab);
             if (modal === 'create') {
-                // We need to wait a bit for state to settle or just set it
-                // Since openModal sets state, it should be fine, but we need to make sure we don't cause infinite loops if we were depending on something else.
-                // However, openModal depends on nothing but state setters.
-                // But we need to call it AFTER the component mounts.
-                // Let's just call it.
                 setTimeout(() => openModal(tab as any, 'create'), 100);
             }
         }
+
+        if (filter === 'mine') {
+            setFilterMode('mine');
+        } else {
+            setFilterMode('all');
+        }
+
         fetchData();
     }, [searchParams]);
 
