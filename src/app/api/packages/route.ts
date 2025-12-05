@@ -56,7 +56,15 @@ export async function POST(request: Request) {
             storageStatus: 'NONE',
             createdAt: new Date().toISOString(),
             status: 'PENDING',
-            createdBy: body.createdBy || null
+            createdBy: body.createdBy || null,
+            // Enhanced fields from Quote flow
+            origin: body.origin || null,
+            destination: body.destination || null, // This might duplicate address/postalCode but useful for display
+            senderName: body.senderName || null,
+            senderPhone: body.senderPhone || null,
+            receiverPhone: body.receiverPhone || null,
+            type: body.type || 'BOX',
+            cost: body.cost || 0
         };
 
         const docRef = await adminDb.collection('packages').add(newPackage);

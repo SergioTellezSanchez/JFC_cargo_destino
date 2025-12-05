@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
+import { useUser } from '@/lib/UserContext';
 
 export default function QuotePage() {
     const { language } = useLanguage();
@@ -66,13 +67,52 @@ export default function QuotePage() {
         setIsModalOpen(true);
     };
 
+    const { user } = useUser();
+
     const handleCreatePackage = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        setIsModalOpen(false);
-        setIsReceiptOpen(true);
+        if (!breakdown) return;
+
+        try {
+            const trackingId = 'TRK-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+
+            const response = await fetch('/api/packages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    trackingId,
+                    recipientName: shippingDetails.receiverName,
+                    address: formData.destination, // Mapping destination to address
+                    postalCode: formData.destination, // Mapping destination to postalCode (simplification)
+                    weight: formData.weight,
+                    size: `${formData.length}x${formData.width}x${formData.height} cm`,
+                    instructions: shippingDetails.notes,
+                    createdBy: user?.uid,
+
+                    // Enhanced fields
+                    origin: formData.origin,
+                    destination: formData.destination,
+                    senderName: shippingDetails.senderName,
+                    senderPhone: shippingDetails.senderPhone,
+                    receiverPhone: shippingDetails.receiverPhone,
+                    type: formData.type,
+                    cost: breakdown.total
+                }),
+            });
+
+            if (response.ok) {
+                setIsModalOpen(false);
+                setIsReceiptOpen(true);
+            } else {
+                alert('Error creating package. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred.');
+        }
     };
 
     const isShippingValid = Object.values(shippingDetails).every(val => val !== '') && shippingDetails.senderPhone.length >= 10;

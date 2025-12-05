@@ -311,6 +311,25 @@ function AdminContent() {
                                             <tr>
                                                 <td colSpan={5} style={{ padding: '1.5rem', background: 'var(--secondary-bg)' }}>
                                                     <div className="responsive-grid" style={{ alignItems: 'flex-start' }}>
+                                                        {/* Shipping Details */}
+                                                        <div className="card responsive-card">
+                                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                <PackageIcon size={18} /> Detalles del Envío
+                                                            </h3>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
+                                                                <div><span className="font-bold">Origen:</span> {pkg.origin || 'N/A'}</div>
+                                                                <div><span className="font-bold">Destino:</span> {pkg.destination || pkg.address}</div>
+                                                                <div className="border-t my-2"></div>
+                                                                <div><span className="font-bold">Remitente:</span> {pkg.senderName || 'N/A'}</div>
+                                                                <div><span className="font-bold">Tel:</span> {pkg.senderPhone || 'N/A'}</div>
+                                                                <div className="border-t my-2"></div>
+                                                                <div><span className="font-bold">Destinatario:</span> {pkg.recipientName}</div>
+                                                                <div><span className="font-bold">Tel:</span> {pkg.receiverPhone || 'N/A'}</div>
+                                                                <div className="border-t my-2"></div>
+                                                                <div><span className="font-bold">Instrucciones:</span> {pkg.instructions || 'Ninguna'}</div>
+                                                            </div>
+                                                        </div>
+
                                                         {/* Resource Assignment */}
                                                         <div className="card responsive-card">
                                                             <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
