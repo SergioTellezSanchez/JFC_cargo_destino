@@ -1,3 +1,8 @@
+import { NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebaseAdmin';
+
+export const dynamic = 'force-dynamic';
+
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
