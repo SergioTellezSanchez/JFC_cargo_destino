@@ -271,9 +271,10 @@ export default function AdminDashboard() {
                                                                     <div style={{ fontWeight: 'bold', color: 'var(--success)' }}>${costs.utility.toFixed(2)}</div>
                                                                     <div style={{ fontSize: '0.8rem', color: 'var(--secondary)' }}>{costs.utilityPercent.toFixed(1)}% margen</div>
                                                                 </div>
-                                                            </div >
-                                                        </div >
+                                                            </div>
+                                                        </div>
                                                     </div>
+                                                </div>
                                             </td>
                                         </tr>
                                     )}
