@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getVehicles, createVehicle, deleteVehicle } from '@/app/actions/vehicles';
 import { Truck, Trash2, Plus, Fuel } from 'lucide-react';
 
 export default function VehiclesPage() {
@@ -28,7 +27,8 @@ export default function VehiclesPage() {
     const loadVehicles = async () => {
         setLoading(true);
         try {
-            const data = await getVehicles();
+            const res = await fetch('/api/vehicles');
+            const data = await res.json();
             setVehicles(data);
         } catch (error) {
             console.error(error);
@@ -40,7 +40,11 @@ export default function VehiclesPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await createVehicle(formData);
+            await fetch('/api/vehicles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
             setFormData({
                 make: '',
                 model: '',
@@ -63,7 +67,7 @@ export default function VehiclesPage() {
 
     const handleDelete = async (id: string) => {
         if (confirm('¿Estás seguro de eliminar este vehículo?')) {
-            await deleteVehicle(id);
+            await fetch(`/api/vehicles/${id}`, { method: 'DELETE' });
             loadVehicles();
         }
     };

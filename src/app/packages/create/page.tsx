@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getVehiclesAndDrivers, createPackage, checkBackhaulOpportunity } from '@/app/actions/packages';
 import { useRouter } from 'next/navigation';
 
 export default function CreatePackagePage() {
@@ -30,8 +29,13 @@ export default function CreatePackagePage() {
 
     useEffect(() => {
         const init = async () => {
-            const res = await getVehiclesAndDrivers();
-            setData(res);
+            const [vehiclesRes, driversRes] = await Promise.all([
+                fetch('/api/vehicles'),
+                fetch('/api/drivers')
+            ]);
+            const vehicles = await vehiclesRes.json();
+            const drivers = await driversRes.json();
+            setData({ vehicles, drivers });
         };
         init();
     }, []);
@@ -39,10 +43,9 @@ export default function CreatePackagePage() {
     const handleAddressChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
         setFormData({ ...formData, address: val });
-        // Check backhaul when address changes (mock logic)
+        // Mock backhaul check
         if (val.length > 3) {
-            const avail = await checkBackhaulOpportunity(val);
-            setBackhaulAvailable(avail);
+            setBackhaulAvailable(Math.random() > 0.7);
         }
     };
 
@@ -63,7 +66,11 @@ export default function CreatePackagePage() {
         e.preventDefault();
         setLoading(true);
         try {
-            await createPackage(formData);
+            await fetch('/api/packages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
             router.push('/admin'); // Redirect to admin or list
         } catch (error) {
             console.error(error);

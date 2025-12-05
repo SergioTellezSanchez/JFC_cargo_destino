@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getStorageLocations, createStorageLocation } from '@/app/actions/storage';
 import { Package, Check, X, Warehouse } from 'lucide-react';
 
 export default function StoragePage() {
@@ -20,10 +19,12 @@ export default function StoragePage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [locs, reqs] = await Promise.all([
-                getStorageLocations(),
-                fetch('/api/packages?storageStatus=REQUESTED').then(res => res.json())
+            const [locsRes, reqsRes] = await Promise.all([
+                fetch('/api/storage'),
+                fetch('/api/packages?storageStatus=REQUESTED')
             ]);
+            const locs = await locsRes.json();
+            const reqs = await reqsRes.json();
             setLocations(locs);
             setRequests(reqs);
         } catch (error) {
@@ -36,7 +37,11 @@ export default function StoragePage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await createStorageLocation(formData);
+            await fetch('/api/storage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
             setFormData({ location: '', capacity: '' });
             loadData();
         } catch (error) {

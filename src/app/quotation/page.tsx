@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { calculateQuotation } from '@/app/actions/quotation';
 
 export default function QuotationPage() {
     const [loading, setLoading] = useState(false);
@@ -20,13 +19,27 @@ export default function QuotationPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await calculateQuotation({
-                ...formData,
-                isLTL: formData.isLTL === 'true',
-                volume: Number(formData.volume) || 0,
-                weight: Number(formData.weight) || 0,
+            // Client-side mock calculation
+            const distanceKm = Math.floor(Math.random() * 490) + 10;
+            const baseRatePerKm = 10;
+            const weightFactor = 0.5;
+            const volumeFactor = 100;
+
+            let price = distanceKm * baseRatePerKm;
+            if (formData.weight) price += Number(formData.weight) * weightFactor;
+            if (formData.volume) price += Number(formData.volume) * volumeFactor;
+
+            if (formData.isLTL === 'false') {
+                price *= 1.5; // FTL Premium
+            } else {
+                price *= 0.8; // LTL Discount
+            }
+
+            setResult({
+                price: Math.round(price * 100) / 100,
+                details: `Distance: ${distanceKm} km. Type: ${formData.isLTL === 'true' ? 'LTL' : 'FTL'}.`,
+                distanceKm
             });
-            setResult(res);
         } catch (error) {
             console.error(error);
             alert('Error calculating quotation');

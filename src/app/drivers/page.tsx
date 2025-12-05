@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getDrivers, createDriver, deleteDriver } from '@/app/actions/drivers';
 import { User, Trash2, Plus, Phone, CreditCard } from 'lucide-react';
 
 export default function DriversPage() {
@@ -21,7 +20,8 @@ export default function DriversPage() {
     const loadDrivers = async () => {
         setLoading(true);
         try {
-            const data = await getDrivers();
+            const res = await fetch('/api/drivers');
+            const data = await res.json();
             setDrivers(data);
         } catch (error) {
             console.error(error);
@@ -33,7 +33,11 @@ export default function DriversPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await createDriver(formData);
+            await fetch('/api/drivers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
             setFormData({
                 name: '',
                 email: '',
@@ -49,7 +53,7 @@ export default function DriversPage() {
 
     const handleDelete = async (id: string) => {
         if (confirm('¿Estás seguro de eliminar este conductor?')) {
-            await deleteDriver(id);
+            await fetch(`/api/drivers/${id}`, { method: 'DELETE' });
             loadDrivers();
         }
     };
