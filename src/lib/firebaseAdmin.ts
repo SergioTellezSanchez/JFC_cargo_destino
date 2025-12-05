@@ -1,12 +1,27 @@
 import * as admin from 'firebase-admin';
 
+function formatPrivateKey(key: string | undefined) {
+    if (!key) return undefined;
+
+    // Remove surrounding quotes if present (common mistake when copying from JSON)
+    // Also remove any trailing whitespace
+    const rawKey = key.replace(/^['"]|['"]$/g, '').trim();
+
+    // Handle escaped newlines (from JSON)
+    if (rawKey.includes('\\n')) {
+        return rawKey.replace(/\\n/g, '\n');
+    }
+
+    return rawKey;
+}
+
 if (!admin.apps.length) {
     try {
         admin.initializeApp({
             credential: admin.credential.cert({
                 projectId: process.env.FIREBASE_PROJECT_ID,
                 clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+                privateKey: formatPrivateKey(process.env.FIREBASE_PRIVATE_KEY),
             }),
         });
     } catch (error) {
