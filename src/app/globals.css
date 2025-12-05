@@ -99,6 +99,8 @@ body {
   /* Reduced from 1.1rem */
   transition: all 0.2s;
   background: white;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
 }
 
 .input:focus {

@@ -72,24 +72,29 @@ export default function AdminDashboard() {
     };
 
     const handleSaveAssignment = async (pkgId: string) => {
-        // Here we would call the API to save both driver and vehicle
-        console.log(`Saving assignment for ${pkgId}: Driver ${editState.driverId}, Vehicle ${editState.vehicleId}`);
-
-        // Mock API call for driver assignment (existing)
-        if (editState.driverId) {
+        if (editState.driverId && editState.vehicleId) {
             try {
-                const response = await fetch('/api/deliveries', {
+                const response = await fetch(`/api/packages/${pkgId}/assign`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ packageId: pkgId, driverId: editState.driverId }),
+                    body: JSON.stringify({
+                        driverId: editState.driverId,
+                        vehicleId: editState.vehicleId
+                    }),
                 });
                 if (response.ok) {
                     fetchData();
                     setExpandedRow(null);
+                    alert('Asignación guardada correctamente');
+                } else {
+                    alert('Error al guardar la asignación');
                 }
             } catch (error) {
-                console.error('Error assigning driver:', error);
+                console.error('Error assigning resources:', error);
+                alert('Error de conexión');
             }
+        } else {
+            alert('Por favor selecciona conductor y vehículo');
         }
     };
 
@@ -173,115 +178,113 @@ export default function AdminDashboard() {
                                             >
                                                 {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                                 {isExpanded ? 'Cerrar' : 'Gestionar'}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    {isExpanded && (
-                                        <tr>
-                                            <td colSpan={6} style={{ padding: '0', borderBottom: '2px solid var(--border)' }}>
-                                                <div style={{ padding: '1.5rem', background: '#f8fafc', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                                <div><span style={{ fontWeight: '600' }}>Peso:</span> {pkg.weight} kg</div>
+                                                <div><span style={{ fontWeight: '600' }}>Dimensiones:</span> {pkg.size || 'N/A'}</div>
+                                                <div><span style={{ fontWeight: '600' }}>Instrucciones:</span> {pkg.instructions || 'Ninguna'}</div>
+                                            </div>
+                                        </div>
 
-                                                    {/* Assignment Section */}
-                                                    <div className="card">
-                                                        <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            <Truck size={18} /> Asignación de Recursos
-                                                        </h3>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                            <div>
-                                                                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: '600' }}>Conductor</label>
-                                                                <select
-                                                                    className="input"
-                                                                    value={editState.driverId}
-                                                                    onChange={(e) => setEditState(prev => ({ ...prev, driverId: e.target.value }))}
-                                                                >
-                                                                    <option value="">Seleccionar Conductor...</option>
-                                                                    {drivers.map((d: any) => (
-                                                                        <option key={d.id} value={d.id}>{d.name}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                            <div>
-                                                                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: '600' }}>Vehículo</label>
-                                                                <select
-                                                                    className="input"
-                                                                    value={editState.vehicleId}
-                                                                    onChange={(e) => setEditState(prev => ({ ...prev, vehicleId: e.target.value }))}
-                                                                >
-                                                                    <option value="">Seleccionar Vehículo...</option>
-                                                                    {vehicles.map((v: any) => (
-                                                                        <option key={v.id} value={v.id}>{v.name} - {v.plate}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-
-                                                            {editState.vehicleId && (
-                                                                <div style={{ marginTop: '0.5rem' }}>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                                                                        <span>Carga Vehículo</span>
-                                                                        <span style={{ fontWeight: 'bold' }}>{costs.loadPercent.toFixed(1)}%</span>
-                                                                    </div>
-                                                                    <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                                                                        <div style={{
-                                                                            width: `${Math.min(costs.loadPercent, 100)}%`,
-                                                                            height: '100%',
-                                                                            background: costs.loadPercent > 90 ? 'var(--error)' : 'var(--success)'
-                                                                        }} />
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            <button
-                                                                className="btn btn-primary"
-                                                                style={{ marginTop: '1rem' }}
-                                                                onClick={() => handleSaveAssignment(pkg.id)}
-                                                            >
-                                                                <Save size={18} /> Confirmar Asignación
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Financial Breakdown */}
-                                                    <div className="card">
-                                                        <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            <DollarSign size={18} /> Desglose Financiero
-                                                        </h3>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
-                                                                <span style={{ color: 'var(--secondary)' }}>Costo Envío Base</span>
-                                                                <span>${costs.shippingCost.toFixed(2)}</span>
-                                                            </div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
-                                                                <span style={{ color: 'var(--secondary)' }}>Seguro (2%)</span>
-                                                                <span>${costs.insurance.toFixed(2)}</span>
-                                                            </div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
-                                                                <span style={{ fontWeight: 'bold' }}>Costo Total Operativo</span>
-                                                                <span style={{ fontWeight: 'bold' }}>${costs.totalCost.toFixed(2)}</span>
-                                                            </div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginTop: '0.5rem' }}>
-                                                                <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Precio al Cliente</span>
-                                                                <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.1rem' }}>${costs.priceToClient.toFixed(2)}</span>
-                                                            </div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--primary-light)', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
-                                                                <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>Utilidad Estimada</span>
-                                                                <div style={{ textAlign: 'right' }}>
-                                                                    <div style={{ fontWeight: 'bold', color: 'var(--success)' }}>${costs.utility.toFixed(2)}</div>
-                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--secondary)' }}>{costs.utilityPercent.toFixed(1)}% margen</div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
+                                        {/* Assignment Section */}
+                                        <div className="card">
+                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <Truck size={18} /> Asignación de Recursos
+                                            </h3>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: '600' }}>Conductor</label>
+                                                    <select
+                                                        className="input"
+                                                        value={editState.driverId}
+                                                        onChange={(e) => setEditState(prev => ({ ...prev, driverId: e.target.value }))}
+                                                    >
+                                                        <option value="">Seleccionar Conductor...</option>
+                                                        {drivers.map((d: any) => (
+                                                            <option key={d.id} value={d.id}>{d.name}</option>
+                                                        ))}
+                                                    </select>
                                                 </div>
-                                            </td>
-                                        </tr>
+                                                <div>
+                                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: '600' }}>Vehículo</label>
+                                                    <select
+                                                        className="input"
+                                                        value={editState.vehicleId}
+                                                        onChange={(e) => setEditState(prev => ({ ...prev, vehicleId: e.target.value }))}
+                                                    >
+                                                        <option value="">Seleccionar Vehículo...</option>
+                                                        {vehicles.map((v: any) => (
+                                                            <option key={v.id} value={v.id}>{v.name} - {v.plate}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                {editState.vehicleId && (
+                                                    <div style={{ marginTop: '0.5rem' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                                                            <span>Carga Vehículo</span>
+                                                            <span style={{ fontWeight: 'bold' }}>{costs.loadPercent.toFixed(1)}%</span>
+                                                        </div>
+                                                        <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                                                            <div style={{
+                                                                width: `${Math.min(costs.loadPercent, 100)}%`,
+                                                                height: '100%',
+                                                                background: costs.loadPercent > 90 ? 'var(--error)' : 'var(--success)'
+                                                            }} />
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <button
+                                                    className="btn btn-primary"
+                                                    style={{ marginTop: '1rem' }}
+                                                    onClick={() => handleSaveAssignment(pkg.id)}
+                                                >
+                                                    <Save size={18} /> Confirmar Asignación
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Financial Breakdown */}
+                                        <div className="card">
+                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <DollarSign size={18} /> Desglose Financiero
+                                            </h3>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
+                                                    <span style={{ color: 'var(--secondary)' }}>Costo Envío Base</span>
+                                                    <span>${costs.shippingCost.toFixed(2)}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
+                                                    <span style={{ color: 'var(--secondary)' }}>Seguro (2%)</span>
+                                                    <span>${costs.insurance.toFixed(2)}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
+                                                    <span style={{ fontWeight: 'bold' }}>Costo Total Operativo</span>
+                                                    <span style={{ fontWeight: 'bold' }}>${costs.totalCost.toFixed(2)}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginTop: '0.5rem' }}>
+                                                    <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Precio al Cliente</span>
+                                                    <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.1rem' }}>${costs.priceToClient.toFixed(2)}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--primary-light)', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
+                                                    <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>Utilidad Estimada</span>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <div style={{ fontWeight: 'bold', color: 'var(--success)' }}>${costs.utility.toFixed(2)}</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--secondary)' }}>{costs.utilityPercent.toFixed(1)}% margen</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </td >
+                                        </tr >
                                     )}
-                                </>
-                            );
+                </>
+                );
                         })}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+            </tbody>
+        </table>
+        </div >
+        </div >
     );
 }

@@ -1,55 +1,96 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { auth, googleProvider, db } from './firebase';
+import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-type UserRole = 'ADMIN' | 'USER' | 'GUEST';
+type UserRole = 'ADMIN' | 'DRIVER' | 'USER';
 
-interface User {
-    email: string;
-    name: string;
+interface UserData {
+    uid: string;
+    email: string | null;
+    name: string | null;
+    photoURL: string | null;
     role: UserRole;
 }
 
 interface UserContextType {
-    user: User | null;
-    login: (email: string) => void;
-    logout: () => void;
+    user: UserData | null;
+    loading: boolean;
+    loginWithGoogle: () => Promise<void>;
+    logout: () => Promise<void>;
     isAdmin: boolean;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<UserData | null>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check local storage for persisted session
-        const storedUser = localStorage.getItem('jfc_user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                // Check if user exists in Firestore to get role
+                const userRef = doc(db, 'users', firebaseUser.uid);
+                const userSnap = await getDoc(userRef);
+
+                let role: UserRole = 'USER';
+
+                if (userSnap.exists()) {
+                    role = userSnap.data().role as UserRole;
+                } else {
+                    // Check if admin email
+                    if (firebaseUser.email === 'sergiotellezsanchez@gmail.com') {
+                        role = 'ADMIN';
+                    }
+                    // Create user document
+                    await setDoc(userRef, {
+                        email: firebaseUser.email,
+                        name: firebaseUser.displayName,
+                        photoURL: firebaseUser.photoURL,
+                        role,
+                        createdAt: new Date()
+                    });
+                }
+
+                setUser({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    name: firebaseUser.displayName,
+                    photoURL: firebaseUser.photoURL,
+                    role
+                });
+            } else {
+                setUser(null);
+            }
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
     }, []);
 
-    const login = (email: string) => {
-        const isAdmin = email.toLowerCase() === 'sergiotellezsanchez@gmail.com';
-        const newUser: User = {
-            email,
-            name: isAdmin ? 'Sergio Tellez' : 'Usuario Invitado',
-            role: isAdmin ? 'ADMIN' : 'USER',
-        };
-        setUser(newUser);
-        localStorage.setItem('jfc_user', JSON.stringify(newUser));
+    const loginWithGoogle = async () => {
+        try {
+            await signInWithPopup(auth, googleProvider);
+        } catch (error) {
+            console.error("Error logging in with Google", error);
+        }
     };
 
-    const logout = () => {
-        setUser(null);
-        localStorage.removeItem('jfc_user');
+    const logout = async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.error("Error logging out", error);
+        }
     };
 
     const isAdmin = user?.role === 'ADMIN';
 
     return (
-        <UserContext.Provider value={{ user, login, logout, isAdmin }}>
+        <UserContext.Provider value={{ user, loading, loginWithGoogle, logout, isAdmin }}>
             {children}
         </UserContext.Provider>
     );

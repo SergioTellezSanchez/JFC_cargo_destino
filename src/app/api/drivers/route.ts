@@ -1,18 +1,14 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { mockData } from '@/lib/mockData';
+import { adminDb } from '@/lib/firebaseAdmin';
 
 export async function GET() {
     try {
-        const drivers = await prisma.user.findMany({
-            where: {
-                role: 'DRIVER',
-            },
-        });
+        const snapshot = await adminDb.collection('users').where('role', '==', 'DRIVER').get();
+        const drivers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return NextResponse.json(drivers);
     } catch (error) {
-        console.warn('Database failed, returning mock drivers');
-        return NextResponse.json(mockData.users.filter(u => u.role === 'DRIVER'));
+        console.error('Firestore error:', error);
+        return NextResponse.json({ error: 'Failed to fetch drivers' }, { status: 500 });
     }
 }
 
@@ -21,18 +17,18 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { name, email, phone, licenseNumber } = body;
 
-        const newDriver = await prisma.user.create({
-            data: {
-                name,
-                email,
-                phone,
-                licenseNumber,
+        const newDriver = {
+            name,
+            email,
+            phone,
+            licenseNumber,
+            role: 'DRIVER',
+            createdAt: new Date().toISOString()
+        };
 
-                role: 'DRIVER',
-            },
-        });
+        const docRef = await adminDb.collection('users').add(newDriver);
 
-        return NextResponse.json(newDriver);
+        return NextResponse.json({ id: docRef.id, ...newDriver });
     } catch (error) {
         console.error('Error creating driver:', error);
         return NextResponse.json(

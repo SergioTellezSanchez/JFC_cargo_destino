@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-
-import { mockData } from '@/lib/mockData';
+import { adminDb } from '@/lib/firebaseAdmin';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -9,34 +7,24 @@ export async function GET(request: Request) {
     const storageStatus = searchParams.get('storageStatus');
 
     try {
-        const whereClause: any = {};
-        if (trackingId) {
-            whereClause.trackingId = { contains: trackingId };
-        }
+        let query: FirebaseFirestore.Query = adminDb.collection('packages');
+
         if (storageStatus) {
-            whereClause.storageStatus = storageStatus;
+            query = query.where('storageStatus', '==', storageStatus);
         }
 
-        const packages = await prisma.package.findMany({
-            where: whereClause,
-            include: {
-                deliveries: {
-                    include: {
-                        driver: true,
-                    },
-                    orderBy: {
-                        createdAt: 'desc',
-                    },
-                },
-            },
-        });
+        const snapshot = await query.get();
+        let packages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Client-side filter for partial matches (Firestore doesn't support 'contains' natively easily)
+        if (trackingId) {
+            packages = packages.filter((p: any) => p.trackingId.includes(trackingId));
+        }
+
         return NextResponse.json(packages);
     } catch (error) {
-        console.warn('Database failed, returning mock data');
-        let filtered = mockData.packages;
-        if (trackingId) filtered = filtered.filter(p => p.trackingId.includes(trackingId));
-        if (storageStatus) filtered = filtered.filter(p => p.storageStatus === storageStatus);
-        return NextResponse.json(filtered);
+        console.error('Firestore error:', error);
+        return NextResponse.json({ error: 'Failed to fetch packages' }, { status: 500 });
     }
 }
 
@@ -45,30 +33,32 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { trackingId, recipientName, address, postalCode, weight, size, latitude, longitude, instructions, leaveWithSecurity } = body;
 
-        // Validate required fields
         if (!trackingId || !recipientName || !address || !postalCode) {
             return NextResponse.json(
-                { error: 'Missing required fields: trackingId, recipientName, address, postalCode' },
+                { error: 'Missing required fields' },
                 { status: 400 }
             );
         }
 
-        const newPackage = await prisma.package.create({
-            data: {
-                trackingId,
-                recipientName,
-                address,
-                postalCode,
-                latitude: latitude || null,
-                longitude: longitude || null,
-                weight: weight ? parseFloat(weight) : null,
-                size,
-                instructions: instructions || null,
-                leaveWithSecurity: leaveWithSecurity || false,
-            },
-        });
+        const newPackage = {
+            trackingId,
+            recipientName,
+            address,
+            postalCode,
+            latitude: latitude || null,
+            longitude: longitude || null,
+            weight: weight ? parseFloat(weight) : null,
+            size,
+            instructions: instructions || null,
+            leaveWithSecurity: leaveWithSecurity || false,
+            storageStatus: 'NONE',
+            createdAt: new Date().toISOString(),
+            status: 'PENDING'
+        };
 
-        return NextResponse.json(newPackage);
+        const docRef = await adminDb.collection('packages').add(newPackage);
+
+        return NextResponse.json({ id: docRef.id, ...newPackage });
     } catch (error: any) {
         console.error('Error creating package:', error);
         return NextResponse.json(

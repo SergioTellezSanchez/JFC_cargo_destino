@@ -7,16 +7,17 @@ import { useEffect, useState } from 'react';
 
 export default function Dashboard() {
     const router = useRouter();
-    const { user, login, logout, isAdmin } = useUser();
-    const [emailInput, setEmailInput] = useState('');
+    const { user, loading, loginWithGoogle, logout, isAdmin } = useUser();
 
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (emailInput) {
-            login(emailInput);
-            setEmailInput('');
-        }
-    };
+    if (loading) {
+        return (
+            <main className="container" style={{ minHeight: '90vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="text-center">
+                    <h2 className="text-xl font-bold">Cargando...</h2>
+                </div>
+            </main>
+        );
+    }
 
     if (!user) {
         return (
@@ -30,34 +31,31 @@ export default function Dashboard() {
                     </p>
                 </div>
 
-                <div className="card" style={{ width: '100%', maxWidth: '450px', padding: '2.5rem' }}>
-                    <h3 style={{ marginBottom: '2rem', fontWeight: 'bold', fontSize: '1.5rem', textAlign: 'center' }}>Iniciar Sesión</h3>
-                    <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Correo Electrónico</label>
-                            <input
-                                type="email"
-                                placeholder="ej. usuario@jfc.com"
-                                className="input"
-                                value={emailInput}
-                                onChange={(e) => setEmailInput(e.target.value)}
-                                style={{ width: '100%' }}
-                            />
-                        </div>
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}>
-                            <LogIn size={20} /> Acceder a la Plataforma
-                        </button>
-                    </form>
+                <div className="card" style={{ width: '100%', maxWidth: '450px', padding: '2.5rem', textAlign: 'center' }}>
+                    <h3 style={{ marginBottom: '2rem', fontWeight: 'bold', fontSize: '1.5rem' }}>Iniciar Sesión</h3>
+
+                    <button
+                        onClick={() => loginWithGoogle()}
+                        className="btn"
+                        style={{
+                            width: '100%',
+                            padding: '1rem',
+                            fontSize: '1.1rem',
+                            background: 'white',
+                            color: '#757575',
+                            border: '1px solid #ddd',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '1rem'
+                        }}
+                    >
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: '24px', height: '24px' }} />
+                        Continuar con Google
+                    </button>
+
                     <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)', fontSize: '0.9rem', color: 'var(--secondary)' }}>
-                        <p style={{ marginBottom: '0.5rem' }}><strong>Credenciales Demo:</strong></p>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span>Admin:</span>
-                            <code style={{ background: 'var(--secondary-bg)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>sergiotellezsanchez@gmail.com</code>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Usuario:</span>
-                            <code style={{ background: 'var(--secondary-bg)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>Cualquier otro correo</code>
-                        </div>
+                        <p>Acceso seguro vía Google Workspace</p>
                     </div>
                 </div>
             </main>
