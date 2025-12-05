@@ -47,7 +47,11 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
                     maxHeight: '90vh',
                     overflowY: 'auto',
                     position: 'relative',
-                    animation: 'fadeIn 0.2s ease-out'
+                    animation: 'fadeIn 0.2s ease-out',
+                    padding: 0,
+                    border: 'none',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                    borderRadius: '1rem'
                 }}
                 onClick={e => e.stopPropagation()}
             >
@@ -55,27 +59,39 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: '1.5rem',
+                    padding: '1.25rem 1.5rem',
                     borderBottom: '1px solid var(--border)',
-                    paddingBottom: '1rem'
+                    background: 'linear-gradient(to right, var(--card-bg), var(--secondary-bg))',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10
                 }}>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>{title}</h2>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ width: '4px', height: '20px', background: 'var(--primary)', borderRadius: '2px' }}></div>
+                        {title}
+                    </h2>
                     <button
                         onClick={onClose}
                         style={{
-                            background: 'none',
-                            border: 'none',
+                            background: 'var(--secondary-bg)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '50%',
+                            width: '32px',
+                            height: '32px',
                             cursor: 'pointer',
                             color: 'var(--secondary)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            transition: 'all 0.2s'
                         }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--error)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--secondary)'}
                     >
-                        <X size={24} />
+                        <X size={18} />
                     </button>
                 </div>
-                <div>
+                <div style={{ padding: '1.5rem' }}>
                     {children}
                 </div>
             </div>

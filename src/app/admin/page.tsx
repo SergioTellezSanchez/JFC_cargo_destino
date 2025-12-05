@@ -1,6 +1,8 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { MapPin, Truck, ChevronDown, ChevronUp, Save, DollarSign, Package as PackageIcon, Users, Warehouse, Plus, Edit, Trash2, X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
@@ -8,12 +10,16 @@ import { useUser } from '@/lib/UserContext';
 import WorldClock from '@/components/WorldClock';
 import Modal from '@/components/Modal';
 
-export default function AdminDashboard() {
+function AdminContent() {
     const { language } = useLanguage();
     const t = useTranslation(language);
     const { user, isAdmin } = useUser();
+    const searchParams = useSearchParams();
+    const router = useRouter();
 
     const [activeTab, setActiveTab] = useState('packages');
+    const [filterMode, setFilterMode] = useState<'all' | 'mine'>('all');
+
     const [packages, setPackages] = useState<any[]>([]);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [vehicles, setVehicles] = useState<any[]>([]);
@@ -34,8 +40,22 @@ export default function AdminDashboard() {
     }>({ driverId: '', vehicleId: '' });
 
     useEffect(() => {
+        const tab = searchParams.get('tab');
+        const modal = searchParams.get('modal');
+
+        if (tab && ['packages', 'vehicles', 'drivers', 'warehouses'].includes(tab)) {
+            setActiveTab(tab);
+            if (modal === 'create') {
+                // We need to wait a bit for state to settle or just set it
+                // Since openModal sets state, it should be fine, but we need to make sure we don't cause infinite loops if we were depending on something else.
+                // However, openModal depends on nothing but state setters.
+                // But we need to call it AFTER the component mounts.
+                // Let's just call it.
+                setTimeout(() => openModal(tab as any, 'create'), 100);
+            }
+        }
         fetchData();
-    }, []);
+    }, [searchParams]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -57,6 +77,13 @@ export default function AdminDashboard() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const getFilteredData = (data: any[]) => {
+        if (filterMode === 'mine' && user) {
+            return data.filter(item => item.createdBy === user.uid);
+        }
+        return data;
     };
 
     const toggleRow = (pkgId: string, currentDriverId: string, currentVehicleId: string = '') => {
@@ -171,7 +198,10 @@ export default function AdminDashboard() {
                     ].map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
+                            onClick={() => {
+                                setActiveTab(tab.id);
+                                router.push(`/admin?tab=${tab.id}`, { scroll: false });
+                            }}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -191,9 +221,41 @@ export default function AdminDashboard() {
                     ))}
                 </div>
 
-                <button className="btn btn-primary" onClick={() => openModal(activeTab as any, 'create')}>
-                    <Plus size={18} /> {t('create')} {activeTab === 'packages' ? 'Paquete' : activeTab === 'vehicles' ? 'Vehículo' : activeTab === 'drivers' ? 'Conductor' : 'Almacén'}
-                </button>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    {/* Filter Toggle */}
+                    <div style={{ display: 'flex', background: 'var(--card-bg)', borderRadius: '0.5rem', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                        <button
+                            onClick={() => setFilterMode('all')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                border: 'none',
+                                background: filterMode === 'all' ? 'var(--secondary-bg)' : 'transparent',
+                                color: filterMode === 'all' ? 'var(--foreground)' : 'var(--secondary)',
+                                cursor: 'pointer',
+                                fontWeight: filterMode === 'all' ? '600' : '400'
+                            }}
+                        >
+                            Todos
+                        </button>
+                        <button
+                            onClick={() => setFilterMode('mine')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                border: 'none',
+                                background: filterMode === 'mine' ? 'var(--secondary-bg)' : 'transparent',
+                                color: filterMode === 'mine' ? 'var(--foreground)' : 'var(--secondary)',
+                                cursor: 'pointer',
+                                fontWeight: filterMode === 'mine' ? '600' : '400'
+                            }}
+                        >
+                            Mis Items
+                        </button>
+                    </div>
+
+                    <button className="btn btn-primary" onClick={() => openModal(activeTab as any, 'create')}>
+                        <Plus size={18} /> {t('create')} {activeTab === 'packages' ? 'Paquete' : activeTab === 'vehicles' ? 'Vehículo' : activeTab === 'drivers' ? 'Conductor' : 'Almacén'}
+                    </button>
+                </div>
             </div>
 
             {/* Content Area */}
@@ -210,7 +272,7 @@ export default function AdminDashboard() {
                             </tr>
                         </thead>
                         <tbody>
-                            {packages.map((pkg: any) => {
+                            {getFilteredData(packages).map((pkg: any) => {
                                 const currentDelivery = pkg.deliveries?.[0];
                                 const status = currentDelivery?.status || 'PENDING';
                                 const driver = currentDelivery?.driver;
@@ -272,7 +334,7 @@ export default function AdminDashboard() {
                                                                         value={assignmentState.vehicleId}
                                                                         onChange={(e) => setAssignmentState(prev => ({ ...prev, vehicleId: e.target.value }))}
                                                                     >
-                                                                        <option value="">Seleccionar Vehículo...</option>
+                                                                        <option key="default-vehicle" value="">Seleccionar Vehículo...</option>
                                                                         {vehicles.map((v: any) => (
                                                                             <option key={v.id} value={v.id}>{v.name} - {v.plate}</option>
                                                                         ))}
@@ -334,7 +396,7 @@ export default function AdminDashboard() {
                             </tr>
                         </thead>
                         <tbody>
-                            {vehicles.map((v: any) => (
+                            {getFilteredData(vehicles).map((v: any) => (
                                 <tr key={v.id}>
                                     <td>{v.name}</td>
                                     <td>{v.plate}</td>
@@ -366,7 +428,7 @@ export default function AdminDashboard() {
                             </tr>
                         </thead>
                         <tbody>
-                            {drivers.map((d: any) => (
+                            {getFilteredData(drivers).map((d: any) => (
                                 <tr key={d.id}>
                                     <td>{d.name}</td>
                                     <td>{d.phone}</td>
@@ -397,7 +459,7 @@ export default function AdminDashboard() {
                             </tr>
                         </thead>
                         <tbody>
-                            {warehouses.map((w: any) => (
+                            {getFilteredData(warehouses).map((w: any) => (
                                 <tr key={w.id}>
                                     <td>{w.name}</td>
                                     <td>{w.location || 'N/A'}</td>
@@ -419,7 +481,7 @@ export default function AdminDashboard() {
 
 
             {/* Modal */}
-            < Modal
+            <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title={`${modalMode === 'create' ? t('create') : t('edit')} ${itemType === 'package' ? t('packages') : itemType === 'vehicle' ? t('vehicles') : itemType === 'driver' ? t('drivers') : t('warehouses')}`}
@@ -537,7 +599,15 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 </form>
-            </Modal >
-        </div >
+            </Modal>
+        </div>
+    );
+}
+
+export default function AdminDashboard() {
+    return (
+        <Suspense fallback={<div className="container" style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</div>}>
+            <AdminContent />
+        </Suspense>
     );
 }

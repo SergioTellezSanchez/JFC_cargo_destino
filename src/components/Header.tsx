@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
 import { useUser } from '@/lib/UserContext';
+import { ArrowLeft, LogOut, Globe } from 'lucide-react';
 
 export default function Header() {
     const pathname = usePathname();
@@ -19,7 +20,7 @@ export default function Header() {
             background: 'var(--card-bg)',
             backdropFilter: 'blur(12px)',
             borderBottom: '1px solid var(--border)',
-            padding: '1rem',
+            padding: '0.75rem 1rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -27,62 +28,83 @@ export default function Header() {
             top: 0,
             zIndex: 100,
             boxShadow: 'var(--shadow-sm)',
-            flexWrap: 'wrap',
-            gap: '0.5rem'
+            height: '70px'
         }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {!isHome && (
                     <button
                         onClick={() => router.push('/')}
-                        className="btn"
+                        className="btn-icon"
                         style={{
                             padding: '0.5rem',
-                            background: 'transparent',
+                            background: 'var(--secondary-bg)',
                             color: 'var(--foreground)',
-                            fontSize: '1.2rem',
-                            border: '1px solid var(--border)',
+                            borderRadius: '50%',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            height: '40px',
-                            width: '40px'
+                            border: 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
                         }}
                         aria-label="Go back"
                     >
-                        ←
+                        <ArrowLeft size={20} />
                     </button>
                 )}
                 <img
                     src="/jfc_carg-_destino_logo.png"
                     alt="JFC Cargo Destino"
-                    style={{ height: '60px', width: 'auto' }}
+                    style={{ height: '45px', width: 'auto', objectFit: 'contain' }}
                 />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
 
                 <button
-                    className="btn"
+                    className="btn-ghost"
                     style={{
-                        background: 'var(--card-bg)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem',
+                        borderRadius: '0.5rem',
                         border: '1px solid var(--border)',
-                        color: 'var(--foreground)',
-                        fontSize: '0.9rem',
-                        padding: '0.5rem 1rem'
+                        background: 'transparent',
+                        cursor: 'pointer'
                     }}
                     onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
                 >
-                    {language === 'es' ? '🇬🇧 EN' : '🇪🇸 ES'}
+                    <Globe size={18} />
+                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{language.toUpperCase()}</span>
                 </button>
 
                 <button
                     className="btn btn-secondary"
-                    style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                    style={{
+                        padding: '0.5rem',
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
                     onClick={logout}
+                    title="Cerrar Sesión"
                 >
-                    Cerrar Sesión
+                    <LogOut size={18} />
+                    <span className="hide-mobile">Salir</span>
                 </button>
             </div>
+            <style jsx>{`
+                @media (max-width: 480px) {
+                    .hide-mobile {
+                        display: none;
+                    }
+                }
+                .btn-icon:hover {
+                    background: var(--border) !important;
+                }
+            `}</style>
         </header>
     );
 }

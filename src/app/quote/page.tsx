@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Calculator, MapPin, Package, DollarSign, ArrowRight } from 'lucide-react';
 
 export default function QuotePage() {
@@ -13,19 +14,38 @@ export default function QuotePage() {
         height: '',
         type: 'BOX'
     });
-    const [quote, setQuote] = useState<number | null>(null);
+    const [breakdown, setBreakdown] = useState<{
+        base: number;
+        weightCost: number;
+        volumeCost: number;
+        distanceCost: number;
+        total: number;
+    } | null>(null);
+
+    const router = useRouter();
 
     const calculateQuote = (e: React.FormEvent) => {
         e.preventDefault();
-        // Mock calculation logic
-        // Base price $50 + $10 per kg + $0.5 per cm3 (mock)
-        const weightCost = Number(formData.weight) * 10;
-        const volume = (Number(formData.length) * Number(formData.width) * Number(formData.height)) / 5000; // Volumetric weight
-        const volumeCost = volume * 5;
-        const distanceCost = 150; // Mock distance cost
 
-        const total = 50 + Math.max(weightCost, volumeCost) + distanceCost;
-        setQuote(Math.round(total * 100) / 100);
+        const base = 50;
+        const weightCost = Number(formData.weight) * 10;
+        const volume = (Number(formData.length) * Number(formData.width) * Number(formData.height)) / 5000;
+        const volumeCost = volume * 500; // Adjusted for realism
+        const distanceCost = 150;
+
+        const total = base + Math.max(weightCost, volumeCost) + distanceCost;
+
+        setBreakdown({
+            base,
+            weightCost,
+            volumeCost,
+            distanceCost,
+            total: Math.round(total * 100) / 100
+        });
+    };
+
+    const handleContinue = () => {
+        router.push('/admin?tab=packages&modal=create');
     };
 
     const isValid = Object.values(formData).every(value => value !== '');
@@ -154,19 +174,45 @@ export default function QuotePage() {
                     </button>
                 </form>
 
-                {quote !== null && (
+                {breakdown && (
                     <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--secondary-bg)', borderRadius: '0.5rem', border: '1px solid var(--accent)' }}>
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center', color: 'var(--primary)' }}>
-                            Costo Estimado
+                            Desglose de Costos
                         </h2>
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent)' }}>
-                            <DollarSign size={32} /> {quote.toFixed(2)} MXN
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Tarifa Base:</span>
+                                <span>${breakdown.base.toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Costo por Peso:</span>
+                                <span>${breakdown.weightCost.toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Costo Volumétrico:</span>
+                                <span>${breakdown.volumeCost.toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Distancia (Est.):</span>
+                                <span>${breakdown.distanceCost.toFixed(2)}</span>
+                            </div>
+                            <div style={{ borderTop: '1px solid var(--border)', margin: '0.5rem 0' }}></div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                                <span>Total Estimado:</span>
+                                <span style={{ color: 'var(--success)' }}>${breakdown.total.toFixed(2)} MXN</span>
+                            </div>
                         </div>
-                        <p style={{ textAlign: 'center', color: 'var(--secondary)', marginTop: '0.5rem' }}>
+
+                        <p style={{ textAlign: 'center', color: 'var(--secondary)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
                             *El precio final puede variar según condiciones específicas.
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
-                            <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <button
+                                className="btn btn-primary"
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                onClick={handleContinue}
+                            >
                                 Continuar con el Envío <ArrowRight size={20} />
                             </button>
                         </div>
