@@ -1,15 +1,15 @@
-
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
-
+import { useUser } from '@/lib/UserContext';
 
 export default function Header() {
     const pathname = usePathname();
     const router = useRouter();
     const { language, setLanguage } = useLanguage();
+    const { logout } = useUser();
     const t = useTranslation(language);
 
     const isHome = pathname === '/';
@@ -55,7 +55,7 @@ export default function Header() {
                 <img
                     src="/jfc_carg-_destino_logo.png"
                     alt="JFC Cargo Destino"
-                    style={{ height: '40px', width: 'auto' }}
+                    style={{ height: '60px', width: 'auto' }}
                 />
             </div>
 
@@ -73,6 +73,14 @@ export default function Header() {
                     onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
                 >
                     {language === 'es' ? '🇬🇧 EN' : '🇪🇸 ES'}
+                </button>
+
+                <button
+                    className="btn btn-secondary"
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                    onClick={logout}
+                >
+                    Cerrar Sesión
                 </button>
             </div>
         </header>

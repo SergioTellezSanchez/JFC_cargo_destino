@@ -1,13 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Truck, Package, Users, Warehouse, Settings, FileText, ShieldCheck, LogIn, LogOut } from 'lucide-react';
+import { Truck, Package, Users, Warehouse, Settings, FileText, ShieldCheck } from 'lucide-react';
 import { useUser } from '@/lib/UserContext';
-import { useEffect, useState } from 'react';
 
 export default function Dashboard() {
     const router = useRouter();
-    const { user, loading, loginWithGoogle, logout, isAdmin } = useUser();
+    const { user, loading, loginWithGoogle, isAdmin } = useUser();
 
     if (loading) {
         return (
@@ -27,7 +26,7 @@ export default function Dashboard() {
                         <img
                             src="/jfc_carg-_destino_logo.png"
                             alt="JFC Cargo Destino"
-                            style={{ height: '120px', width: 'auto' }}
+                            style={{ height: '180px', width: 'auto' }}
                         />
                     </div>
                 </div>
@@ -75,9 +74,6 @@ export default function Dashboard() {
                         Bienvenido, {user.name}
                     </p>
                 </div>
-                <button onClick={logout} className="btn btn-secondary">
-                    <LogOut size={18} /> Cerrar Sesión
-                </button>
             </div>
 
             {/* Modules Grid */}

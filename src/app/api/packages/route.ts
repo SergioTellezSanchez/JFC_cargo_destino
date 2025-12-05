@@ -55,7 +55,8 @@ export async function POST(request: Request) {
             leaveWithSecurity: leaveWithSecurity || false,
             storageStatus: 'NONE',
             createdAt: new Date().toISOString(),
-            status: 'PENDING'
+            status: 'PENDING',
+            createdBy: body.createdBy || null
         };
 
         const docRef = await adminDb.collection('packages').add(newPackage);

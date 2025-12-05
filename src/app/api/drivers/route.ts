@@ -25,7 +25,8 @@ export async function POST(request: Request) {
             phone,
             licenseNumber,
             role: 'DRIVER',
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            createdBy: body.createdBy || null
         };
 
         const docRef = await adminDb.collection('users').add(newDriver);
