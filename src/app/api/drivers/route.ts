@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import { mockData } from '@/lib/mockData';
 
 export async function GET() {
-    const drivers = await prisma.user.findMany({
-        where: {
-            role: 'DRIVER',
-        },
-    });
-    return NextResponse.json(drivers);
+    try {
+        const drivers = await prisma.user.findMany({
+            where: {
+                role: 'DRIVER',
+            },
+        });
+        return NextResponse.json(drivers);
+    } catch (error) {
+        console.warn('Database failed, returning mock drivers');
+        return NextResponse.json(mockData.users.filter(u => u.role === 'DRIVER'));
+    }
 }
 
 export async function POST(request: Request) {

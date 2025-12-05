@@ -18,59 +18,71 @@ export default function Dashboard() {
         }
     };
 
-    return (
-        <main className="container" style={{ minHeight: '90vh', padding: '2rem' }}>
-            {/* Header & Welcome */}
-            <div style={{ marginBottom: '3rem', textAlign: 'center' }}>
-                <h1 className="text-gradient" style={{ fontSize: '3rem', fontWeight: '800', marginBottom: '1rem' }}>
-                    JFC Cargo Destino
-                </h1>
-                <p style={{ fontSize: '1.2rem', color: 'var(--secondary)' }}>
-                    Plataforma Integral de Logística y Transporte
-                </p>
-            </div>
+    if (!user) {
+        return (
+            <main className="container" style={{ minHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                    <h1 className="text-gradient" style={{ fontSize: '3.5rem', fontWeight: '800', marginBottom: '1rem' }}>
+                        JFC Cargo Destino
+                    </h1>
+                    <p style={{ fontSize: '1.5rem', color: 'var(--secondary)' }}>
+                        Plataforma Integral de Logística y Transporte
+                    </p>
+                </div>
 
-            {/* User Session / Login Demo */}
-            <div className="card" style={{ marginBottom: '3rem', maxWidth: '600px', margin: '0 auto 3rem auto' }}>
-                {!user ? (
-                    <div>
-                        <h3 style={{ marginBottom: '1rem', fontWeight: 'bold' }}>Iniciar Sesión (Demo)</h3>
-                        <form onSubmit={handleLogin} style={{ display: 'flex', gap: '1rem' }}>
+                <div className="card" style={{ width: '100%', maxWidth: '450px', padding: '2.5rem' }}>
+                    <h3 style={{ marginBottom: '2rem', fontWeight: 'bold', fontSize: '1.5rem', textAlign: 'center' }}>Iniciar Sesión</h3>
+                    <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Correo Electrónico</label>
                             <input
                                 type="email"
-                                placeholder="Ingresa tu correo..."
+                                placeholder="ej. usuario@jfc.com"
                                 className="input"
                                 value={emailInput}
                                 onChange={(e) => setEmailInput(e.target.value)}
-                                style={{ flex: 1 }}
+                                style={{ width: '100%' }}
                             />
-                            <button type="submit" className="btn btn-primary">
-                                <LogIn size={18} /> Entrar
-                            </button>
-                        </form>
-                        <div style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'var(--secondary)' }}>
-                            <p><strong>Admin:</strong> sergiotellezsanchez@gmail.com</p>
-                            <p><strong>Usuario:</strong> Cualquier otro correo</p>
                         </div>
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <div style={{ fontSize: '0.9rem', color: 'var(--secondary)' }}>Bienvenido,</div>
-                            <div style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{user.name}</div>
-                            <div className={`badge ${isAdmin ? 'badge-assigned' : 'badge-pending'}`} style={{ marginTop: '0.5rem', display: 'inline-block' }}>
-                                {user.role}
-                            </div>
-                        </div>
-                        <button onClick={logout} className="btn btn-secondary">
-                            <LogOut size={18} /> Salir
+                        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}>
+                            <LogIn size={20} /> Acceder a la Plataforma
                         </button>
+                    </form>
+                    <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)', fontSize: '0.9rem', color: 'var(--secondary)' }}>
+                        <p style={{ marginBottom: '0.5rem' }}><strong>Credenciales Demo:</strong></p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <span>Admin:</span>
+                            <code style={{ background: 'var(--secondary-bg)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>sergiotellezsanchez@gmail.com</code>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Usuario:</span>
+                            <code style={{ background: 'var(--secondary-bg)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>Cualquier otro correo</code>
+                        </div>
                     </div>
-                )}
+                </div>
+            </main>
+        );
+    }
+
+    return (
+        <main className="container" style={{ minHeight: '90vh', padding: '2rem' }}>
+            {/* Header & Welcome */}
+            <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                    <h1 className="text-gradient" style={{ fontSize: '2.5rem', fontWeight: '800' }}>
+                        Panel de Control
+                    </h1>
+                    <p style={{ fontSize: '1.1rem', color: 'var(--secondary)' }}>
+                        Bienvenido, {user.name}
+                    </p>
+                </div>
+                <button onClick={logout} className="btn btn-secondary">
+                    <LogOut size={18} /> Cerrar Sesión
+                </button>
             </div>
 
             {/* Modules Grid */}
-            <div className="responsive-grid">
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                 {/* Cotizador - Public */}
                 <ModuleCard
                     title="Cotizar Envío"
@@ -85,7 +97,7 @@ export default function Dashboard() {
                     title="Rastrear Paquete"
                     description="Consulta el estatus en tiempo real de tu carga."
                     icon={<Package size={32} />}
-                    onClick={() => router.push('/tracking')} // Assuming tracking page exists or will be created
+                    onClick={() => router.push('/tracking')}
                     color="var(--accent)"
                 />
 
@@ -103,7 +115,7 @@ export default function Dashboard() {
                     title="Conductores"
                     description={isAdmin ? "Administra el personal operativo." : "Únete a nuestro equipo de conductores."}
                     icon={<Users size={32} />}
-                    onClick={() => router.push('/drivers')} // Check if this route exists for listing
+                    onClick={() => router.push('/drivers')}
                     color="var(--secondary)"
                 />
 
