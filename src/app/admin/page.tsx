@@ -11,8 +11,8 @@ export default function AdminDashboard() {
     const { language } = useLanguage();
     const t = useTranslation(language);
 
-    const [packages, setPackages] = useState([]);
-    const [drivers, setDrivers] = useState([]);
+    const [packages, setPackages] = useState<any[]>([]);
+    const [drivers, setDrivers] = useState<any[]>([]);
 
     interface Vehicle {
         id: string;
@@ -48,10 +48,21 @@ export default function AdminDashboard() {
                 fetch('/api/packages'),
                 fetch('/api/drivers')
             ]);
-            const packagesData = await packagesRes.json();
-            const driversData = await driversRes.json();
-            setPackages(packagesData);
-            setDrivers(driversData);
+
+            if (packagesRes.ok) {
+                const packagesData = await packagesRes.json();
+                setPackages(Array.isArray(packagesData) ? packagesData : []);
+            } else {
+                console.error('Failed to fetch packages');
+            }
+
+            if (driversRes.ok) {
+                const driversData = await driversRes.json();
+                setDrivers(Array.isArray(driversData) ? driversData : []);
+            } else {
+                console.error('Failed to fetch drivers');
+            }
+
             setLoading(false);
         } catch (error) {
             console.error('Error fetching data:', error);
