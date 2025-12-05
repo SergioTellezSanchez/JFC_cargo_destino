@@ -23,12 +23,13 @@ export default function Dashboard() {
         return (
             <main className="container" style={{ minHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                    <h1 className="text-gradient" style={{ fontSize: '3.5rem', fontWeight: '800', marginBottom: '1rem' }}>
-                        JFC Cargo Destino
-                    </h1>
-                    <p style={{ fontSize: '1.5rem', color: 'var(--secondary)' }}>
-                        Plataforma Integral de Logística y Transporte
-                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                        <img
+                            src="/jfc_carg-_destino_logo.png"
+                            alt="JFC Cargo Destino"
+                            style={{ height: '120px', width: 'auto' }}
+                        />
+                    </div>
                 </div>
 
                 <div className="card" style={{ width: '100%', maxWidth: '450px', padding: '2.5rem', textAlign: 'center' }}>

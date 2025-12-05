@@ -52,9 +52,11 @@ export default function Header() {
                         ←
                     </button>
                 )}
-                <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.025em' }}>
-                    JFC <span style={{ color: 'var(--accent)' }}>Cargo Destino</span>
-                </h1>
+                <img
+                    src="/jfc_carg-_destino_logo.png"
+                    alt="JFC Cargo Destino"
+                    style={{ height: '40px', width: 'auto' }}
+                />
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
