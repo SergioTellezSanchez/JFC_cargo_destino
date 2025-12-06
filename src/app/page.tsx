@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Truck, Package, Users, Warehouse, Settings, FileText, ShieldCheck } from 'lucide-react';
+import { Truck, Package, Users, Warehouse, Settings, FileText, ShieldCheck, History } from 'lucide-react';
 import { useUser } from '@/lib/UserContext';
 
 import { useLanguage } from '@/lib/LanguageContext';
@@ -92,7 +92,7 @@ export default function Dashboard() {
                     description={t('quoteDesc')}
                     icon={<FileText size={32} color="white" />}
                     onClick={() => router.push('/quote')}
-                    gradient="linear-gradient(135deg, #FF6B6B 0%, #EE5D5D 100%)"
+                    gradient="linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)"
                 />
 
                 {/* Rastrear */}
@@ -101,16 +101,16 @@ export default function Dashboard() {
                     description={t('trackDesc')}
                     icon={<Package size={32} color="white" />}
                     onClick={() => router.push('/tracking')}
-                    gradient="linear-gradient(135deg, #4FACFE 0%, #00F2FE 100%)"
+                    gradient="linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%)"
                 />
 
                 {/* Mis Servicios (New) */}
                 <ModuleCard
                     title={t('myServices')}
                     description="Gestiona tus paquetes y consulta tu historial de envíos."
-                    icon={<ShieldCheck size={32} color="white" />}
+                    icon={<History size={32} color="white" />}
                     onClick={() => router.push('/admin?tab=packages&filter=mine')}
-                    gradient="linear-gradient(135deg, #667EEA 0%, #764BA2 100%)"
+                    gradient="linear-gradient(135deg, var(--accent) 0%, #c5a059 100%)"
                 />
             </div>
 
@@ -125,7 +125,7 @@ export default function Dashboard() {
                     description={t('fleetDesc')}
                     icon={<Truck size={32} color="white" />}
                     onClick={() => router.push('/vehicles')}
-                    gradient="linear-gradient(135deg, #43E97B 0%, #38F9D7 100%)"
+                    gradient="linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)"
                 />
 
                 {/* Conductores */}
@@ -134,7 +134,7 @@ export default function Dashboard() {
                     description={t('driversDesc')}
                     icon={<Users size={32} color="white" />}
                     onClick={() => router.push('/drivers')}
-                    gradient="linear-gradient(135deg, #FA709A 0%, #FEE140 100%)"
+                    gradient="linear-gradient(135deg, var(--secondary) 0%, var(--primary-hover) 100%)"
                 />
 
                 {/* Almacenes */}
@@ -143,7 +143,7 @@ export default function Dashboard() {
                     description={t('warehousesDesc')}
                     icon={<Warehouse size={32} color="white" />}
                     onClick={() => router.push('/storage')}
-                    gradient="linear-gradient(135deg, #F83600 0%, #F9D423 100%)"
+                    gradient="linear-gradient(135deg, var(--accent) 0%, #c5a059 100%)"
                 />
 
                 {/* Admin */}
@@ -152,7 +152,7 @@ export default function Dashboard() {
                     description={t('adminPanelDesc')}
                     icon={<Settings size={32} color="white" />}
                     onClick={() => router.push('/admin')}
-                    gradient="linear-gradient(135deg, #30CFD0 0%, #330867 100%)"
+                    gradient="linear-gradient(135deg, var(--foreground) 0%, #000000 100%)"
                     disabled={!isAdmin}
                     locked={!isAdmin}
                 />
