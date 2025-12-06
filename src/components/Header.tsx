@@ -55,7 +55,7 @@ export default function Header() {
                 <img
                     src="/jfc_carg-_destino_logo.png"
                     alt="JFC Cargo Destino"
-                    style={{ height: '45px', width: 'auto', objectFit: 'contain' }}
+                    className="logo"
                 />
             </div>
 
@@ -96,7 +96,16 @@ export default function Header() {
                 </button>
             </div>
             <style jsx>{`
-                @media (max-width: 480px) {
+                .logo {
+                    height: 60px;
+                    width: auto;
+                    object-fit: contain;
+                    transition: height 0.3s ease;
+                }
+                @media (max-width: 768px) {
+                    .logo {
+                        height: 40px;
+                    }
                     .hide-mobile {
                         display: none;
                     }

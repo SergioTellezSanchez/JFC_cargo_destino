@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Search, Package, MapPin, Warehouse, AlertCircle, CheckCircle } from 'lucide-react';
+import MapComponent from '@/components/MapComponent';
 
 export default function TrackingPage() {
     const [trackingId, setTrackingId] = useState('');
@@ -110,7 +111,7 @@ export default function TrackingPage() {
                     </div>
 
                     {/* Storage Section */}
-                    <div style={{ background: 'var(--secondary-bg)', padding: '1.5rem', borderRadius: '0.5rem' }}>
+                    <div style={{ background: 'var(--secondary-bg)', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '2rem' }}>
                         <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Warehouse size={20} /> Estatus de Almacenaje
                         </h3>
@@ -129,6 +130,19 @@ export default function TrackingPage() {
                                     Solicitar Almacenaje
                                 </button>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Map Section */}
+                    <div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <MapPin size={20} /> Ubicación en Tiempo Real
+                        </h3>
+                        <div style={{ height: '400px', width: '100%', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                            <MapComponent
+                                center={packageData.latitude && packageData.longitude ? { lat: packageData.latitude, lng: packageData.longitude } : undefined}
+                                markers={packageData.latitude && packageData.longitude ? [{ lat: packageData.latitude, lng: packageData.longitude, title: 'Paquete' }] : []}
+                            />
                         </div>
                     </div>
                 </div>
