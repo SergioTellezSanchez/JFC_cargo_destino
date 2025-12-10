@@ -38,6 +38,13 @@ export default function QuotePage() {
     // Calculation State
     const [distanceKm, setDistanceKm] = useState(0);
     const [quotePrice, setQuotePrice] = useState(0);
+    const [quoteDetails, setQuoteDetails] = useState<{
+        base: number;
+        distance: number;
+        weight: number;
+        serviceMultiplier: number;
+        serviceFee: number;
+    } | null>(null);
     const [calculated, setCalculated] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -70,8 +77,16 @@ export default function QuotePage() {
             const weightCost = weight * 5;
             const subtotal = baseRate + distanceCost + weightCost;
             const multiplier = serviceLevel === 'express' ? 1.5 : 1.0;
+            const finalPrice = subtotal * multiplier;
 
-            setQuotePrice(subtotal * multiplier);
+            setQuoteDetails({
+                base: baseRate,
+                distance: distanceCost,
+                weight: weightCost,
+                serviceMultiplier: multiplier,
+                serviceFee: finalPrice - subtotal
+            });
+            setQuotePrice(finalPrice);
             setCalculated(true);
             setLoading(false);
         }, 800);
@@ -128,11 +143,11 @@ export default function QuotePage() {
                     <div className="space-y-6">
                         {/* 1. Ruta */}
                         <div className="card">
-                            <h2 className="text-xl font-semibold mb-4 text-[#1f4a5e] flex items-center gap-2">
-                                <span className="bg-[#1f4a5e] text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
-                                Ruta
+                            <h2 className="text-xl font-semibold mb-6 text-[#1f4a5e] flex items-center gap-3">
+                                <span className="bg-[#1f4a5e] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-sm">1</span>
+                                Ruta del Envío
                             </h2>
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Origen</label>
                                     <PlaceAutocomplete
@@ -154,11 +169,11 @@ export default function QuotePage() {
 
                         {/* 2. Detalles del Paquete */}
                         <div className="card">
-                            <h2 className="text-xl font-semibold mb-4 text-[#1f4a5e] flex items-center gap-2">
-                                <span className="bg-[#1f4a5e] text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
-                                Paquete
+                            <h2 className="text-xl font-semibold mb-6 text-[#1f4a5e] flex items-center gap-3">
+                                <span className="bg-[#1f4a5e] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-sm">2</span>
+                                Detalles del Paquete
                             </h2>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
                                     <input
@@ -184,34 +199,34 @@ export default function QuotePage() {
 
                         {/* 3. Nivel de Servicio */}
                         <div className="card">
-                            <h2 className="text-xl font-semibold mb-4 text-[#1f4a5e] flex items-center gap-2">
-                                <span className="bg-[#1f4a5e] text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">3</span>
+                            <h2 className="text-xl font-semibold mb-6 text-[#1f4a5e] flex items-center gap-3">
+                                <span className="bg-[#1f4a5e] text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold shadow-sm">3</span>
                                 Tipo de Servicio
                             </h2>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4 h-full">
                                 <button
-                                    className={`p-4 border rounded-lg text-left transition-all ${serviceLevel === 'standard' ? 'border-[#1f4a5e] bg-[#f0f9ff] ring-2 ring-[#1f4a5e]' : 'hover:bg-gray-50'}`}
+                                    className={`p-6 border rounded-xl text-left transition-all h-full flex flex-col justify-between ${serviceLevel === 'standard' ? 'border-[#1f4a5e] bg-[#f0f9ff] ring-2 ring-[#1f4a5e] shadow-md' : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}
                                     onClick={() => setServiceLevel('standard')}
                                 >
-                                    <div className="font-bold text-[#1f4a5e]">Estándar</div>
-                                    <div className="text-sm text-gray-500">Entrega en 1-2 días</div>
+                                    <div className="font-bold text-lg text-[#1f4a5e] mb-2">Estándar</div>
+                                    <div className="text-sm text-gray-500">Entrega en 1-2 días<br /><span className="text-xs opacity-75">Tarifa Normal</span></div>
                                 </button>
                                 <button
-                                    className={`p-4 border rounded-lg text-left transition-all ${serviceLevel === 'express' ? 'border-[#1f4a5e] bg-[#f0f9ff] ring-2 ring-[#1f4a5e]' : 'hover:bg-gray-50'}`}
+                                    className={`p-6 border rounded-xl text-left transition-all h-full flex flex-col justify-between ${serviceLevel === 'express' ? 'border-[#1f4a5e] bg-[#f0f9ff] ring-2 ring-[#1f4a5e] shadow-md' : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}
                                     onClick={() => setServiceLevel('express')}
                                 >
-                                    <div className="font-bold text-[#1f4a5e]">Express ⚡</div>
-                                    <div className="text-sm text-gray-500">Entrega hoy mismo</div>
+                                    <div className="font-bold text-lg text-[#1f4a5e] mb-2">Express ⚡</div>
+                                    <div className="text-sm text-gray-500">Entrega hoy mismo<br /><span className="text-xs text-yellow-600 font-semibold">+50% Tarifa</span></div>
                                 </button>
                             </div>
                         </div>
 
                         <button
-                            className="btn btn-primary w-full text-lg py-3 shadow-lg"
+                            className="btn btn-primary w-full text-xl py-4 shadow-lg hover:shadow-xl transform transition-all active:scale-[0.98] font-bold tracking-wide"
                             onClick={handleCalculate}
                             disabled={loading || !origin || !destination}
                         >
-                            {loading ? 'Calculando...' : 'Cotizar Ahora'}
+                            {loading ? 'Calculando...' : 'COTIZAR AHORA'}
                         </button>
                     </div>
 
@@ -233,23 +248,43 @@ export default function QuotePage() {
                             />
                         </div>
 
-                        {calculated && (
-                            <div className="card bg-[#1f4a5e] text-white animate-in slide-in-from-bottom-4 fade-in duration-500">
-                                <div className="flex justify-between items-center mb-4">
-                                    <div>
-                                        <h3 className="text-lg font-light opacity-90">Total Estimado</h3>
-                                        <div className="text-4xl font-bold">{formatCurrency(quotePrice)}</div>
-                                        <p className="text-sm opacity-80 mt-1">
-                                            {serviceLevel === 'express' ? 'Servicio Express (Incluye prioridad)' : 'Servicio Estándar'}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-3xl">📦</div>
+                        {calculated && quoteDetails && (
+                            <div className="card bg-[#1f4a5e] text-white animate-in slide-in-from-bottom-4 fade-in duration-500 shadow-xl">
+                                <div className="mb-6">
+                                    <h3 className="text-lg font-light opacity-90 mb-4 border-b border-white/20 pb-2">Desglose de Cotización</h3>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="opacity-80">Tarifa Base</span>
+                                            <span>{formatCurrency(quoteDetails.base)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="opacity-80">Distancia ({distanceKm.toFixed(1)} km)</span>
+                                            <span>{formatCurrency(quoteDetails.distance)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="opacity-80">Peso ({weight} kg)</span>
+                                            <span>{formatCurrency(quoteDetails.weight)}</span>
+                                        </div>
+                                        {quoteDetails.serviceFee > 0 && (
+                                            <div className="flex justify-between text-yellow-300">
+                                                <span>Servicio Express (+50%)</span>
+                                                <span>{formatCurrency(quoteDetails.serviceFee)}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                                <hr className="border-white/20 mb-4" />
+
+                                <div className="flex justify-between items-center mb-6 pt-4 border-t border-white/20">
+                                    <div>
+                                        <h3 className="text-sm font-semibold uppercase tracking-wider opacity-70">Total a Pagar</h3>
+                                        <div className="text-4xl font-bold">{formatCurrency(quotePrice)}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-4xl">📦</div>
+                                    </div>
+                                </div>
                                 <button
-                                    className="w-full bg-white text-[#1f4a5e] font-bold py-3 rounded-lg hover:bg-gray-100 transition shadow-lg"
+                                    className="w-full bg-white text-[#1f4a5e] font-bold py-4 rounded-lg hover:bg-gray-100 transition shadow-lg text-lg uppercase tracking-wide"
                                     onClick={() => setShowModal(true)}
                                 >
                                     Generar Envío
