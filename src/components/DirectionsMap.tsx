@@ -7,7 +7,9 @@ interface DirectionsMapProps {
     onDistanceCalculated?: (distanceKm: number) => void;
 }
 
-export default function DirectionsMap({ origin, destination, onDistanceCalculated }: DirectionsMapProps) {
+import { MapMouseEvent } from '@vis.gl/react-google-maps';
+
+export default function DirectionsMap({ origin, destination, onDistanceCalculated, onMapClick }: DirectionsMapProps & { onMapClick?: (e: MapMouseEvent) => void }) {
     const map = useMap();
     const routesLibrary = useMapsLibrary('routes');
     const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
@@ -62,6 +64,7 @@ export default function DirectionsMap({ origin, destination, onDistanceCalculate
             mapId="QUOTE_MAP"
             style={{ width: '100%', height: '100%' }}
             disableDefaultUI={true}
+            onClick={onMapClick}
         />
     );
 }
