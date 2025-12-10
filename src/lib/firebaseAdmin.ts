@@ -35,9 +35,11 @@ let adminAuth: admin.auth.Auth;
 try {
     adminDb = admin.firestore();
     adminAuth = admin.auth();
-} catch (e) {
+} catch (_e) {
     console.warn('Firebase Admin services not available');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     adminDb = {} as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     adminAuth = {} as any;
 }
 

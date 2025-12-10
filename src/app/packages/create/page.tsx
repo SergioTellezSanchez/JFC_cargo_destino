@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { authenticatedFetch } from '@/lib/api';
 
 export default function CreatePackagePage() {
     const router = useRouter();
@@ -30,8 +31,8 @@ export default function CreatePackagePage() {
     useEffect(() => {
         const init = async () => {
             const [vehiclesRes, driversRes] = await Promise.all([
-                fetch('/api/vehicles'),
-                fetch('/api/drivers')
+                authenticatedFetch('/api/vehicles'),
+                authenticatedFetch('/api/drivers')
             ]);
             const vehicles = await vehiclesRes.json();
             const drivers = await driversRes.json();
@@ -66,7 +67,7 @@ export default function CreatePackagePage() {
         e.preventDefault();
         setLoading(true);
         try {
-            await fetch('/api/packages', {
+            await authenticatedFetch('/api/packages', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)

@@ -114,6 +114,7 @@ export const translations = {
         distanceCost: 'Distancia (Est.)',
         totalEstimated: 'Total Estimado',
         continueShipping: 'Continuar con el Envío',
+        loginRequired: 'Debes iniciar sesión para continuar',
     },
     en: {
         // Home
@@ -228,6 +229,7 @@ export const translations = {
         distanceCost: 'Distance (Est.)',
         totalEstimated: 'Total Estimated',
         continueShipping: 'Continue Shipping',
+        loginRequired: 'You must log in to continue',
     },
 };
 

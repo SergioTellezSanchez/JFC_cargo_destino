@@ -9,6 +9,7 @@ import { useTranslation } from '@/lib/i18n';
 import { useUser } from '@/lib/UserContext';
 import WorldClock from '@/components/WorldClock';
 import Modal from '@/components/Modal';
+import { authenticatedFetch } from '@/lib/api';
 
 function AdminContent() {
     const { language } = useLanguage();
@@ -64,10 +65,10 @@ function AdminContent() {
         setLoading(true);
         try {
             const [packagesRes, driversRes, vehiclesRes, warehousesRes] = await Promise.all([
-                fetch('/api/packages'),
-                fetch('/api/drivers'),
-                fetch('/api/vehicles'),
-                fetch('/api/storage')
+                authenticatedFetch('/api/packages'),
+                authenticatedFetch('/api/drivers'),
+                authenticatedFetch('/api/vehicles'),
+                authenticatedFetch('/api/storage')
             ]);
 
             if (packagesRes.ok) setPackages(await packagesRes.json());
@@ -104,7 +105,7 @@ function AdminContent() {
     const handleSaveAssignment = async (pkgId: string) => {
         if (assignmentState.driverId && assignmentState.vehicleId) {
             try {
-                const response = await fetch(`/api/packages/${pkgId}/assign`, {
+                const response = await authenticatedFetch(`/api/packages/${pkgId}/assign`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -140,7 +141,7 @@ function AdminContent() {
 
         try {
             const endpoint = `/api/${type === 'warehouse' ? 'storage' : type + 's'}/${id}`;
-            const response = await fetch(endpoint, {
+            const response = await authenticatedFetch(endpoint, {
                 method: 'DELETE',
             });
 
@@ -523,7 +524,7 @@ function AdminContent() {
                             data.createdBy = user.uid;
                         }
 
-                        const response = await fetch(endpoint, {
+                        const response = await authenticatedFetch(endpoint, {
                             method,
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(data),

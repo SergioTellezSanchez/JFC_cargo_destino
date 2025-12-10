@@ -1,444 +1,304 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calculator, MapPin, Package, DollarSign, ArrowRight, CheckCircle, X } from 'lucide-react';
+import { useUser } from '@/lib/UserContext';
+import { useTranslation } from '@/lib/i18n';
+import { useLanguage } from '@/lib/LanguageContext';
+import { authenticatedFetch } from '@/lib/api';
+import PlaceAutocomplete from '@/components/PlaceAutocomplete';
+import DirectionsMap from '@/components/DirectionsMap';
+import { APIProvider } from '@vis.gl/react-google-maps';
 import { formatCurrency } from '@/lib/utils';
 import Modal from '@/components/Modal';
-import { useLanguage } from '@/lib/LanguageContext';
-import { useTranslation } from '@/lib/i18n';
-import { useUser } from '@/lib/UserContext';
+
+interface LocationState {
+    address: string;
+    lat: number;
+    lng: number;
+}
 
 export default function QuotePage() {
+    const { user } = useUser();
+    const router = useRouter();
     const { language } = useLanguage();
     const t = useTranslation(language);
-    const router = useRouter();
 
-    const [formData, setFormData] = useState({
-        origin: '',
-        destination: '',
-        weight: '',
-        length: '',
-        width: '',
-        height: '',
-        type: 'BOX'
-    });
+    const [origin, setOrigin] = useState<LocationState | null>(null);
+    const [destination, setDestination] = useState<LocationState | null>(null);
 
-    const [breakdown, setBreakdown] = useState<{
-        base: number;
-        weightCost: number;
-        volumeCost: number;
-        distanceCost: number;
-        total: number;
-    } | null>(null);
+    // Package Details
+    const [weight, setWeight] = useState(1);
+    const [dimensions, setDimensions] = useState({ length: 10, width: 10, height: 10 });
+    const [description, setDescription] = useState('');
 
-    // Modal & Receipt State
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isReceiptOpen, setIsReceiptOpen] = useState(false);
-    const [shippingDetails, setShippingDetails] = useState({
-        senderName: '',
-        senderPhone: '',
-        receiverName: '',
-        receiverPhone: '',
-        notes: ''
-    });
+    // Service Level
+    const [serviceLevel, setServiceLevel] = useState<'standard' | 'express'>('standard');
 
-    const calculateQuote = (e: React.FormEvent) => {
-        e.preventDefault();
+    // Calculation State
+    const [distanceKm, setDistanceKm] = useState(0);
+    const [quotePrice, setQuotePrice] = useState(0);
+    const [calculated, setCalculated] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-        const base = 50;
-        const weightCost = Number(formData.weight) * 10;
-        const volume = (Number(formData.length) * Number(formData.width) * Number(formData.height)) / 5000;
-        const volumeCost = volume * 500; // Adjusted for realism
-        const distanceCost = 150;
+    // Modal State
+    const [showModal, setShowModal] = useState(false);
+    const [recipientName, setRecipientName] = useState('');
+    const [recipientPhone, setRecipientPhone] = useState('');
 
-        const total = base + Math.max(weightCost, volumeCost) + distanceCost;
+    const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-        setBreakdown({
-            base,
-            weightCost,
-            volumeCost,
-            distanceCost,
-            total: Math.round(total * 100) / 100
-        });
+    const handleCalculate = () => {
+        if (!origin || !destination) {
+            alert('Por favor selecciona origen y destino válidos.');
+            return;
+        }
+
+        setLoading(true);
+        // Base calculation logic (mimicking backend or utilizing distance)
+        // Base rate: $50
+        // Per km: $10
+        // Per kg: $5
+        // Service Multiplier: Standard 1x, Express 1.5x
+
+        // Note: Real distance comes from the map component callback, 
+        // but we trigger a recalc here to finalize the price display.
+
+        setTimeout(() => {
+            const baseRate = 50;
+            const distanceCost = distanceKm * 10;
+            const weightCost = weight * 5;
+            const subtotal = baseRate + distanceCost + weightCost;
+            const multiplier = serviceLevel === 'express' ? 1.5 : 1.0;
+
+            setQuotePrice(subtotal * multiplier);
+            setCalculated(true);
+            setLoading(false);
+        }, 800);
     };
 
-    const handleContinue = () => {
-        setIsModalOpen(true);
-    };
-
-    const { user } = useUser();
-
-    const handleCreatePackage = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!breakdown) return;
+    const handleCreatePackage = async () => {
+        if (!user) {
+            alert(t('loginRequired'));
+            router.push('/login');
+            return;
+        }
 
         try {
-            const trackingId = 'TRK-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+            const packageData = {
+                origin: origin?.address,
+                destination: destination?.address,
+                weight,
+                dimensions: `${dimensions.length}x${dimensions.width}x${dimensions.height}`,
+                price: quotePrice,
+                description,
+                status: 'PENDING',
+                userId: user.uid,
+                recipientName,
+                recipientPhone,
+                serviceLevel, // Save service level if backend supports it (optional)
+            };
 
-            const response = await fetch('/api/packages', {
+            const res = await authenticatedFetch('/api/packages', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    trackingId,
-                    recipientName: shippingDetails.receiverName,
-                    address: formData.destination, // Mapping destination to address
-                    postalCode: formData.destination, // Mapping destination to postalCode (simplification)
-                    weight: formData.weight,
-                    size: `${formData.length}x${formData.width}x${formData.height} cm`,
-                    instructions: shippingDetails.notes,
-                    createdBy: user?.uid,
-
-                    // Enhanced fields
-                    origin: formData.origin,
-                    destination: formData.destination,
-                    senderName: shippingDetails.senderName,
-                    senderPhone: shippingDetails.senderPhone,
-                    receiverPhone: shippingDetails.receiverPhone,
-                    type: formData.type,
-                    cost: breakdown.total
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(packageData)
             });
 
-            if (response.ok) {
-                setIsModalOpen(false);
-                setIsReceiptOpen(true);
+            if (res.ok) {
+                alert('Paquete creado exitosamente');
+                router.push('/tracking');
             } else {
-                alert('Error creating package. Please try again.');
+                alert('Error al crear el paquete');
             }
         } catch (error) {
-            console.error('Error:', error);
-            alert('An error occurred.');
+            console.error(error);
+            alert('Error al conectar con el servidor');
         }
     };
 
-    const isShippingValid = Object.values(shippingDetails).every(val => val !== '') && shippingDetails.senderPhone.length >= 10;
-
-    const isValid = Object.values(formData).every(value => value !== '');
-
     return (
-        <div className="container" style={{ maxWidth: '800px', padding: '2rem' }}>
-            <h1 className="text-gradient" style={{ fontSize: '2.5rem', marginBottom: '2rem', fontWeight: 'bold', textAlign: 'center' }}>
-                {t('quoteTitle')}
-            </h1>
+        <APIProvider apiKey={API_KEY}>
+            <div className="container mx-auto p-4 min-h-screen">
+                <h1 className="text-3xl font-bold mb-2 text-gradient">Cotizar Envío</h1>
+                <p className="text-gray-500 mb-8">Calcula el costo de tu envío en segundos.</p>
 
-            <div className="card">
-                <form onSubmit={calculateQuote} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-                    {/* Locations */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                        <div style={{ flex: '1 1 300px' }}>
-                            <label className="text-sm font-medium text-gray-700" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <MapPin size={16} /> {t('origin')}
-                            </label>
-                            <input
-                                type="text"
-                                className="input"
-                                placeholder={language === 'es' ? "CP o Ciudad de Origen" : "Zip or Origin City"}
-                                required
-                                value={formData.origin}
-                                onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
-                            />
-                        </div>
-                        <div style={{ flex: '1 1 300px' }}>
-                            <label className="text-sm font-medium text-gray-700" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <MapPin size={16} /> {language === 'es' ? "Destino" : "Destination"}
-                            </label>
-                            <input
-                                type="text"
-                                className="input"
-                                placeholder={language === 'es' ? "CP o Ciudad de Destino" : "Zip or Destination City"}
-                                required
-                                value={formData.destination}
-                                onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Package Details */}
-                    <div>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Package size={20} /> {t('packageDetails')}
-                        </h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
-                            <div style={{ flex: '1 1 200px' }}>
-                                <label className="text-sm font-medium text-gray-700">{t('weight')} (kg)</label>
-                                <input
-                                    type="number"
-                                    className="input"
-                                    placeholder="0.0"
-                                    step="0.1"
-                                    required
-                                    value={formData.weight}
-                                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                                />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Left Column: Inputs */}
+                    <div className="space-y-6">
+                        {/* 1. Ruta */}
+                        <div className="card">
+                            <h2 className="text-xl font-semibold mb-4 text-[#1f4a5e] flex items-center gap-2">
+                                <span className="bg-[#1f4a5e] text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
+                                Ruta
+                            </h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Origen</label>
+                                    <PlaceAutocomplete
+                                        className="input"
+                                        placeholder="¿Dónde recolectamos?"
+                                        onPlaceSelect={setOrigin}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Destino</label>
+                                    <PlaceAutocomplete
+                                        className="input"
+                                        placeholder="¿A dónde va?"
+                                        onPlaceSelect={setDestination}
+                                    />
+                                </div>
                             </div>
-                            <div style={{ flex: '1 1 200px' }}>
-                                <label className="text-sm font-medium text-gray-700">{language === 'es' ? "Tipo" : "Type"}</label>
-                                <select
-                                    className="input"
-                                    value={formData.type}
-                                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        </div>
+
+                        {/* 2. Detalles del Paquete */}
+                        <div className="card">
+                            <h2 className="text-xl font-semibold mb-4 text-[#1f4a5e] flex items-center gap-2">
+                                <span className="bg-[#1f4a5e] text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
+                                Paquete
+                            </h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        className="input"
+                                        value={weight}
+                                        onChange={(e) => setWeight(Number(e.target.value))}
+                                    />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        placeholder="¿Qué envías?"
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3. Nivel de Servicio */}
+                        <div className="card">
+                            <h2 className="text-xl font-semibold mb-4 text-[#1f4a5e] flex items-center gap-2">
+                                <span className="bg-[#1f4a5e] text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">3</span>
+                                Tipo de Servicio
+                            </h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
+                                    className={`p-4 border rounded-lg text-left transition-all ${serviceLevel === 'standard' ? 'border-[#1f4a5e] bg-[#f0f9ff] ring-2 ring-[#1f4a5e]' : 'hover:bg-gray-50'}`}
+                                    onClick={() => setServiceLevel('standard')}
                                 >
-                                    <option value="BOX">{language === 'es' ? "Caja" : "Box"}</option>
-                                    <option value="PALLET">Pallet</option>
-                                    <option value="ENVELOPE">{language === 'es' ? "Sobre" : "Envelope"}</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                            <div style={{ flex: '1 1 150px' }}>
-                                <label className="text-sm font-medium text-gray-700">{t('length')} (cm)</label>
-                                <input
-                                    type="number"
-                                    className="input"
-                                    placeholder="0"
-                                    required
-                                    value={formData.length}
-                                    onChange={(e) => setFormData({ ...formData, length: e.target.value })}
-                                />
-                            </div>
-                            <div style={{ flex: '1 1 150px' }}>
-                                <label className="text-sm font-medium text-gray-700">{t('width')} (cm)</label>
-                                <input
-                                    type="number"
-                                    className="input"
-                                    placeholder="0"
-                                    required
-                                    value={formData.width}
-                                    onChange={(e) => setFormData({ ...formData, width: e.target.value })}
-                                />
-                            </div>
-                            <div style={{ flex: '1 1 150px' }}>
-                                <label className="text-sm font-medium text-gray-700">{t('height')} (cm)</label>
-                                <input
-                                    type="number"
-                                    className="input"
-                                    placeholder="0"
-                                    required
-                                    value={formData.height}
-                                    onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="btn"
-                        disabled={!isValid}
-                        style={{
-                            fontSize: '1.1rem',
-                            padding: '1rem',
-                            background: isValid ? 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)' : 'var(--border)',
-                            color: isValid ? 'white' : 'var(--secondary)',
-                            cursor: isValid ? 'pointer' : 'not-allowed',
-                            transition: 'all 0.3s ease'
-                        }}
-                    >
-                        <Calculator size={20} /> {t('calculate')}
-                    </button>
-                </form>
-
-                {breakdown && (
-                    <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--secondary-bg)', borderRadius: '0.5rem', border: '1px solid var(--accent)' }}>
-                        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center', color: 'var(--primary)' }}>
-                            {t('costBreakdown')}
-                        </h2>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>{t('baseRate')}:</span>
-                                <span>{formatCurrency(breakdown.base)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>{t('weightCost')}:</span>
-                                <span>{formatCurrency(breakdown.weightCost)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>{t('volumeCost')}:</span>
-                                <span>{formatCurrency(breakdown.volumeCost)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>{t('distanceCost')}:</span>
-                                <span>{formatCurrency(breakdown.distanceCost)}</span>
-                            </div>
-                            <div style={{ borderTop: '1px solid var(--border)', margin: '0.5rem 0' }}></div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                                <span>{t('totalEstimated')}:</span>
-                                <span style={{ whiteSpace: 'nowrap' }}>{formatCurrency(breakdown.total)}</span>
+                                    <div className="font-bold text-[#1f4a5e]">Estándar</div>
+                                    <div className="text-sm text-gray-500">Entrega en 1-2 días</div>
+                                </button>
+                                <button
+                                    className={`p-4 border rounded-lg text-left transition-all ${serviceLevel === 'express' ? 'border-[#1f4a5e] bg-[#f0f9ff] ring-2 ring-[#1f4a5e]' : 'hover:bg-gray-50'}`}
+                                    onClick={() => setServiceLevel('express')}
+                                >
+                                    <div className="font-bold text-[#1f4a5e]">Express ⚡</div>
+                                    <div className="text-sm text-gray-500">Entrega hoy mismo</div>
+                                </button>
                             </div>
                         </div>
 
                         <button
-                            onClick={handleContinue}
-                            className="btn"
-                            style={{
-                                width: '100%',
-                                background: 'var(--accent)',
-                                color: 'white',
-                                padding: '1rem',
-                                fontSize: '1.1rem',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                gap: '0.5rem'
-                            }}
+                            className="btn btn-primary w-full text-lg py-3 shadow-lg"
+                            onClick={handleCalculate}
+                            disabled={loading || !origin || !destination}
                         >
-                            {t('continueShipping')} <ArrowRight size={20} />
+                            {loading ? 'Calculando...' : 'Cotizar Ahora'}
                         </button>
                     </div>
-                )}
+
+                    {/* Right Column: Map & Summary */}
+                    <div className="flex flex-col gap-6">
+                        <div className="h-[400px] lg:h-[500px] bg-gray-100 rounded-xl overflow-hidden shadow-inner relative border border-gray-200">
+                            {/* Map Overlay Info */}
+                            {distanceKm > 0 && (
+                                <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-md">
+                                    <div className="text-sm font-semibold text-gray-600">Distancia Estimada</div>
+                                    <div className="text-xl font-bold text-[#1f4a5e]">{distanceKm.toFixed(1)} km</div>
+                                </div>
+                            )}
+
+                            <DirectionsMap
+                                origin={origin}
+                                destination={destination}
+                                onDistanceCalculated={setDistanceKm}
+                            />
+                        </div>
+
+                        {calculated && (
+                            <div className="card bg-[#1f4a5e] text-white animate-in slide-in-from-bottom-4 fade-in duration-500">
+                                <div className="flex justify-between items-center mb-4">
+                                    <div>
+                                        <h3 className="text-lg font-light opacity-90">Total Estimado</h3>
+                                        <div className="text-4xl font-bold">{formatCurrency(quotePrice)}</div>
+                                        <p className="text-sm opacity-80 mt-1">
+                                            {serviceLevel === 'express' ? 'Servicio Express (Incluye prioridad)' : 'Servicio Estándar'}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-3xl">📦</div>
+                                    </div>
+                                </div>
+                                <hr className="border-white/20 mb-4" />
+                                <button
+                                    className="w-full bg-white text-[#1f4a5e] font-bold py-3 rounded-lg hover:bg-gray-100 transition shadow-lg"
+                                    onClick={() => setShowModal(true)}
+                                >
+                                    Generar Envío
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* Modal for Shipping Details */}
-            <Modal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                title={language === 'es' ? "Completar Envío" : "Complete Shipping"}
-            >
-                <form onSubmit={handleCreatePackage} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Modal for Recipient Details */}
+            <Modal isOpen={showModal} title="Datos del Destinatario" onClose={() => setShowModal(false)}>
+                <div className="space-y-4">
                     <div>
-                        <h3 className="font-bold mb-2">{language === 'es' ? "Remitente" : "Sender"}</h3>
-                        <div className="grid grid-cols-2 gap-2">
-                            <input
-                                className="input"
-                                placeholder={language === 'es' ? "Nombre Completo" : "Full Name"}
-                                required
-                                value={shippingDetails.senderName}
-                                onChange={e => setShippingDetails({ ...shippingDetails, senderName: e.target.value })}
-                            />
-                            <input
-                                className="input"
-                                placeholder={language === 'es' ? "Teléfono" : "Phone"}
-                                required
-                                value={shippingDetails.senderPhone}
-                                onChange={e => setShippingDetails({ ...shippingDetails, senderPhone: e.target.value })}
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <h3 className="font-bold mb-2">{language === 'es' ? "Destinatario" : "Recipient"}</h3>
-                        <div className="grid grid-cols-2 gap-2">
-                            <input
-                                className="input"
-                                placeholder={language === 'es' ? "Nombre Completo" : "Full Name"}
-                                required
-                                value={shippingDetails.receiverName}
-                                onChange={e => setShippingDetails({ ...shippingDetails, receiverName: e.target.value })}
-                            />
-                            <input
-                                className="input"
-                                placeholder={language === 'es' ? "Teléfono" : "Phone"}
-                                required
-                                value={shippingDetails.receiverPhone}
-                                onChange={e => setShippingDetails({ ...shippingDetails, receiverPhone: e.target.value })}
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium">{language === 'es' ? "Notas Adicionales" : "Additional Notes"}</label>
-                        <textarea
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                        <input
+                            type="text"
                             className="input"
-                            rows={2}
-                            value={shippingDetails.notes}
-                            onChange={e => setShippingDetails({ ...shippingDetails, notes: e.target.value })}
+                            value={recipientName}
+                            onChange={(e) => setRecipientName(e.target.value)}
                         />
                     </div>
-
-                    <button
-                        type="submit"
-                        className="btn mt-4"
-                        disabled={!isShippingValid}
-                        style={{
-                            background: isShippingValid ? 'var(--primary)' : 'var(--border)',
-                            color: isShippingValid ? 'white' : 'var(--secondary)',
-                            cursor: isShippingValid ? 'pointer' : 'not-allowed',
-                            width: '100%',
-                            padding: '1rem',
-                            fontWeight: 'bold',
-                            boxShadow: isShippingValid ? '0 4px 14px 0 rgba(0,118,255,0.39)' : 'none'
-                        }}
-                    >
-                        {language === 'es' ? "Crear Paquete" : "Create Package"}
-                    </button>
-                </form>
-            </Modal>
-
-            {/* Receipt Overlay */}
-            {isReceiptOpen && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0,0,0,0.8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 2000,
-                    backdropFilter: 'blur(5px)'
-                }}>
-                    <div className="card" style={{ width: '90%', maxWidth: '500px', padding: '2rem', position: 'relative', animation: 'fadeIn 0.3s ease' }}>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                        <input
+                            type="tel"
+                            className="input"
+                            value={recipientPhone}
+                            onChange={(e) => setRecipientPhone(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex gap-2 pt-4">
                         <button
-                            onClick={() => {
-                                setIsReceiptOpen(false);
-                                router.push('/admin?tab=packages');
-                            }}
-                            style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}
+                            className="btn btn-secondary flex-1"
+                            onClick={() => setShowModal(false)}
                         >
-                            <X size={24} />
+                            Cancelar
                         </button>
-
-                        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                            <div style={{
-                                width: '80px', height: '80px', background: 'var(--success)', borderRadius: '50%',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto',
-                                color: 'white'
-                            }}>
-                                <CheckCircle size={48} />
-                            </div>
-                            <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{language === 'es' ? "¡Envío Creado!" : "Shipment Created!"}</h2>
-                            <p style={{ color: 'var(--secondary)' }}>{language === 'es' ? "Tu paquete ha sido registrado exitosamente." : "Your package has been successfully registered."}</p>
-                        </div>
-
-                        <div style={{ background: 'var(--secondary-bg)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
-                            <div className="flex justify-between mb-2">
-                                <span className="text-gray-500">{t('origin')}:</span>
-                                <span className="font-medium">{formData.origin}</span>
-                            </div>
-                            <div className="flex justify-between mb-2">
-                                <span className="text-gray-500">{language === 'es' ? "Destino" : "Destination"}:</span>
-                                <span className="font-medium">{formData.destination}</span>
-                            </div>
-                            <div className="flex justify-between mb-2">
-                                <span className="text-gray-500">{t('weight')}:</span>
-                                <span className="font-medium">{formData.weight} kg</span>
-                            </div>
-                            <div className="border-t my-2"></div>
-                            <div className="flex justify-between text-lg font-bold">
-                                <span>Total:</span>
-                                <span>{breakdown ? formatCurrency(breakdown.total) : '$0.00'}</span>
-                            </div>
-                        </div>
-
                         <button
-                            onClick={() => {
-                                setIsReceiptOpen(false);
-                                router.push('/admin?tab=packages');
-                            }}
-                            className="btn"
-                            style={{ width: '100%', background: 'var(--primary)', color: 'white', padding: '1rem' }}
+                            className="btn btn-primary flex-1"
+                            onClick={handleCreatePackage}
+                            disabled={!recipientName || !recipientPhone}
                         >
-                            {language === 'es' ? "Ver en Mis Paquetes" : "View in My Packages"}
+                            Confirmar y Crear
                         </button>
                     </div>
                 </div>
-            )}
-        </div>
+            </Modal>
+
+        </APIProvider>
     );
 }

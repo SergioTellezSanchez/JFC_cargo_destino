@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 
+import { verifyAuth, unauthorized } from '@/lib/auth-server';
+
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
+    const auth = await verifyAuth(request);
+    if (!auth) return unauthorized();
     try {
         const snapshot = await adminDb.collection('users').where('role', '==', 'DRIVER').get();
         const drivers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -15,6 +19,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+    const auth = await verifyAuth(request);
+    if (!auth) return unauthorized();
     try {
         const body = await request.json();
         const { name, email, phone, licenseNumber } = body;

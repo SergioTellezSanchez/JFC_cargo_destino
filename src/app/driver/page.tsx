@@ -5,6 +5,7 @@ import { CheckCircle, AlertTriangle, Clock, Scale, Package, Navigation, Camera, 
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
 import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from '@vis.gl/react-google-maps';
+import { authenticatedFetch } from '@/lib/api';
 
 export default function DriverApp() {
     const { language } = useLanguage();
@@ -47,7 +48,7 @@ export default function DriverApp() {
 
     const fetchDrivers = async () => {
         try {
-            const driversRes = await fetch('/api/drivers');
+            const driversRes = await authenticatedFetch('/api/drivers');
             const driversData = await driversRes.json();
             setDrivers(driversData);
             setLoading(false);
@@ -60,7 +61,7 @@ export default function DriverApp() {
     const fetchDeliveries = async () => {
         setLoading(true);
         try {
-            const packagesRes = await fetch('/api/packages');
+            const packagesRes = await authenticatedFetch('/api/packages');
             const packages = await packagesRes.json();
 
             const myDeliveries = packages
@@ -82,7 +83,7 @@ export default function DriverApp() {
     const updateStatus = async (deliveryId: string, action: string, file?: File | null) => {
         try {
             let body;
-            let headers: Record<string, string> = {};
+            const headers: Record<string, string> = {};
 
             if (file) {
                 const formData = new FormData();
@@ -95,7 +96,7 @@ export default function DriverApp() {
                 headers['Content-Type'] = 'application/json';
             }
 
-            const response = await fetch('/api/deliveries/update', {
+            const response = await authenticatedFetch('/api/deliveries/update', {
                 method: 'POST',
                 headers,
                 body,

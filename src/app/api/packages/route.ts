@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 
+import { verifyAuth, unauthorized } from '@/lib/auth-server';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+    const auth = await verifyAuth(request);
+    if (!auth) return unauthorized();
     const { searchParams } = new URL(request.url);
     const trackingId = searchParams.get('trackingId');
     const storageStatus = searchParams.get('storageStatus');
@@ -31,6 +35,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+    const auth = await verifyAuth(request);
+    if (!auth) return unauthorized();
     try {
         const body = await request.json();
         const { trackingId, recipientName, address, postalCode, weight, size, latitude, longitude, instructions, leaveWithSecurity } = body;

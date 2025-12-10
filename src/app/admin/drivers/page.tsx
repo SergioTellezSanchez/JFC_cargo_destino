@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
+import { authenticatedFetch } from '@/lib/api';
 
 export default function DriversPage() {
     const { language } = useLanguage();
@@ -24,7 +25,7 @@ export default function DriversPage() {
 
     const fetchDrivers = async () => {
         try {
-            const res = await fetch('/api/drivers');
+            const res = await authenticatedFetch('/api/drivers');
             const data = await res.json();
             setDrivers(data);
             setLoading(false);
@@ -38,7 +39,7 @@ export default function DriversPage() {
         console.log('Attempting to delete driver:', id);
         if (!confirm('¿Estás seguro de eliminar este conductor?')) return;
         try {
-            const res = await fetch(`/api/drivers/${id}`, { method: 'DELETE' });
+            const res = await authenticatedFetch(`/api/drivers/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 console.log('Driver deleted successfully');
                 setEditingDriver(null);
@@ -55,7 +56,7 @@ export default function DriversPage() {
         e.preventDefault();
         console.log('Updating driver:', editingDriver);
         try {
-            const res = await fetch(`/api/drivers/${editingDriver.id}`, {
+            const res = await authenticatedFetch(`/api/drivers/${editingDriver.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(editingDriver),
@@ -75,7 +76,7 @@ export default function DriversPage() {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('/api/drivers', {
+            const res = await authenticatedFetch('/api/drivers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newDriver),
