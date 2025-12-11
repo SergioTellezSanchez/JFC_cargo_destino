@@ -265,42 +265,58 @@ function QuoteContent(props: any) {
                                 </div>
 
                                 <div className="space-y-6">
-                                    <div className={`p-4 rounded-xl border-2 transition-all ${props.pickingLocation === 'origin' ? 'border-[#1f4a5e] bg-blue-50/30' : 'border-transparent bg-gray-50'}`}>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">📍 Origen</label>
-                                        <div className="flex gap-2">
+                                    <div className={`p-5 rounded-2xl border-2 transition-all group hover:border-[#1f4a5e]/30 ${props.pickingLocation === 'origin' ? 'border-[#1f4a5e] bg-blue-50/50 ring-4 ring-blue-100' : 'border-gray-100 bg-white'}`}>
+                                        <div className="flex justify-between mb-3">
+                                            <label className="block text-sm font-bold text-gray-700 flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded-full bg-blue-100 text-[#1f4a5e] flex items-center justify-center">
+                                                    <Navigation size={14} />
+                                                </div>
+                                                Origen
+                                            </label>
+                                            {props.origin && <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Seleccionado</span>}
+                                        </div>
+                                        <div className="flex gap-3">
                                             <div className="flex-1">
                                                 <PlaceAutocomplete
-                                                    className="input bg-white"
+                                                    className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 font-medium text-gray-700 focus:ring-2 focus:ring-[#1f4a5e] focus:bg-white transition-all placeholder:text-gray-400"
                                                     placeholder="Ej. Av. Reforma 222, CDMX"
                                                     onPlaceSelect={props.setOrigin}
                                                 />
                                             </div>
                                             <button
-                                                className={`p-3 rounded-lg border transition-colors ${props.pickingLocation === 'origin' ? 'bg-[#1f4a5e] text-white border-[#1f4a5e]' : 'bg-white text-gray-500 border-gray-300 hover:border-[#1f4a5e]'}`}
+                                                className={`p-3 rounded-xl border-2 transition-all hover:scale-105 active:scale-95 ${props.pickingLocation === 'origin' ? 'bg-[#1f4a5e] text-white border-[#1f4a5e] shadow-lg' : 'bg-white text-gray-400 border-gray-200 hover:border-[#1f4a5e] hover:text-[#1f4a5e]'}`}
                                                 onClick={() => props.pickingLocation === 'origin' ? props.setPickingLocation(null) : props.setPickingLocation('origin')}
                                                 title="Seleccionar en mapa"
                                             >
-                                                <MapPin size={20} />
+                                                <MapPin size={22} />
                                             </button>
                                         </div>
                                     </div>
 
-                                    <div className={`p-4 rounded-xl border-2 transition-all ${props.pickingLocation === 'destination' ? 'border-[#1f4a5e] bg-blue-50/30' : 'border-transparent bg-gray-50'}`}>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">🏁 Destino</label>
-                                        <div className="flex gap-2">
+                                    <div className={`p-5 rounded-2xl border-2 transition-all group hover:border-[#1f4a5e]/30 ${props.pickingLocation === 'destination' ? 'border-[#1f4a5e] bg-blue-50/50 ring-4 ring-blue-100' : 'border-gray-100 bg-white'}`}>
+                                        <div className="flex justify-between mb-3">
+                                            <label className="block text-sm font-bold text-gray-700 flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                                                    <MapPin size={14} />
+                                                </div>
+                                                Destino
+                                            </label>
+                                            {props.destination && <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Seleccionado</span>}
+                                        </div>
+                                        <div className="flex gap-3">
                                             <div className="flex-1">
                                                 <PlaceAutocomplete
-                                                    className="input bg-white"
+                                                    className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 font-medium text-gray-700 focus:ring-2 focus:ring-[#1f4a5e] focus:bg-white transition-all placeholder:text-gray-400"
                                                     placeholder="Ej. Polanco V Sección, CDMX"
                                                     onPlaceSelect={props.setDestination}
                                                 />
                                             </div>
                                             <button
-                                                className={`p-3 rounded-lg border transition-colors ${props.pickingLocation === 'destination' ? 'bg-[#1f4a5e] text-white border-[#1f4a5e]' : 'bg-white text-gray-500 border-gray-300 hover:border-[#1f4a5e]'}`}
+                                                className={`p-3 rounded-xl border-2 transition-all hover:scale-105 active:scale-95 ${props.pickingLocation === 'destination' ? 'bg-[#1f4a5e] text-white border-[#1f4a5e] shadow-lg' : 'bg-white text-gray-400 border-gray-200 hover:border-[#1f4a5e] hover:text-[#1f4a5e]'}`}
                                                 onClick={() => props.pickingLocation === 'destination' ? props.setPickingLocation(null) : props.setPickingLocation('destination')}
                                                 title="Seleccionar en mapa"
                                             >
-                                                <MapPin size={20} />
+                                                <MapPin size={22} />
                                             </button>
                                         </div>
                                     </div>
@@ -309,7 +325,7 @@ function QuoteContent(props: any) {
                                 {props.isStep1Valid && (
                                     <div className="flex justify-end pt-4">
                                         <button
-                                            className="btn btn-primary px-8 py-3 rounded-full text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                                            className="btn btn-primary px-8 py-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 bg-gradient-to-r from-[#1f4a5e] to-[#0f2a36]"
                                             onClick={() => props.setCurrentStep(2)}
                                         >
                                             Siguiente Paso <ChevronRight size={20} />
@@ -351,7 +367,7 @@ function QuoteContent(props: any) {
                                 {props.isStep2Valid && (
                                     <div className="flex justify-end pt-4">
                                         <button
-                                            className="btn btn-primary px-8 py-3 rounded-full text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                                            className="btn btn-primary px-8 py-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 bg-gradient-to-r from-[#1f4a5e] to-[#0f2a36]"
                                             onClick={() => props.setCurrentStep(3)}
                                         >
                                             Ver Tarifas <ChevronRight size={20} />
@@ -367,45 +383,49 @@ function QuoteContent(props: any) {
                                 <h2 className="text-2xl font-bold text-[#1f4a5e]">Elige tu Servicio</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <button
-                                        className={`group relative p-6 border-2 rounded-2xl text-left transition-all duration-300 hover:shadow-xl overflow-hidden
-                                            ${props.serviceLevel === 'standard' ? 'border-transparent ring-2 ring-[#1f4a5e] bg-gradient-to-br from-white to-blue-50 shadow-lg' : 'border-gray-100 hover:border-gray-200 bg-white'}
+                                        className={`group relative p-6 border-2 rounded-2xl text-left transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
+                                            ${props.serviceLevel === 'standard' ? 'border-[#1f4a5e] bg-gradient-to-br from-blue-50 to-blue-100 shadow-lg ring-2 ring-blue-200' : 'border-gray-100 bg-white hover:border-blue-200'}
                                         `}
                                         onClick={() => props.setServiceLevel('standard')}
                                     >
-                                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                            <Clock size={64} className="text-[#1f4a5e]" />
+                                        <div className={`absolute top-0 right-0 p-4 transition-opacity ${props.serviceLevel === 'standard' ? 'opacity-20' : 'opacity-5'}`}>
+                                            <Clock size={80} className="text-[#1f4a5e]" />
                                         </div>
                                         <div className="relative z-10">
                                             <div className="flex justify-between items-center mb-3">
                                                 <span className="font-bold text-xl text-[#1f4a5e]">Estándar</span>
-                                                {props.serviceLevel === 'standard' && <CheckCircle className="text-[#1f4a5e]" />}
+                                                {props.serviceLevel === 'standard' && <CheckCircle className="text-[#1f4a5e] fill-blue-100" />}
                                             </div>
-                                            <p className="text-gray-500 text-sm mb-4">La opción económica para envíos sin prisa.</p>
-                                            <div className="inline-flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full">
-                                                <Clock size={14} className="text-gray-500" />
-                                                <span className="text-xs font-bold text-gray-600">1-2 días hábiles</span>
+                                            <p className="text-gray-600 text-sm mb-6 font-medium">La opción económica para envíos sin prisa.</p>
+                                            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors
+                                                ${props.serviceLevel === 'standard' ? 'bg-[#1f4a5e] text-white' : 'bg-gray-100 text-gray-500'}
+                                            `}>
+                                                <Clock size={16} />
+                                                <span>1-2 días hábiles</span>
                                             </div>
                                         </div>
                                     </button>
 
                                     <button
-                                        className={`group relative p-6 border-2 rounded-2xl text-left transition-all duration-300 hover:shadow-xl overflow-hidden
-                                            ${props.serviceLevel === 'express' ? 'border-transparent ring-2 ring-[#1f4a5e] bg-gradient-to-br from-white to-yellow-50 shadow-lg' : 'border-gray-100 hover:border-gray-200 bg-white'}
+                                        className={`group relative p-6 border-2 rounded-2xl text-left transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
+                                            ${props.serviceLevel === 'express' ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-yellow-50 shadow-lg ring-2 ring-orange-200' : 'border-gray-100 bg-white hover:border-orange-200'}
                                         `}
                                         onClick={() => props.setServiceLevel('express')}
                                     >
-                                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                            <Zap size={64} className="text-yellow-500" />
+                                        <div className={`absolute top-0 right-0 p-4 transition-opacity ${props.serviceLevel === 'express' ? 'opacity-20' : 'opacity-5'}`}>
+                                            <Zap size={80} className="text-orange-500" />
                                         </div>
                                         <div className="relative z-10">
                                             <div className="flex justify-between items-center mb-3">
-                                                <span className="font-bold text-xl text-[#1f4a5e]">Express</span>
-                                                {props.serviceLevel === 'express' && <CheckCircle className="text-[#1f4a5e]" />}
+                                                <span className="font-bold text-xl text-orange-600">Express</span>
+                                                {props.serviceLevel === 'express' && <CheckCircle className="text-orange-500 fill-orange-100" />}
                                             </div>
-                                            <p className="text-gray-500 text-sm mb-4">Entrega prioritaria para urgencias.</p>
-                                            <div className="inline-flex items-center gap-2 bg-yellow-100 px-3 py-1 rounded-full">
-                                                <Zap size={14} className="text-yellow-600" />
-                                                <span className="text-xs font-bold text-yellow-700">Entrega Hoy</span>
+                                            <p className="text-gray-600 text-sm mb-6 font-medium">Prioridad máxima de entrega.</p>
+                                            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors
+                                                 ${props.serviceLevel === 'express' ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md' : 'bg-orange-50 text-orange-600'}
+                                            `}>
+                                                <Zap size={16} />
+                                                <span>Entrega Hoy</span>
                                             </div>
                                         </div>
                                     </button>
@@ -422,10 +442,10 @@ function QuoteContent(props: any) {
                                         </div>
                                     </div>
                                     <button
-                                        className="w-full bg-white text-[#1f4a5e] font-bold py-4 rounded-xl hover:bg-gray-100 transition shadow-lg text-lg uppercase tracking-wide flex items-center justify-center gap-2"
+                                        className="w-full bg-white text-[#1f4a5e] font-extrabold py-5 rounded-xl hover:bg-gray-50 hover:scale-[1.02] transition-all shadow-xl text-lg uppercase tracking-wide flex items-center justify-center gap-3 active:scale-95"
                                         onClick={() => props.setShowModal(true)}
                                     >
-                                        Crear Solicitud de Envío
+                                        Generar Envío <ChevronRight className="animate-pulse" />
                                     </button>
                                 </div>
                             </div>
