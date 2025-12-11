@@ -89,7 +89,7 @@ export default function QuotePage() {
 
             // Volumetric Weight Calculation
             const volWeight = (dimensions.length * dimensions.width * dimensions.height) / 5000;
-            const chargeableWeight = Math.max(weight, volWeight);
+            const chargeableWeight = Math.max(Number(weight) || 0, volWeight);
 
             const weightCost = chargeableWeight * 2; // Using chargeable weight
             const subtotal = baseRate + distanceCost + weightCost;
