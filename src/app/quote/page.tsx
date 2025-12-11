@@ -287,7 +287,7 @@ function QuoteContent(props: any) {
                     <div className="text-center mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
                         <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 mb-4">
                             Calcula tu{' '}
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1f4a5e] to-[#d9bd82]">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-blue-400 to-amber-400">
                                 Envío Ideal
                             </span>
                         </h1>
@@ -296,10 +296,10 @@ function QuoteContent(props: any) {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+                    <div className="flex flex-col gap-8 lg:gap-12 items-start max-w-4xl mx-auto">
 
                         {/* Main Interaction Area */}
-                        <div className="lg:col-span-6 space-y-8">
+                        <div className="w-full space-y-8">
 
                             {/* Modern Navigation Tabs */}
                             <div className="bg-white/80 backdrop-blur-xl p-2 rounded-2xl shadow-sm border border-slate-200/60 sticky top-4 z-50">
@@ -666,7 +666,7 @@ function QuoteContent(props: any) {
                         </div>
 
                         {/* Map Column */}
-                        <div className="lg:col-span-6 h-[600px] lg:h-auto lg:sticky lg:top-8 lg:order-last">
+                        <div className="w-full h-[600px] mt-8">
                             <div className={`h-[600px] rounded-3xl overflow-hidden shadow-2xl relative transition-all duration-300 ring-1 ring-slate-200`}>
 
                                 <DirectionsMap
