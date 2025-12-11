@@ -48,6 +48,11 @@ export default function DirectionsMap({ origin, destination, onDistanceCalculate
         }).then(response => {
             directionsRenderer.setDirections(response);
 
+            // Explicitly fit bounds
+            if (response.routes[0] && response.routes[0].bounds && map) {
+                map.fitBounds(response.routes[0].bounds);
+            }
+
             if (response.routes[0] && response.routes[0].legs[0]) {
                 const distanceMeters = response.routes[0].legs[0].distance?.value || 0;
                 if (onDistanceCalculated) {
@@ -55,7 +60,7 @@ export default function DirectionsMap({ origin, destination, onDistanceCalculate
                 }
             }
         }).catch(err => console.error('Directions failed', err));
-    }, [directionsService, directionsRenderer, origin, destination, onDistanceCalculated]);
+    }, [directionsService, directionsRenderer, origin, destination, onDistanceCalculated, map]);
 
     return (
         <Map

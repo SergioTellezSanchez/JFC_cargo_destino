@@ -13,7 +13,7 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
     const [markerPosition, setMarkerPosition] = useState<{ lat: number, lng: number } | null>(null);
     const [isValid, setIsValid] = useState(true);
     const [distance, setDistance] = useState(0);
-    const map = useMap();
+    // const map = useMap(); // Unused
     const geometryLib = useMapsLibrary('geometry');
     const geocodingLib = useMapsLibrary('geocoding');
     const [errorMsg, setErrorMsg] = useState('');
@@ -110,7 +110,7 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
                     <Map
                         defaultCenter={initialLocation}
                         defaultZoom={18}
-                        mapId="PIN_SELECTION_MAP"
+                        mapId={null}
                         style={{ width: '100%', height: '100%' }}
                         disableDefaultUI={false}
                         gestureHandling={'greedy'}

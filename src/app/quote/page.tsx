@@ -38,6 +38,7 @@ export default function QuotePage() {
     const [weight, setWeight] = useState(1);
     const [dimensions, setDimensions] = useState({ length: 10, width: 10, height: 10 });
     const [description, setDescription] = useState('');
+    const [packageType, setPackageType] = useState('Caja de cartón');
 
     // Service Level
     const [serviceLevel, setServiceLevel] = useState<'standard' | 'express'>('standard');
@@ -76,9 +77,9 @@ export default function QuotePage() {
     // Real-time calculation effect
     useEffect(() => {
         if (isStep1Valid) {
-            const baseRate = 50;
-            const distanceCost = distanceKm * 10;
-            const weightCost = weight * 5;
+            const baseRate = 40;
+            const distanceCost = distanceKm * 8;
+            const weightCost = weight * 2;
             const subtotal = baseRate + distanceCost + weightCost;
             const multiplier = serviceLevel === 'express' ? 1.5 : 1.0;
             const finalPrice = subtotal * multiplier;
@@ -115,6 +116,7 @@ export default function QuotePage() {
                 recipientName,
                 recipientPhone,
                 serviceLevel,
+                packageType,
             };
 
             const res = await authenticatedFetch('/api/packages', {
@@ -170,6 +172,8 @@ export default function QuotePage() {
                 setWeight={setWeight}
                 description={description}
                 setDescription={setDescription}
+                packageType={packageType}
+                setPackageType={setPackageType}
                 serviceLevel={serviceLevel}
                 setServiceLevel={setServiceLevel}
                 currentStep={currentStep}
@@ -412,6 +416,19 @@ function QuoteContent(props: any) {
                                                     placeholder="Ej. Documentos importantes, Electrónicos..."
                                                 ></textarea>
                                             </div>
+
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Tipo de Paquete</label>
+                                                <select
+                                                    value={props.packageType}
+                                                    onChange={(e) => props.setPackageType(e.target.value)}
+                                                    className="w-full bg-transparent text-lg font-medium text-slate-800 outline-none h-12"
+                                                >
+                                                    {['Caja de cartón', 'Tarima', 'Bolsa de plástico', 'Bolsa de papel', 'Bulto', 'Caja de aluminio', 'Otro'].map(type => (
+                                                        <option key={type} value={type}>{type}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
 
                                         {props.isStep2Valid && (
@@ -498,7 +515,7 @@ function QuoteContent(props: any) {
                                             <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6">
                                                 <div>
                                                     <p className="text-slate-400 font-medium text-sm uppercase tracking-widest mb-2">Total Estimado</p>
-                                                    <div className="text-5xl font-bold mb-2 tracking-tight">{formatCurrency(props.quotePrice)}</div>
+                                                    <div className="text-5xl font-bold mb-2 tracking-tight min-w-[220px] tabular-nums">{formatCurrency(props.quotePrice)}</div>
                                                     <div className="flex gap-4 text-sm text-slate-400">
                                                         <span className="flex items-center gap-1"><Navigation size={14} /> {props.distanceKm.toFixed(1)} km</span>
                                                         <span className="flex items-center gap-1"><Package size={14} /> {props.weight} kg</span>
