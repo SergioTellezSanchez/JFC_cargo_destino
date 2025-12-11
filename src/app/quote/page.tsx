@@ -643,10 +643,10 @@ function QuoteContent(props: any) {
                                         <div className="mt-8 bg-slate-900 rounded-3xl p-8 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden">
                                             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-[60px] translate-x-1/2 -translate-y-1/2" />
 
-                                            <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6">
-                                                <div>
+                                            <div className="relative z-10 flex flex-col gap-8">
+                                                <div className="w-full">
                                                     <p className="text-slate-400 font-medium text-sm uppercase tracking-widest mb-2">Total Estimado</p>
-                                                    <div className="text-5xl font-bold mb-2 tracking-tight min-w-[220px] tabular-nums">{formatCurrency(props.quotePrice)}</div>
+                                                    <div className="text-5xl font-bold mb-2 tracking-tight w-full truncate tabular-nums">{formatCurrency(props.quotePrice)}</div>
                                                     <div className="flex gap-4 text-sm text-slate-400">
                                                         <span className="flex items-center gap-1"><Navigation size={14} /> {props.distanceKm.toFixed(1)} km</span>
                                                         <span className="flex items-center gap-1"><Package size={14} /> {props.weight} kg</span>
@@ -654,7 +654,7 @@ function QuoteContent(props: any) {
                                                 </div>
                                                 <button
                                                     onClick={props.onRequestQuote}
-                                                    className="w-full md:w-auto bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition-colors shadow-lg flex items-center justify-center gap-2"
+                                                    className="w-full bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition-colors shadow-lg flex items-center justify-center gap-2"
                                                 >
                                                     Solicitar Ahora <ChevronRight size={20} />
                                                 </button>

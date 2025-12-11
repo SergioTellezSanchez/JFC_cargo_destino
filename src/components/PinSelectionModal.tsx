@@ -97,9 +97,9 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
                                 setDistance(dist);
                                 setMarkerPosition(newPos);
 
-                                if (dist > 50) {
+                                if (dist > 100) {
                                     setIsValid(false);
-                                    setErrorMsg(`El pin está a ${Math.round(dist)}m (máximo 50m)`);
+                                    setErrorMsg(`El pin está a ${Math.round(dist)}m (máximo 100m)`);
                                 } else {
                                     setIsValid(true);
                                     setErrorMsg('');

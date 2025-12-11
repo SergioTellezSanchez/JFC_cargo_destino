@@ -71,14 +71,14 @@ function DirectionsController({ origin, destination, onDistanceCalculated }: Dir
             {origin && (
                 <Marker
                     position={origin}
-                    label={{ text: "Cargo", color: "white", fontWeight: "bold", fontSize: "12px" }}
+                    label={{ text: "Cargo", color: "white", fontWeight: "900", fontSize: "16px" }}
                     title="Origen (Carga)"
                 />
             )}
             {destination && (
                 <Marker
                     position={destination}
-                    label={{ text: "Destino", color: "white", fontWeight: "bold", fontSize: "12px" }}
+                    label={{ text: "Destino", color: "white", fontWeight: "900", fontSize: "16px" }}
                     title="Destino (Entrega)"
                 />
             )}
