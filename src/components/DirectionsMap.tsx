@@ -64,6 +64,7 @@ export default function DirectionsMap({ origin, destination, onDistanceCalculate
             mapId="QUOTE_MAP"
             style={{ width: '100%', height: '100%' }}
             disableDefaultUI={true}
+            gestureHandling={'none'}
             onClick={onMapClick}
         />
     );

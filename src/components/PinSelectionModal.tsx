@@ -17,10 +17,29 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
     const geometryLib = useMapsLibrary('geometry');
     const geocodingLib = useMapsLibrary('geocoding');
     const [errorMsg, setErrorMsg] = useState('');
+    const [currentAddress, setCurrentAddress] = useState('');
+    const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
+
+    useEffect(() => {
+        if (geocodingLib) {
+            setGeocoder(new geocodingLib.Geocoder());
+        }
+    }, [geocodingLib]);
 
     useEffect(() => {
         if (isOpen && initialLocation) {
             setMarkerPosition({ lat: initialLocation.lat, lng: initialLocation.lng });
+            setCurrentAddress(initialLocation.address);
+            setIsValid(true);
+            setDistance(0);
+            setErrorMsg('');
+        }
+    }, [isOpen, initialLocation]);
+
+    useEffect(() => {
+        if (isOpen && initialLocation) {
+            setMarkerPosition({ lat: initialLocation.lat, lng: initialLocation.lng });
+            setCurrentAddress(initialLocation.address);
             setIsValid(true);
             setDistance(0);
             setErrorMsg('');
@@ -45,19 +64,23 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
         } else {
             setIsValid(true);
             setErrorMsg('');
+
+            // Reverse Geocode
+            if (geocoder) {
+                geocoder.geocode({ location: newPos }, (results, status) => {
+                    if (status === 'OK' && results && results[0]) {
+                        setCurrentAddress(results[0].formatted_address);
+                    }
+                });
+            }
         }
     };
 
     const handleConfirm = () => {
         if (!markerPosition || !isValid || !initialLocation) return;
 
-        // Reverse geocode if position changed significantly? 
-        // For now, we keep the original address string but update coordinates
-        // Or we could trigger a reverse geocode here if we really wanted to be precise with the address text.
-        // Given user requirement "user seeks address... then edits pin", usually we keep the main address text but refine the lat/long for the driver.
-
         onConfirm({
-            address: initialLocation.address, // Keep original address text for consistency
+            address: currentAddress || initialLocation.address,
             lat: markerPosition.lat,
             lng: markerPosition.lng
         });
@@ -76,12 +99,14 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
                             <MapPin className="text-blue-600" size={24} />
                             Confirma la ubicación exacta
                         </h3>
-                        <p className="text-sm text-slate-500">Mueve el pin si es necesario (máximo 50m).</p>
+                        <p className="text-sm text-slate-500 max-w-full truncate">
+                            {currentAddress || "Cargando dirección..."}
+                        </p>
                     </div>
                 </div>
 
                 {/* Map Container */}
-                <div className="relative flex-1 min-h-[400px]">
+                <div className="relative flex-1 min-h-[400px] h-[500px]">
                     <Map
                         defaultCenter={initialLocation}
                         defaultZoom={18}

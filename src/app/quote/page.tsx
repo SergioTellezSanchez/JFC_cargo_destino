@@ -67,9 +67,6 @@ export default function QuotePage() {
     const [recipientName, setRecipientName] = useState('');
     const [recipientPhone, setRecipientPhone] = useState('');
 
-    // Map Interaction State
-    const [isPickingLocation, setIsPickingLocation] = useState<'origin' | 'destination' | null>(null);
-
     const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
     // Step Validation Logic
@@ -165,8 +162,6 @@ export default function QuotePage() {
     return (
         <APIProvider apiKey={API_KEY}>
             <QuoteContent
-                pickingLocation={isPickingLocation}
-                setPickingLocation={setIsPickingLocation}
                 setOrigin={setOrigin}
                 setDestination={setDestination}
                 origin={origin}
@@ -196,6 +191,23 @@ export default function QuotePage() {
                 // New Props
                 onAddressSelect={handleAddressSelect}
                 onRequestQuote={handleRequestQuote}
+                onOpenPinModal={(type: 'origin' | 'destination') => {
+                    const loc = type === 'origin' ? origin : destination;
+                    if (loc) {
+                        setTempLocation(loc);
+                        setPinModalType(type);
+                        setShowPinModal(true);
+                    } else {
+                        // Default fallback if no address
+                        setTempLocation({
+                            address: 'CDMX',
+                            lat: 19.4326,
+                            lng: -99.1332
+                        });
+                        setPinModalType(type);
+                        setShowPinModal(true);
+                    }
+                }}
             />
 
             <PinSelectionModal
@@ -229,32 +241,6 @@ function QuoteContent(props: any) {
         }
     }, [geocodingLib]);
 
-    const handleMapClick = (e: any) => {
-        if (!props.pickingLocation || !geocoder || !e.detail.latLng) return;
-
-        const lat = e.detail.latLng.lat;
-        const lng = e.detail.latLng.lng;
-
-        geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-            if (status === 'OK' && results && results[0]) {
-                const locationData = {
-                    address: results[0].formatted_address,
-                    lat,
-                    lng
-                };
-
-                if (props.pickingLocation === 'origin') {
-                    props.setOrigin(locationData);
-                } else {
-                    props.setDestination(locationData);
-                }
-                props.setPickingLocation(null);
-            } else {
-                alert('No pudimos obtener la dirección de este punto.');
-            }
-        });
-    };
-
     return (
         <div className="min-h-screen bg-[#F8FAFC]">
             {/* Background Decorations */}
@@ -270,7 +256,7 @@ function QuoteContent(props: any) {
                     <div className="text-center mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
                         <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 mb-4">
                             Calcula tu{' '}
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-orange-500">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1f4a5e] to-[#d9bd82]">
                                 Envío Ideal
                             </span>
                         </h1>
@@ -331,25 +317,14 @@ function QuoteContent(props: any) {
                                                 <h2 className="text-2xl font-bold text-slate-800">¿A dónde vamos?</h2>
                                                 <p className="text-slate-500">Define los puntos de recolección y entrega.</p>
                                             </div>
-                                            <button
-                                                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide transition-all shadow-sm
-                                                    ${props.pickingLocation
-                                                        ? 'bg-red-50 text-red-600 ring-2 ring-red-100 animate-pulse'
-                                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'}
-                                                `}
-                                                onClick={() => props.setPickingLocation(props.pickingLocation ? null : 'origin')}
-                                            >
-                                                <MapPin size={14} />
-                                                {props.pickingLocation ? 'Cancelar Mapa' : 'Usar Mapa'}
-                                            </button>
                                         </div>
 
                                         <div className="space-y-6">
                                             {/* Origin Input */}
-                                            <div className={`group relative p-1 rounded-2xl transition-all duration-300 ${props.pickingLocation === 'origin' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 p-[2px]' : 'bg-transparent'}`}>
-                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 group-hover:border-transparent transition-all shadow-sm group-hover:shadow-lg">
+                                            <div className={`group relative p-1 rounded-2xl transition-all duration-300 bg-transparent`}>
+                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 group-hover:border-[#1f4a5e] transition-all shadow-sm group-hover:shadow-lg">
                                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-2">
-                                                        <Navigation size={12} className="text-blue-500" /> Origen
+                                                        <Navigation size={12} className="text-[#1f4a5e]" /> Origen
                                                     </label>
                                                     <div className="flex gap-4">
                                                         <PlaceAutocomplete
@@ -358,8 +333,9 @@ function QuoteContent(props: any) {
                                                             onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'origin')}
                                                         />
                                                         <button
-                                                            onClick={() => props.setPickingLocation('origin')}
-                                                            className={`p-3 rounded-full transition-all ${props.pickingLocation === 'origin' ? 'bg-blue-600 text-white shadow-lg scale-110' : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-500'}`}
+                                                            onClick={() => props.onOpenPinModal('origin')}
+                                                            className={`p-3 rounded-full transition-all bg-slate-100 text-slate-400 hover:bg-[#1f4a5e] hover:text-white`}
+                                                            title="Ajustar ubicación en el mapa"
                                                         >
                                                             <MapPin size={20} />
                                                         </button>
@@ -368,10 +344,10 @@ function QuoteContent(props: any) {
                                             </div>
 
                                             {/* Destination Input */}
-                                            <div className={`group relative p-1 rounded-2xl transition-all duration-300 ${props.pickingLocation === 'destination' ? 'bg-gradient-to-r from-indigo-500 to-purple-500 p-[2px]' : 'bg-transparent'}`}>
-                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 group-hover:border-transparent transition-all shadow-sm group-hover:shadow-lg">
+                                            <div className={`group relative p-1 rounded-2xl transition-all duration-300 bg-transparent`}>
+                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 group-hover:border-[#d9bd82] transition-all shadow-sm group-hover:shadow-lg">
                                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-2">
-                                                        <MapPin size={12} className="text-indigo-500" /> Destino
+                                                        <MapPin size={12} className="text-[#d9bd82]" /> Destino
                                                     </label>
                                                     <div className="flex gap-4">
                                                         <PlaceAutocomplete
@@ -380,8 +356,9 @@ function QuoteContent(props: any) {
                                                             onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'destination')}
                                                         />
                                                         <button
-                                                            onClick={() => props.setPickingLocation('destination')}
-                                                            className={`p-3 rounded-full transition-all ${props.pickingLocation === 'destination' ? 'bg-indigo-600 text-white shadow-lg scale-110' : 'bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-500'}`}
+                                                            onClick={() => props.onOpenPinModal('destination')}
+                                                            className={`p-3 rounded-full transition-all bg-slate-100 text-slate-400 hover:bg-[#1f4a5e] hover:text-white`}
+                                                            title="Ajustar ubicación en el mapa"
                                                         >
                                                             <MapPin size={20} />
                                                         </button>
@@ -541,22 +518,13 @@ function QuoteContent(props: any) {
                         </div>
 
                         {/* Map Column */}
-                        <div className="lg:col-span-6 h-[500px] lg:h-auto lg:sticky lg:top-8 order-first lg:order-last">
-                            <div className={`h-[500px] rounded-3xl overflow-hidden shadow-2xl relative transition-all duration-300
-                                ${props.pickingLocation ? 'ring-4 ring-offset-4 ring-blue-500 shadow-blue-500/20' : 'ring-1 ring-slate-200'}
-                            `}>
-                                {props.pickingLocation && (
-                                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 bg-slate-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-lg font-bold flex items-center gap-2 animate-bounce">
-                                        <MapPin size={18} className="text-blue-400" />
-                                        Toca el mapa para seleccionar
-                                    </div>
-                                )}
+                        <div className="lg:col-span-6 h-[600px] lg:h-auto lg:sticky lg:top-8 order-first lg:order-last">
+                            <div className={`h-[600px] rounded-3xl overflow-hidden shadow-2xl relative transition-all duration-300 ring-1 ring-slate-200`}>
 
                                 <DirectionsMap
                                     origin={props.origin}
                                     destination={props.destination}
                                     onDistanceCalculated={props.setDistanceKm}
-                                    onMapClick={handleMapClick}
                                 />
 
                                 {/* Mini Quote Overlay */}
