@@ -36,7 +36,7 @@ export default function QuotePage() {
     const [destination, setDestination] = useState<LocationState | null>(null);
 
     // Package Details
-    const [weight, setWeight] = useState(1);
+    const [weight, setWeight] = useState<number | ''>('');
     const [dimensions, setDimensions] = useState({ length: 10, width: 10, height: 10 });
     const [description, setDescription] = useState('');
     const [packageType, setPackageType] = useState('Caja de cartón');
@@ -77,13 +77,13 @@ export default function QuotePage() {
     const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
     // Step Validation Logic
+    // Step Validation Logic
     const isStep1Valid = !!origin && !!destination;
-    const isStep2Valid = isStep1Valid && weight > 0 && description.trim().length > 0;
+    const isStep2Valid = isStep1Valid && (typeof weight === 'number' && weight > 0) && packageType !== '';
 
     // Real-time calculation effect
-    // Real-time calculation effect
     useEffect(() => {
-        if (isStep1Valid) {
+        if (isStep1Valid && typeof weight === 'number' && weight > 0) {
             const baseRate = 40;
             const distanceCost = distanceKm * 8;
 
@@ -255,7 +255,7 @@ export default function QuotePage() {
                 details={quoteDetails}
                 totalPrice={quotePrice}
                 distanceKm={distanceKm}
-                weight={weight}
+                weight={Number(weight) || 0}
                 serviceLevel={serviceLevel}
             />
         </APIProvider>
@@ -429,7 +429,11 @@ function QuoteContent(props: any) {
                                                         type="number"
                                                         min="1"
                                                         value={props.weight}
-                                                        onChange={(e) => props.setWeight(Number(e.target.value))}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            props.setWeight(val === '' ? '' : Number(val));
+                                                        }}
+                                                        placeholder="0"
                                                         className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
                                                     />
                                                     <span className="text-slate-400 font-medium">kg</span>
@@ -482,7 +486,7 @@ function QuoteContent(props: any) {
                                             </div>
 
                                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Descripción</label>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Descripción (Opcional)</label>
                                                 <textarea
                                                     value={props.description}
                                                     onChange={(e) => props.setDescription(e.target.value)}
@@ -673,7 +677,7 @@ function QuoteContent(props: any) {
 
                                 {/* Mini Quote Overlay */}
                                 {props.quotePrice > 0 && props.currentStep < 3 && (
-                                    <div className="absolute bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/50 flex justify-between items-center">
+                                    <div className="absolute bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/50 flex justify-between items-center animate-in slide-in-from-bottom-4 duration-300">
                                         <div>
                                             <p className="text-xs font-bold text-slate-400 uppercase">Estimado</p>
                                             <p className="text-xl font-bold text-slate-900">{formatCurrency(props.quotePrice)}</p>
