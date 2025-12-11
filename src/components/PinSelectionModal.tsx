@@ -108,9 +108,9 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
                 {/* Map Container */}
                 <div className="relative flex-1 min-h-[400px] h-[500px]">
                     <Map
-                        defaultCenter={initialLocation}
-                        defaultZoom={18}
-                        mapId="PIN_MAP"
+                        center={initialLocation}
+                        zoom={18}
+                        mapId={null}
                         id="pin-modal-map"
                         style={{ width: '100%', height: '100%' }}
                         disableDefaultUI={false}
