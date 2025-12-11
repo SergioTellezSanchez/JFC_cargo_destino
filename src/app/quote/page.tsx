@@ -187,6 +187,8 @@ export default function QuotePage() {
                 destination={destination}
                 weight={weight}
                 setWeight={setWeight}
+                dimensions={dimensions}
+                setDimensions={setDimensions}
                 description={description}
                 setDescription={setDescription}
                 packageType={packageType}
@@ -330,7 +332,7 @@ function QuoteContent(props: any) {
                             </div>
 
                             {/* Cards Container */}
-                            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative min-h-[500px] transition-all duration-500">
+                            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-visible relative min-h-[500px] transition-all duration-500">
 
                                 {/* Step 1: Route */}
                                 {props.currentStep === 1 && (
@@ -423,6 +425,42 @@ function QuoteContent(props: any) {
                                                         className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
                                                     />
                                                     <span className="text-slate-400 font-medium">kg</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2 space-y-4">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Dimensiones (cm)</label>
+                                                <div className="grid grid-cols-3 gap-4">
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Largo</label>
+                                                        <input
+                                                            type="number"
+                                                            value={props.dimensions?.length || ''}
+                                                            onChange={(e) => props.setDimensions((prev: any) => ({ ...prev, length: Number(e.target.value) }))}
+                                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
+                                                            placeholder="10"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Ancho</label>
+                                                        <input
+                                                            type="number"
+                                                            value={props.dimensions?.width || ''}
+                                                            onChange={(e) => props.setDimensions((prev: any) => ({ ...prev, width: Number(e.target.value) }))}
+                                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
+                                                            placeholder="10"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Alto</label>
+                                                        <input
+                                                            type="number"
+                                                            value={props.dimensions?.height || ''}
+                                                            onChange={(e) => props.setDimensions((prev: any) => ({ ...prev, height: Number(e.target.value) }))}
+                                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
+                                                            placeholder="10"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
 

@@ -1,16 +1,17 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { Map, useMapsLibrary, useMap } from '@vis.gl/react-google-maps';
+import { Map, useMapsLibrary, useMap, MapMouseEvent } from '@vis.gl/react-google-maps';
 
 interface DirectionsMapProps {
     origin: { lat: number; lng: number } | null;
     destination: { lat: number; lng: number } | null;
     onDistanceCalculated?: (distanceKm: number) => void;
+    onMapClick?: (e: MapMouseEvent) => void;
 }
 
-import { MapMouseEvent } from '@vis.gl/react-google-maps';
-
-export default function DirectionsMap({ origin, destination, onDistanceCalculated, onMapClick }: DirectionsMapProps & { onMapClick?: (e: MapMouseEvent) => void }) {
-    const map = useMap('QUOTE_MAP');
+function DirectionsController({ origin, destination, onDistanceCalculated }: DirectionsMapProps) {
+    const map = useMap(); // Access parent map instance reliably
     const routesLibrary = useMapsLibrary('routes');
     const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
     const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
@@ -59,9 +60,16 @@ export default function DirectionsMap({ origin, destination, onDistanceCalculate
                     onDistanceCalculated(distanceMeters / 1000);
                 }
             }
-        }).catch(err => console.error('Directions failed', err));
+        }).catch(err => {
+            console.error('Directions failed', err);
+            // Don't clear directions on error to avoid flickering if it's transient
+        });
     }, [directionsService, directionsRenderer, origin, destination, onDistanceCalculated, map]);
 
+    return null; // Logic only component
+}
+
+export default function DirectionsMap(props: DirectionsMapProps) {
     return (
         <Map
             defaultCenter={{ lat: 19.4326, lng: -99.1332 }} // CDMX
@@ -69,8 +77,13 @@ export default function DirectionsMap({ origin, destination, onDistanceCalculate
             mapId="QUOTE_MAP"
             style={{ width: '100%', height: '100%' }}
             disableDefaultUI={true}
-            gestureHandling={'none'}
-            onClick={onMapClick}
-        />
+            zoomControl={true}
+            streetViewControl={false}
+            mapTypeControl={false}
+            fullscreenControl={false}
+            onClick={props.onMapClick}
+        >
+            <DirectionsController {...props} />
+        </Map>
     );
 }
