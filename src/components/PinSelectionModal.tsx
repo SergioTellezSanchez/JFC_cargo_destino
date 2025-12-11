@@ -18,6 +18,7 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
 
     const geometryLib = useMapsLibrary('geometry');
     const geocodingLib = useMapsLibrary('geocoding');
+    const [isMapVisible, setIsMapVisible] = useState(false);
     const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
 
     // Initialize Geocoder
@@ -35,6 +36,16 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
             setIsValid(true);
             setDistance(0);
             setErrorMsg('');
+            setIsMapVisible(false); // Reset first
+
+            // Delay map rendering to ensure modal DOM is fully painted and has dimensions
+            const timer = setTimeout(() => {
+                setIsMapVisible(true);
+            }, 300);
+
+            return () => clearTimeout(timer);
+        } else {
+            setIsMapVisible(false);
         }
     }, [isOpen, initialLocation]);
 
@@ -68,54 +79,64 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
                 </div>
 
                 {/* Map Container */}
-                <div className="relative flex-1 min-h-[400px] h-[500px]">
-                    <Map
-                        center={initialLocation}
-                        zoom={18}
-                        mapId={null}
-                        style={{ width: '100%', height: '100%' }}
-                        disableDefaultUI={false}
-                        zoomControl={true}
-                        gestureHandling={'greedy'}
-                    >
-                        {/* Marker logic inline */}
-                        <Marker
-                            position={markerPosition || initialLocation}
-                            draggable={true}
-                            onDragEnd={(e) => {
-                                if (!e.latLng || !initialLocation || !geometryLib) return;
-                                const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-                                const initialLatLng = new google.maps.LatLng(initialLocation.lat, initialLocation.lng);
-                                const newLatLng = new google.maps.LatLng(newPos.lat, newPos.lng);
+                <div className="relative flex-1 min-h-[400px] h-[500px] bg-slate-50">
+                    {!isMapVisible && (
+                        <div className="absolute inset-0 flex items-center justify-center text-slate-400 gap-2">
+                            <MapPin className="animate-bounce" />
+                            <span className="text-sm font-medium">Cargando mapa...</span>
+                        </div>
+                    )}
 
-                                let dist = 0;
-                                if (geometryLib) {
-                                    dist = geometryLib.spherical.computeDistanceBetween(initialLatLng, newLatLng);
-                                }
+                    {isMapVisible && (
+                        <Map
+                            center={initialLocation}
+                            zoom={18}
+                            mapId={null}
+                            style={{ width: '100%', height: '100%' }}
+                            disableDefaultUI={false}
+                            zoomControl={true}
+                            gestureHandling={'greedy'}
+                            reuseMaps={true}
+                        >
+                            {/* Marker logic inline */}
+                            <Marker
+                                position={markerPosition || initialLocation}
+                                draggable={true}
+                                onDragEnd={(e) => {
+                                    if (!e.latLng || !initialLocation || !geometryLib) return;
+                                    const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                                    const initialLatLng = new google.maps.LatLng(initialLocation.lat, initialLocation.lng);
+                                    const newLatLng = new google.maps.LatLng(newPos.lat, newPos.lng);
 
-                                setDistance(dist);
-                                setMarkerPosition(newPos);
-
-                                if (dist > 50) {
-                                    setIsValid(false);
-                                    setErrorMsg(`El pin está a ${Math.round(dist)}m (máximo 50m)`);
-                                } else {
-                                    setIsValid(true);
-                                    setErrorMsg('');
-                                    if (geocoder) {
-                                        geocoder.geocode({ location: newPos }, (results, status) => {
-                                            if (status === 'OK' && results?.[0]) {
-                                                setCurrentAddress(results[0].formatted_address);
-                                            }
-                                        });
+                                    let dist = 0;
+                                    if (geometryLib) {
+                                        dist = geometryLib.spherical.computeDistanceBetween(initialLatLng, newLatLng);
                                     }
-                                }
-                            }}
-                            icon={{
-                                url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-                            }}
-                        />
-                    </Map>
+
+                                    setDistance(dist);
+                                    setMarkerPosition(newPos);
+
+                                    if (dist > 50) {
+                                        setIsValid(false);
+                                        setErrorMsg(`El pin está a ${Math.round(dist)}m (máximo 50m)`);
+                                    } else {
+                                        setIsValid(true);
+                                        setErrorMsg('');
+                                        if (geocoder) {
+                                            geocoder.geocode({ location: newPos }, (results, status) => {
+                                                if (status === 'OK' && results?.[0]) {
+                                                    setCurrentAddress(results[0].formatted_address);
+                                                }
+                                            });
+                                        }
+                                    }
+                                }}
+                                icon={{
+                                    url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                                }}
+                            />
+                        </Map>
+                    )}
 
                     {/* Error Overlay */}
                     {!isValid && (
