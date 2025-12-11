@@ -8,6 +8,10 @@ interface QuoteDetails {
     weight: number;
     serviceMultiplier: number;
     serviceFee: number;
+    fuelSurcharge: number;
+    demandSurcharge: number;
+    iva: number;
+    total: number;
 }
 
 interface CostBreakdownModalProps {
@@ -72,6 +76,22 @@ export default function CostBreakdownModal({
                             <span className="font-medium text-slate-900">{formatCurrency(details.weight)}</span>
                         </div>
 
+                        {/* Fuel Surcharge */}
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500 flex items-center gap-2">
+                                <Zap size={14} /> Recargo por Combustible
+                            </span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.fuelSurcharge)}</span>
+                        </div>
+
+                        {/* Demand Surcharge */}
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500 flex items-center gap-2">
+                                <Calculator size={14} /> Demand Surcharge
+                            </span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.demandSurcharge)}</span>
+                        </div>
+
                         {/* Service Fee */}
                         {details.serviceFee > 0 && (
                             <div className="flex justify-between items-center text-orange-600 bg-orange-50 p-2 rounded-lg">
@@ -81,6 +101,14 @@ export default function CostBreakdownModal({
                                 <span className="font-bold">+{formatCurrency(details.serviceFee)}</span>
                             </div>
                         )}
+
+                        {/* IVA */}
+                        <div className="flex justify-between items-center border-t border-slate-100 pt-2 mt-2">
+                            <span className="text-slate-500 flex items-center gap-2">
+                                <span>IVA (16%)</span>
+                            </span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.iva)}</span>
+                        </div>
                     </div>
 
                     <div className="mt-4 pt-4 border-t border-slate-200 flex justify-between items-end">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Map, AdvancedMarker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { Map, Marker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { AlertCircle, MapPin, CheckCircle } from 'lucide-react';
 
 interface PinSelectionModalProps {
@@ -116,23 +116,14 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
                         gestureHandling={'greedy'}
                     >
                         {markerPosition && (
-                            <AdvancedMarker
+                            <Marker
                                 position={markerPosition}
                                 draggable={true}
                                 onDragEnd={handleDragEnd}
-                            >
-                                <div className={`relative -translate-y-full hover:scale-110 transition-transform`}>
-                                    <MapPin
-                                        size={40}
-                                        className={`drop-shadow-lg ${isValid ? 'text-blue-600 fill-blue-100' : 'text-red-500 fill-red-100'}`}
-                                    />
-                                    {!isValid && (
-                                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow-sm whitespace-nowrap">
-                                            Fuera de rango
-                                        </div>
-                                    )}
-                                </div>
-                            </AdvancedMarker>
+                                icon={{
+                                    url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                                }}
+                            />
                         )}
 
                         {/* Circle to show 50m radius (Visual Hint) */}

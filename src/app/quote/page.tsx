@@ -13,7 +13,8 @@ import { formatCurrency } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import PinSelectionModal from '@/components/PinSelectionModal';
 import CostBreakdownModal from '@/components/CostBreakdownModal';
-import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck } from 'lucide-react';
+import CustomSelect from '@/components/CustomSelect';
+import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box } from 'lucide-react';
 
 
 interface LocationState {
@@ -39,6 +40,7 @@ export default function QuotePage() {
     const [dimensions, setDimensions] = useState({ length: 10, width: 10, height: 10 });
     const [description, setDescription] = useState('');
     const [packageType, setPackageType] = useState('Caja de cartón');
+    const [packageDetails, setPackageDetails] = useState('');
 
     // Service Level
     const [serviceLevel, setServiceLevel] = useState<'standard' | 'express'>('standard');
@@ -52,6 +54,10 @@ export default function QuotePage() {
         weight: number;
         serviceMultiplier: number;
         serviceFee: number;
+        fuelSurcharge: number;
+        demandSurcharge: number;
+        iva: number;
+        total: number;
     } | null>(null);
     const [calculated, setCalculated] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -81,15 +87,26 @@ export default function QuotePage() {
             const distanceCost = distanceKm * 8;
             const weightCost = weight * 2;
             const subtotal = baseRate + distanceCost + weightCost;
-            const multiplier = serviceLevel === 'express' ? 1.5 : 1.0;
-            const finalPrice = subtotal * multiplier;
+
+            // Surcharges
+            const fuelSurcharge = subtotal * 0.10; // 10%
+            const demandSurcharge = 20; // Fixed flat demand fee
+            const serviceMult = serviceLevel === 'express' ? 1.5 : 1.0;
+
+            const preTax = (subtotal + fuelSurcharge + demandSurcharge) * serviceMult;
+            const iva = preTax * 0.16;
+            const finalPrice = preTax + iva;
 
             setQuoteDetails({
                 base: baseRate,
                 distance: distanceCost,
                 weight: weightCost,
-                serviceMultiplier: multiplier,
-                serviceFee: finalPrice - subtotal
+                serviceMultiplier: serviceMult,
+                serviceFee: (subtotal + fuelSurcharge + demandSurcharge) * (serviceMult - 1),
+                fuelSurcharge,
+                demandSurcharge,
+                iva,
+                total: finalPrice
             });
             setQuotePrice(finalPrice);
             setCalculated(true);
@@ -174,6 +191,8 @@ export default function QuotePage() {
                 setDescription={setDescription}
                 packageType={packageType}
                 setPackageType={setPackageType}
+                packageDetails={packageDetails}
+                setPackageDetails={setPackageDetails}
                 serviceLevel={serviceLevel}
                 setServiceLevel={setServiceLevel}
                 currentStep={currentStep}
@@ -417,17 +436,59 @@ function QuoteContent(props: any) {
                                                 ></textarea>
                                             </div>
 
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Tipo de Paquete</label>
-                                                <select
-                                                    value={props.packageType}
-                                                    onChange={(e) => props.setPackageType(e.target.value)}
-                                                    className="w-full bg-transparent text-lg font-medium text-slate-800 outline-none h-12"
-                                                >
-                                                    {['Caja de cartón', 'Tarima', 'Bolsa de plástico', 'Bolsa de papel', 'Bulto', 'Caja de aluminio', 'Otro'].map(type => (
-                                                        <option key={type} value={type}>{type}</option>
-                                                    ))}
-                                                </select>
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2 space-y-4">
+                                                <div>
+                                                    <CustomSelect
+                                                        label="Tipo de Paquete"
+                                                        value={props.packageType}
+                                                        onChange={(val) => {
+                                                            props.setPackageType(val);
+                                                            props.setPackageDetails(''); // Reset details on type change
+                                                        }}
+                                                        options={[
+                                                            { value: 'Caja de cartón', label: 'Caja de cartón' },
+                                                            { value: 'Sobre / Documentos', label: 'Sobre / Documentos' },
+                                                            { value: 'Tarima', label: 'Tarima' },
+                                                            { value: 'Bolsa', label: 'Bolsa' },
+                                                            { value: 'Muebles', label: 'Muebles' },
+                                                            { value: 'Otro', label: 'Otro' }
+                                                        ]}
+                                                    />
+                                                </div>
+
+                                                {/* Dynamic Sub-options based on type */}
+                                                {props.packageType === 'Caja de cartón' && (
+                                                    <div className="animate-in fade-in slide-in-from-top-2">
+                                                        <CustomSelect
+                                                            label="Tamaño de Caja (Opcional)"
+                                                            value={props.packageDetails}
+                                                            onChange={props.setPackageDetails}
+                                                            placeholder="Selecciona un tamaño estándar..."
+                                                            options={[
+                                                                { value: 'Chica (20x20x20)', label: 'Chica (20x20x20 cm)' },
+                                                                { value: 'Mediana (40x30x30)', label: 'Mediana (40x30x30 cm)' },
+                                                                { value: 'Grande (50x50x50)', label: 'Grande (50x50x50 cm)' },
+                                                                { value: 'Extra Grande (70x60x50)', label: 'Extra Grande (70x60x50 cm)' },
+                                                            ]}
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {props.packageType === 'Tarima' && (
+                                                    <div className="animate-in fade-in slide-in-from-top-2">
+                                                        <CustomSelect
+                                                            label="Tipo de Tarima (Opcional)"
+                                                            value={props.packageDetails}
+                                                            onChange={props.setPackageDetails}
+                                                            placeholder="Especifica el tipo..."
+                                                            options={[
+                                                                { value: 'Estándar Americana', label: 'Estándar Americana (1.0x1.2m)' },
+                                                                { value: 'Europea', label: 'Europea (0.8x1.2m)' },
+                                                                { value: 'Plástico', label: 'Plástico' },
+                                                            ]}
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
