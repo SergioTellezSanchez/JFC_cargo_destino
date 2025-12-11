@@ -10,7 +10,7 @@ interface DirectionsMapProps {
 import { MapMouseEvent } from '@vis.gl/react-google-maps';
 
 export default function DirectionsMap({ origin, destination, onDistanceCalculated, onMapClick }: DirectionsMapProps & { onMapClick?: (e: MapMouseEvent) => void }) {
-    const map = useMap();
+    const map = useMap('QUOTE_MAP');
     const routesLibrary = useMapsLibrary('routes');
     const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
     const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);

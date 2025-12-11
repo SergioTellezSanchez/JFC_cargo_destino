@@ -121,7 +121,7 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
                                 draggable={true}
                                 onDragEnd={handleDragEnd}
                                 icon={{
-                                    url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                                    url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
                                 }}
                             />
                         )}
