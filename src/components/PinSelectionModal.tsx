@@ -91,7 +91,7 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
                         <Map
                             center={initialLocation}
                             zoom={18}
-                            mapId={null}
+                            mapId="4b2094d4b3b1a5ccd5a74cb9"
                             style={{ width: '100%', height: '100%' }}
                             disableDefaultUI={false}
                             zoomControl={true}
