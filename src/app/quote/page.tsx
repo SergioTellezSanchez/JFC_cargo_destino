@@ -356,6 +356,7 @@ function QuoteContent(props: any) {
                                                             className="w-full bg-transparent border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
                                                             placeholder="Dirección de recolección"
                                                             onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'origin')}
+                                                            defaultValue={props.origin?.address}
                                                         />
                                                         <button
                                                             onClick={() => props.onOpenPinModal('origin')}
@@ -379,6 +380,7 @@ function QuoteContent(props: any) {
                                                             className="w-full bg-transparent border-b-2 border-slate-200 focus:border-indigo-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
                                                             placeholder="Dirección de entrega"
                                                             onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'destination')}
+                                                            defaultValue={props.destination?.address}
                                                         />
                                                         <button
                                                             onClick={() => props.onOpenPinModal('destination')}
@@ -634,7 +636,7 @@ function QuoteContent(props: any) {
                         </div>
 
                         {/* Map Column */}
-                        <div className="lg:col-span-6 h-[600px] lg:h-auto lg:sticky lg:top-8 order-first lg:order-last">
+                        <div className="lg:col-span-6 h-[600px] lg:h-auto lg:sticky lg:top-8 lg:order-last">
                             <div className={`h-[600px] rounded-3xl overflow-hidden shadow-2xl relative transition-all duration-300 ring-1 ring-slate-200`}>
 
                                 <DirectionsMap

@@ -110,10 +110,11 @@ export default function PinSelectionModal({ isOpen, onClose, onConfirm, initialL
                     <Map
                         defaultCenter={initialLocation}
                         defaultZoom={18}
-                        mapId={null}
+                        mapId="PIN_MAP"
+                        id="pin-modal-map"
                         style={{ width: '100%', height: '100%' }}
                         disableDefaultUI={false}
-                        gestureHandling={'greedy'}
+                        zoomControl={true}
                     >
                         {markerPosition && (
                             <Marker

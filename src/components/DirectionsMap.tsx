@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Map, useMapsLibrary, useMap, MapMouseEvent } from '@vis.gl/react-google-maps';
+import { Map, useMapsLibrary, useMap, MapMouseEvent, Marker } from '@vis.gl/react-google-maps';
 
 interface DirectionsMapProps {
     origin: { lat: number; lng: number } | null;
@@ -23,7 +23,7 @@ function DirectionsController({ origin, destination, onDistanceCalculated }: Dir
         const service = new routesLibrary.DirectionsService();
         const renderer = new routesLibrary.DirectionsRenderer({
             map,
-            suppressMarkers: false,
+            suppressMarkers: true,
             polylineOptions: {
                 strokeColor: '#1f4a5e',
                 strokeWeight: 5
@@ -66,7 +66,24 @@ function DirectionsController({ origin, destination, onDistanceCalculated }: Dir
         });
     }, [directionsService, directionsRenderer, origin, destination, onDistanceCalculated, map]);
 
-    return null; // Logic only component
+    return (
+        <>
+            {origin && (
+                <Marker
+                    position={origin}
+                    label={{ text: "Cargo", color: "white", fontWeight: "bold", fontSize: "12px" }}
+                    title="Origen (Carga)"
+                />
+            )}
+            {destination && (
+                <Marker
+                    position={destination}
+                    label={{ text: "Destino", color: "white", fontWeight: "bold", fontSize: "12px" }}
+                    title="Destino (Entrega)"
+                />
+            )}
+        </>
+    );
 }
 
 export default function DirectionsMap(props: DirectionsMapProps) {
