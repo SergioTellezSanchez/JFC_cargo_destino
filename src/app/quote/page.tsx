@@ -11,7 +11,10 @@ import DirectionsMap from '@/components/DirectionsMap';
 import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { formatCurrency } from '@/lib/utils';
 import Modal from '@/components/Modal';
+import PinSelectionModal from '@/components/PinSelectionModal';
+import CostBreakdownModal from '@/components/CostBreakdownModal';
 import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck } from 'lucide-react';
+
 
 interface LocationState {
     address: string;
@@ -53,7 +56,14 @@ export default function QuotePage() {
     const [loading, setLoading] = useState(false);
 
     // Modal State
-    const [showModal, setShowModal] = useState(false);
+    const [showModal, setShowModal] = useState(false); // Creating Package Modal
+    const [showBreakdownModal, setShowBreakdownModal] = useState(false); // Cost Breakdown Modal
+
+    // Pin Selection State
+    const [showPinModal, setShowPinModal] = useState(false);
+    const [tempLocation, setTempLocation] = useState<{ address: string, lat: number, lng: number } | null>(null);
+    const [pinModalType, setPinModalType] = useState<'origin' | 'destination'>('origin');
+
     const [recipientName, setRecipientName] = useState('');
     const [recipientPhone, setRecipientPhone] = useState('');
 
@@ -128,6 +138,30 @@ export default function QuotePage() {
         }
     };
 
+    const handleAddressSelect = (location: LocationState, type: 'origin' | 'destination') => {
+        setTempLocation(location);
+        setPinModalType(type);
+        setShowPinModal(true);
+    };
+
+    const handlePinConfirm = (location: LocationState) => {
+        if (pinModalType === 'origin') {
+            setOrigin(location);
+        } else {
+            setDestination(location);
+        }
+    };
+
+    const handleRequestQuote = () => {
+        if (!isStep2Valid) return;
+        setShowBreakdownModal(true);
+    };
+
+    const handleConfirmBreakdown = () => {
+        setShowBreakdownModal(false);
+        setShowModal(true); // Open the recipient details modal
+    };
+
     return (
         <APIProvider apiKey={API_KEY}>
             <QuoteContent
@@ -159,6 +193,27 @@ export default function QuotePage() {
                 recipientPhone={recipientPhone}
                 setRecipientPhone={setRecipientPhone}
                 loading={loading}
+                // New Props
+                onAddressSelect={handleAddressSelect}
+                onRequestQuote={handleRequestQuote}
+            />
+
+            <PinSelectionModal
+                isOpen={showPinModal}
+                onClose={() => setShowPinModal(false)}
+                onConfirm={handlePinConfirm}
+                initialLocation={tempLocation}
+            />
+
+            <CostBreakdownModal
+                isOpen={showBreakdownModal}
+                onClose={() => setShowBreakdownModal(false)}
+                onConfirm={handleConfirmBreakdown}
+                details={quoteDetails}
+                totalPrice={quotePrice}
+                distanceKm={distanceKm}
+                weight={weight}
+                serviceLevel={serviceLevel}
             />
         </APIProvider>
     );
@@ -215,7 +270,7 @@ function QuoteContent(props: any) {
                     <div className="text-center mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
                         <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 mb-4">
                             Calcula tu{' '}
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-orange-500">
                                 Envío Ideal
                             </span>
                         </h1>
@@ -227,7 +282,7 @@ function QuoteContent(props: any) {
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
 
                         {/* Main Interaction Area */}
-                        <div className="lg:col-span-7 space-y-8">
+                        <div className="lg:col-span-6 space-y-8">
 
                             {/* Modern Navigation Tabs */}
                             <div className="bg-white/80 backdrop-blur-xl p-2 rounded-2xl shadow-sm border border-slate-200/60 sticky top-4 z-50">
@@ -300,7 +355,7 @@ function QuoteContent(props: any) {
                                                         <PlaceAutocomplete
                                                             className="w-full bg-transparent border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
                                                             placeholder="Dirección de recolección"
-                                                            onPlaceSelect={props.setOrigin}
+                                                            onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'origin')}
                                                         />
                                                         <button
                                                             onClick={() => props.setPickingLocation('origin')}
@@ -322,7 +377,7 @@ function QuoteContent(props: any) {
                                                         <PlaceAutocomplete
                                                             className="w-full bg-transparent border-b-2 border-slate-200 focus:border-indigo-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
                                                             placeholder="Dirección de entrega"
-                                                            onPlaceSelect={props.setDestination}
+                                                            onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'destination')}
                                                         />
                                                         <button
                                                             onClick={() => props.setPickingLocation('destination')}
@@ -473,7 +528,7 @@ function QuoteContent(props: any) {
                                                     </div>
                                                 </div>
                                                 <button
-                                                    onClick={() => props.setShowModal(true)}
+                                                    onClick={props.onRequestQuote}
                                                     className="w-full md:w-auto bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition-colors shadow-lg flex items-center justify-center gap-2"
                                                 >
                                                     Solicitar Ahora <ChevronRight size={20} />
@@ -486,7 +541,7 @@ function QuoteContent(props: any) {
                         </div>
 
                         {/* Map Column */}
-                        <div className="lg:col-span-5 h-[400px] lg:h-auto lg:sticky lg:top-8 order-first lg:order-last">
+                        <div className="lg:col-span-6 h-[500px] lg:h-auto lg:sticky lg:top-8 order-first lg:order-last">
                             <div className={`h-[500px] rounded-3xl overflow-hidden shadow-2xl relative transition-all duration-300
                                 ${props.pickingLocation ? 'ring-4 ring-offset-4 ring-blue-500 shadow-blue-500/20' : 'ring-1 ring-slate-200'}
                             `}>
