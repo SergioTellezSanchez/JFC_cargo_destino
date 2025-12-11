@@ -91,7 +91,7 @@ export default function DirectionsMap(props: DirectionsMapProps) {
         <Map
             defaultCenter={{ lat: 19.4326, lng: -99.1332 }} // CDMX
             defaultZoom={10}
-            mapId="QUOTE_MAP"
+            mapId="4b2094d4b3b1a5ccd5a74cb9"
             style={{ width: '100%', height: '100%' }}
             disableDefaultUI={true}
             zoomControl={true}
