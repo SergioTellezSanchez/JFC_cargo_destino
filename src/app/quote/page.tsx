@@ -11,7 +11,7 @@ import DirectionsMap from '@/components/DirectionsMap';
 import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { formatCurrency } from '@/lib/utils';
 import Modal from '@/components/Modal';
-import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock } from 'lucide-react';
+import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck } from 'lucide-react';
 
 interface LocationState {
     address: string;
@@ -69,7 +69,6 @@ export default function QuotePage() {
     // Real-time calculation effect
     useEffect(() => {
         if (isStep1Valid) {
-            // Calculo preliminar sin esperar al botón
             const baseRate = 50;
             const distanceCost = distanceKm * 10;
             const weightCost = weight * 5;
@@ -165,7 +164,6 @@ export default function QuotePage() {
     );
 }
 
-// Extracted Content Component to use Maps Hooks safely
 function QuoteContent(props: any) {
     const geocodingLib = useMapsLibrary('geocoding');
     const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
@@ -195,7 +193,7 @@ function QuoteContent(props: any) {
                 } else {
                     props.setDestination(locationData);
                 }
-                props.setPickingLocation(null); // Exit picking mode
+                props.setPickingLocation(null);
             } else {
                 alert('No pudimos obtener la dirección de este punto.');
             }
@@ -203,333 +201,379 @@ function QuoteContent(props: any) {
     };
 
     return (
-        <div className="container mx-auto p-6 lg:p-8 min-h-screen bg-gray-50/50">
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="min-h-screen bg-[#F8FAFC]">
+            {/* Background Decorations */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-100/40 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2" />
+            </div>
 
-                {/* Main Content Area (Left) */}
-                <div className="lg:col-span-7 space-y-6">
-                    <div className="text-left mb-6">
-                        <h1 className="text-3xl font-extrabold mb-2 text-gradient">Cotizar Envío</h1>
-                        <p className="text-gray-500">Completa los datos en orden para ver tu tarifa.</p>
+            <div className="container mx-auto px-4 py-8 lg:py-12 relative z-10">
+                <div className="max-w-7xl mx-auto">
+
+                    {/* Header */}
+                    <div className="text-center mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 mb-4">
+                            Calcula tu{' '}
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+                                Envío Ideal
+                            </span>
+                        </h1>
+                        <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+                            Obtén una cotización instantánea y programa tu recolección en minutos. Sin complicaciones.
+                        </p>
                     </div>
 
-                    {/* Top Navigation Steps */}
-                    <div className="flex border-b border-gray-200 mb-8 bg-white rounded-t-xl overflow-hidden shadow-sm">
-                        {[
-                            { id: 1, label: 'Ruta', icon: Navigation, valid: props.isStep1Valid },
-                            { id: 2, label: 'Paquete', icon: Package, valid: props.isStep2Valid },
-                            { id: 3, label: 'Servicio', icon: Zap, valid: false }
-                        ].map((step) => (
-                            <button
-                                key={step.id}
-                                onClick={() => {
-                                    if (step.id === 1) props.setCurrentStep(1);
-                                    if (step.id === 2 && props.isStep1Valid) props.setCurrentStep(2);
-                                    if (step.id === 3 && props.isStep2Valid) props.setCurrentStep(3);
-                                }}
-                                disabled={(step.id === 2 && !props.isStep1Valid) || (step.id === 3 && !props.isStep2Valid)}
-                                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-semibold transition-all relative
-                                    ${props.currentStep === step.id ? 'text-[#1f4a5e] bg-blue-50/50' : 'text-gray-400 hover:text-gray-600'}
-                                    ${(step.id === 2 && !props.isStep1Valid) || (step.id === 3 && !props.isStep2Valid) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                                `}
-                            >
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all
-                                    ${props.currentStep === step.id ? 'bg-gradient-to-r from-[#1f4a5e] to-[#6daec7] text-white shadow-md' :
-                                        step.valid ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}
-                                `}>
-                                    {step.valid ? <CheckCircle size={14} /> : step.id}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+
+                        {/* Main Interaction Area */}
+                        <div className="lg:col-span-7 space-y-8">
+
+                            {/* Modern Navigation Tabs */}
+                            <div className="bg-white/80 backdrop-blur-xl p-2 rounded-2xl shadow-sm border border-slate-200/60 sticky top-4 z-50">
+                                <div className="flex relative">
+                                    {[
+                                        { id: 1, label: 'Ruta', icon: Navigation },
+                                        { id: 2, label: 'Paquete', icon: Package },
+                                        { id: 3, label: 'Servicio', icon: Zap }
+                                    ].map((step) => {
+                                        const isActive = props.currentStep === step.id;
+                                        const isCompleted = props.currentStep > step.id;
+                                        const isDisabled = step.id > props.currentStep &&
+                                            ((step.id === 2 && !props.isStep1Valid) || (step.id === 3 && !props.isStep2Valid));
+
+                                        return (
+                                            <button
+                                                key={step.id}
+                                                onClick={() => {
+                                                    if (!isDisabled) props.setCurrentStep(step.id);
+                                                }}
+                                                disabled={isDisabled}
+                                                className={`flex-1 relative flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300
+                                                    ${isActive ? 'text-blue-600 bg-blue-50 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}
+                                                    ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+                                                `}
+                                            >
+                                                <step.icon size={18} className={isActive ? 'text-blue-500' : isCompleted ? 'text-green-500' : 'text-slate-400'} />
+                                                <span>{step.label}</span>
+                                                {isActive && (
+                                                    <div className="absolute inset-0 border-2 border-blue-100 rounded-xl" />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                <span className="hidden sm:inline">{step.label}</span>
-                                {props.currentStep === step.id && (
-                                    <div className="absolute bottom-0 left-0 w-full h-1 bg-[#1f4a5e] rounded-t-full" />
-                                )}
-                            </button>
-                        ))}
-                    </div>
+                            </div>
 
-                    {/* Dynamic Step Content */}
-                    <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 lg:p-10 min-h-[400px]">
+                            {/* Cards Container */}
+                            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative min-h-[500px] transition-all duration-500">
 
-                        {/* Step 1: Ruta */}
-                        {props.currentStep === 1 && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">
-                                <div className="flex justify-between items-center">
-                                    <h2 className="text-2xl font-bold text-[#1f4a5e]">Definir Ruta</h2>
-                                    <button
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${props.pickingLocation ? 'bg-red-100 text-red-600 animate-pulse ring-2 ring-red-400' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                                        onClick={() => props.setPickingLocation(props.pickingLocation ? null : 'origin')}
-                                    >
-                                        <MapPin size={16} />
-                                        {props.pickingLocation ? 'Cancel Selection' : 'Seleccionar en Mapa'}
-                                    </button>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <div className={`p-5 rounded-2xl border-2 transition-all group hover:border-[#1f4a5e]/30 ${props.pickingLocation === 'origin' ? 'border-[#1f4a5e] bg-blue-50/50 ring-4 ring-blue-100' : 'border-gray-100 bg-white'}`}>
-                                        <div className="flex justify-between mb-3">
-                                            <label className="block text-sm font-bold text-gray-700 flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-blue-100 text-[#1f4a5e] flex items-center justify-center">
-                                                    <Navigation size={14} />
-                                                </div>
-                                                Origen
-                                            </label>
-                                            {props.origin && <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Seleccionado</span>}
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <div className="flex-1">
-                                                <PlaceAutocomplete
-                                                    className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 font-medium text-gray-700 focus:ring-2 focus:ring-[#1f4a5e] focus:bg-white transition-all placeholder:text-gray-400"
-                                                    placeholder="Ej. Av. Reforma 222, CDMX"
-                                                    onPlaceSelect={props.setOrigin}
-                                                />
+                                {/* Step 1: Route */}
+                                {props.currentStep === 1 && (
+                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-left-8 duration-500">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h2 className="text-2xl font-bold text-slate-800">¿A dónde vamos?</h2>
+                                                <p className="text-slate-500">Define los puntos de recolección y entrega.</p>
                                             </div>
                                             <button
-                                                className={`p-3 rounded-xl border-2 transition-all hover:scale-105 active:scale-95 ${props.pickingLocation === 'origin' ? 'bg-[#1f4a5e] text-white border-[#1f4a5e] shadow-lg' : 'bg-white text-gray-400 border-gray-200 hover:border-[#1f4a5e] hover:text-[#1f4a5e]'}`}
-                                                onClick={() => props.pickingLocation === 'origin' ? props.setPickingLocation(null) : props.setPickingLocation('origin')}
-                                                title="Seleccionar en mapa"
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide transition-all shadow-sm
+                                                    ${props.pickingLocation
+                                                        ? 'bg-red-50 text-red-600 ring-2 ring-red-100 animate-pulse'
+                                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'}
+                                                `}
+                                                onClick={() => props.setPickingLocation(props.pickingLocation ? null : 'origin')}
                                             >
-                                                <MapPin size={22} />
+                                                <MapPin size={14} />
+                                                {props.pickingLocation ? 'Cancelar Mapa' : 'Usar Mapa'}
                                             </button>
                                         </div>
-                                    </div>
 
-                                    <div className={`p-5 rounded-2xl border-2 transition-all group hover:border-[#1f4a5e]/30 ${props.pickingLocation === 'destination' ? 'border-[#1f4a5e] bg-blue-50/50 ring-4 ring-blue-100' : 'border-gray-100 bg-white'}`}>
-                                        <div className="flex justify-between mb-3">
-                                            <label className="block text-sm font-bold text-gray-700 flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
-                                                    <MapPin size={14} />
+                                        <div className="space-y-6">
+                                            {/* Origin Input */}
+                                            <div className={`group relative p-1 rounded-2xl transition-all duration-300 ${props.pickingLocation === 'origin' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 p-[2px]' : 'bg-transparent'}`}>
+                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 group-hover:border-transparent transition-all shadow-sm group-hover:shadow-lg">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-2">
+                                                        <Navigation size={12} className="text-blue-500" /> Origen
+                                                    </label>
+                                                    <div className="flex gap-4">
+                                                        <PlaceAutocomplete
+                                                            className="w-full bg-transparent border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
+                                                            placeholder="Dirección de recolección"
+                                                            onPlaceSelect={props.setOrigin}
+                                                        />
+                                                        <button
+                                                            onClick={() => props.setPickingLocation('origin')}
+                                                            className={`p-3 rounded-full transition-all ${props.pickingLocation === 'origin' ? 'bg-blue-600 text-white shadow-lg scale-110' : 'bg-slate-100 text-slate-400 hover:bg-blue-50 hover:text-blue-500'}`}
+                                                        >
+                                                            <MapPin size={20} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                Destino
-                                            </label>
-                                            {props.destination && <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Seleccionado</span>}
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <div className="flex-1">
-                                                <PlaceAutocomplete
-                                                    className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 font-medium text-gray-700 focus:ring-2 focus:ring-[#1f4a5e] focus:bg-white transition-all placeholder:text-gray-400"
-                                                    placeholder="Ej. Polanco V Sección, CDMX"
-                                                    onPlaceSelect={props.setDestination}
-                                                />
                                             </div>
+
+                                            {/* Destination Input */}
+                                            <div className={`group relative p-1 rounded-2xl transition-all duration-300 ${props.pickingLocation === 'destination' ? 'bg-gradient-to-r from-indigo-500 to-purple-500 p-[2px]' : 'bg-transparent'}`}>
+                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 group-hover:border-transparent transition-all shadow-sm group-hover:shadow-lg">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-2">
+                                                        <MapPin size={12} className="text-indigo-500" /> Destino
+                                                    </label>
+                                                    <div className="flex gap-4">
+                                                        <PlaceAutocomplete
+                                                            className="w-full bg-transparent border-b-2 border-slate-200 focus:border-indigo-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
+                                                            placeholder="Dirección de entrega"
+                                                            onPlaceSelect={props.setDestination}
+                                                        />
+                                                        <button
+                                                            onClick={() => props.setPickingLocation('destination')}
+                                                            className={`p-3 rounded-full transition-all ${props.pickingLocation === 'destination' ? 'bg-indigo-600 text-white shadow-lg scale-110' : 'bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-500'}`}
+                                                        >
+                                                            <MapPin size={20} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {props.isStep1Valid && (
+                                            <div className="flex justify-end pt-6">
+                                                <button
+                                                    onClick={() => props.setCurrentStep(2)}
+                                                    className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3"
+                                                >
+                                                    Continuar <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Step 2: Package */}
+                                {props.currentStep === 2 && (
+                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-slate-800">¿Qué envías?</h2>
+                                            <p className="text-slate-500">Detalla tu paquete para calcular la tarifa exacta.</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Peso (Kg)</label>
+                                                <div className="flex items-baseline gap-2">
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={props.weight}
+                                                        onChange={(e) => props.setWeight(Number(e.target.value))}
+                                                        className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
+                                                    />
+                                                    <span className="text-slate-400 font-medium">kg</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Descripción</label>
+                                                <textarea
+                                                    value={props.description}
+                                                    onChange={(e) => props.setDescription(e.target.value)}
+                                                    className="w-full bg-transparent text-lg font-medium text-slate-800 outline-none resize-none h-24 placeholder:text-slate-300"
+                                                    placeholder="Ej. Documentos importantes, Electrónicos..."
+                                                ></textarea>
+                                            </div>
+                                        </div>
+
+                                        {props.isStep2Valid && (
+                                            <div className="flex justify-end pt-6">
+                                                <button
+                                                    onClick={() => props.setCurrentStep(3)}
+                                                    className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3"
+                                                >
+                                                    Ver Precios <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Step 3: Service */}
+                                {props.currentStep === 3 && (
+                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-slate-800">Elige tu velocidad</h2>
+                                            <p className="text-slate-500">Selecciona la opción que mejor se adapte a tu urgencia.</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {/* Standard Service */}
                                             <button
-                                                className={`p-3 rounded-xl border-2 transition-all hover:scale-105 active:scale-95 ${props.pickingLocation === 'destination' ? 'bg-[#1f4a5e] text-white border-[#1f4a5e] shadow-lg' : 'bg-white text-gray-400 border-gray-200 hover:border-[#1f4a5e] hover:text-[#1f4a5e]'}`}
-                                                onClick={() => props.pickingLocation === 'destination' ? props.setPickingLocation(null) : props.setPickingLocation('destination')}
-                                                title="Seleccionar en mapa"
+                                                onClick={() => props.setServiceLevel('standard')}
+                                                className={`group relative p-6 rounded-3xl text-left border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
+                                                    ${props.serviceLevel === 'standard'
+                                                        ? 'border-blue-500 bg-blue-50/50 ring-4 ring-blue-100'
+                                                        : 'border-slate-100 bg-white hover:border-blue-200'}
+                                                `}
                                             >
-                                                <MapPin size={22} />
+                                                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                                    <Truck size={100} className="text-blue-900" />
+                                                </div>
+                                                <div className="relative z-10">
+                                                    <div className="flex justify-between items-center mb-4">
+                                                        <div className={`p-3 rounded-2xl ${props.serviceLevel === 'standard' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                            <Truck size={24} />
+                                                        </div>
+                                                        {props.serviceLevel === 'standard' && <CheckCircle className="text-blue-500 fill-blue-100" />}
+                                                    </div>
+                                                    <h3 className="text-xl font-bold text-slate-800 mb-1">Estándar</h3>
+                                                    <p className="text-slate-500 text-sm mb-4">La opción inteligente para envíos planificados.</p>
+                                                    <div className="inline-block bg-slate-200/50 px-3 py-1 rounded-full text-xs font-bold text-slate-600">
+                                                        1-2 Días Hábiles
+                                                    </div>
+                                                </div>
+                                            </button>
+
+                                            {/* Express Service */}
+                                            <button
+                                                onClick={() => props.setServiceLevel('express')}
+                                                className={`group relative p-6 rounded-3xl text-left border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
+                                                    ${props.serviceLevel === 'express'
+                                                        ? 'border-orange-500 bg-orange-50/50 ring-4 ring-orange-100'
+                                                        : 'border-slate-100 bg-white hover:border-orange-200'}
+                                                `}
+                                            >
+                                                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                                    <Zap size={100} className="text-orange-900" />
+                                                </div>
+                                                <div className="relative z-10">
+                                                    <div className="flex justify-between items-center mb-4">
+                                                        <div className={`p-3 rounded-2xl ${props.serviceLevel === 'express' ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30' : 'bg-slate-100 text-slate-500'}`}>
+                                                            <Zap size={24} className={props.serviceLevel === 'express' ? 'animate-pulse' : ''} />
+                                                        </div>
+                                                        {props.serviceLevel === 'express' && <CheckCircle className="text-orange-500 fill-orange-100" />}
+                                                    </div>
+                                                    <h3 className="text-xl font-bold text-slate-800 mb-1">Express Plus</h3>
+                                                    <p className="text-slate-500 text-sm mb-4">Máxima prioridad. Tu paquete en tiempo récord.</p>
+                                                    <div className="inline-block bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">
+                                                        ⚡ Entrega Hoy
+                                                    </div>
+                                                </div>
                                             </button>
                                         </div>
-                                    </div>
-                                </div>
 
-                                {props.isStep1Valid && (
-                                    <div className="flex justify-end pt-4">
-                                        <button
-                                            className="btn btn-primary px-8 py-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 bg-gradient-to-r from-[#1f4a5e] to-[#0f2a36]"
-                                            onClick={() => props.setCurrentStep(2)}
-                                        >
-                                            Siguiente Paso <ChevronRight size={20} />
-                                        </button>
+                                        {/* Total & Action */}
+                                        <div className="mt-8 bg-slate-900 rounded-3xl p-8 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-[60px] translate-x-1/2 -translate-y-1/2" />
+
+                                            <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6">
+                                                <div>
+                                                    <p className="text-slate-400 font-medium text-sm uppercase tracking-widest mb-2">Total Estimado</p>
+                                                    <div className="text-5xl font-bold mb-2 tracking-tight">{formatCurrency(props.quotePrice)}</div>
+                                                    <div className="flex gap-4 text-sm text-slate-400">
+                                                        <span className="flex items-center gap-1"><Navigation size={14} /> {props.distanceKm.toFixed(1)} km</span>
+                                                        <span className="flex items-center gap-1"><Package size={14} /> {props.weight} kg</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => props.setShowModal(true)}
+                                                    className="w-full md:w-auto bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition-colors shadow-lg flex items-center justify-center gap-2"
+                                                >
+                                                    Solicitar Ahora <ChevronRight size={20} />
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                        )}
+                        </div>
 
-                        {/* Step 2: Paquete */}
-                        {props.currentStep === 2 && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                                <h2 className="text-2xl font-bold text-[#1f4a5e]">Detalles del Paquete</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Peso (kg)</label>
-                                        <div className="relative">
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                className="input pr-10 text-lg font-mono"
-                                                value={props.weight}
-                                                onChange={(e) => props.setWeight(Number(e.target.value))}
-                                            />
-                                            <span className="absolute right-3 top-3.5 text-gray-400 font-bold">KG</span>
+                        {/* Map Column */}
+                        <div className="lg:col-span-5 h-[400px] lg:h-auto lg:sticky lg:top-8 order-first lg:order-last">
+                            <div className={`h-[500px] rounded-3xl overflow-hidden shadow-2xl relative transition-all duration-300
+                                ${props.pickingLocation ? 'ring-4 ring-offset-4 ring-blue-500 shadow-blue-500/20' : 'ring-1 ring-slate-200'}
+                            `}>
+                                {props.pickingLocation && (
+                                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 bg-slate-900/90 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-lg font-bold flex items-center gap-2 animate-bounce">
+                                        <MapPin size={18} className="text-blue-400" />
+                                        Toca el mapa para seleccionar
+                                    </div>
+                                )}
+
+                                <DirectionsMap
+                                    origin={props.origin}
+                                    destination={props.destination}
+                                    onDistanceCalculated={props.setDistanceKm}
+                                    onMapClick={handleMapClick}
+                                />
+
+                                {/* Mini Quote Overlay */}
+                                {props.quotePrice > 0 && props.currentStep < 3 && (
+                                    <div className="absolute bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/50 flex justify-between items-center">
+                                        <div>
+                                            <p className="text-xs font-bold text-slate-400 uppercase">Estimado</p>
+                                            <p className="text-xl font-bold text-slate-900">{formatCurrency(props.quotePrice)}</p>
                                         </div>
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Descripción</label>
-                                        <textarea
-                                            className="input h-32 resize-none"
-                                            placeholder="Describa brevemente el contenido (ej. Documentos, Caja mediana...)"
-                                            value={props.description}
-                                            onChange={(e) => props.setDescription(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
-                                {props.isStep2Valid && (
-                                    <div className="flex justify-end pt-4">
-                                        <button
-                                            className="btn btn-primary px-8 py-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 bg-gradient-to-r from-[#1f4a5e] to-[#0f2a36]"
-                                            onClick={() => props.setCurrentStep(3)}
-                                        >
-                                            Ver Tarifas <ChevronRight size={20} />
-                                        </button>
+                                        <div className="text-right">
+                                            <p className="text-xs font-bold text-slate-400 uppercase">Distancia</p>
+                                            <p className="text-sm font-bold text-slate-900">{props.distanceKm.toFixed(1)} km</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                        )}
-
-                        {/* Step 3: Servicio */}
-                        {props.currentStep === 3 && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                                <h2 className="text-2xl font-bold text-[#1f4a5e]">Elige tu Servicio</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <button
-                                        className={`group relative p-6 border-2 rounded-2xl text-left transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
-                                            ${props.serviceLevel === 'standard' ? 'border-[#1f4a5e] bg-gradient-to-br from-blue-50 to-blue-100 shadow-lg ring-2 ring-blue-200' : 'border-gray-100 bg-white hover:border-blue-200'}
-                                        `}
-                                        onClick={() => props.setServiceLevel('standard')}
-                                    >
-                                        <div className={`absolute top-0 right-0 p-4 transition-opacity ${props.serviceLevel === 'standard' ? 'opacity-20' : 'opacity-5'}`}>
-                                            <Clock size={80} className="text-[#1f4a5e]" />
-                                        </div>
-                                        <div className="relative z-10">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <span className="font-bold text-xl text-[#1f4a5e]">Estándar</span>
-                                                {props.serviceLevel === 'standard' && <CheckCircle className="text-[#1f4a5e] fill-blue-100" />}
-                                            </div>
-                                            <p className="text-gray-600 text-sm mb-6 font-medium">La opción económica para envíos sin prisa.</p>
-                                            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors
-                                                ${props.serviceLevel === 'standard' ? 'bg-[#1f4a5e] text-white' : 'bg-gray-100 text-gray-500'}
-                                            `}>
-                                                <Clock size={16} />
-                                                <span>1-2 días hábiles</span>
-                                            </div>
-                                        </div>
-                                    </button>
-
-                                    <button
-                                        className={`group relative p-6 border-2 rounded-2xl text-left transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
-                                            ${props.serviceLevel === 'express' ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-yellow-50 shadow-lg ring-2 ring-orange-200' : 'border-gray-100 bg-white hover:border-orange-200'}
-                                        `}
-                                        onClick={() => props.setServiceLevel('express')}
-                                    >
-                                        <div className={`absolute top-0 right-0 p-4 transition-opacity ${props.serviceLevel === 'express' ? 'opacity-20' : 'opacity-5'}`}>
-                                            <Zap size={80} className="text-orange-500" />
-                                        </div>
-                                        <div className="relative z-10">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <span className="font-bold text-xl text-orange-600">Express</span>
-                                                {props.serviceLevel === 'express' && <CheckCircle className="text-orange-500 fill-orange-100" />}
-                                            </div>
-                                            <p className="text-gray-600 text-sm mb-6 font-medium">Prioridad máxima de entrega.</p>
-                                            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors
-                                                 ${props.serviceLevel === 'express' ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md' : 'bg-orange-50 text-orange-600'}
-                                            `}>
-                                                <Zap size={16} />
-                                                <span>Entrega Hoy</span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                </div>
-
-                                <div className="bg-[#1f4a5e] text-white p-6 rounded-2xl shadow-xl mt-8">
-                                    <div className="flex justify-between items-end mb-4">
-                                        <div>
-                                            <p className="opacity-80 text-sm uppercase tracking-wider mb-1">Total Estimado</p>
-                                            <div className="text-4xl font-bold">{formatCurrency(props.quotePrice)}</div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-sm opacity-80">{props.distanceKm.toFixed(1)} km • {props.weight} kg</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        className="w-full bg-white text-[#1f4a5e] font-extrabold py-5 rounded-xl hover:bg-gray-50 hover:scale-[1.02] transition-all shadow-xl text-lg uppercase tracking-wide flex items-center justify-center gap-3 active:scale-95"
-                                        onClick={() => props.setShowModal(true)}
-                                    >
-                                        Generar Envío <ChevronRight className="animate-pulse" />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Right Column: Map */}
-                <div className="lg:col-span-5 h-full order-first lg:order-last">
-                    <div className="sticky top-8 space-y-6">
-                        <div className={`rounded-2xl overflow-hidden shadow-2xl border-4 transition-all h-[500px] relative ${props.pickingLocation ? 'border-red-400 ring-4 ring-red-100' : 'border-white'}`}>
-
-                            {props.pickingLocation && (
-                                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-red-500 text-white px-6 py-2 rounded-full shadow-lg font-bold animate-pulse pointer-events-none">
-                                    Toca un punto en el mapa
-                                </div>
-                            )}
-
-                            <DirectionsMap
-                                origin={props.origin}
-                                destination={props.destination}
-                                onDistanceCalculated={props.setDistanceKm}
-                                onMapClick={handleMapClick}
-                            />
-
-                            {/* Simple Quote Overlay if not in Step 3 */}
-                            {props.quotePrice > 0 && props.currentStep < 3 && (
-                                <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-100">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <div className="text-xs text-gray-500 font-bold uppercase">Estimado</div>
-                                            <div className="text-xl font-bold text-[#1f4a5e]">{formatCurrency(props.quotePrice)}</div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-xs text-gray-500 font-bold uppercase">Distancia</div>
-                                            <div className="text-sm font-semibold">{props.distanceKm.toFixed(1)} km</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Modal for Recipient Details */}
-            <Modal isOpen={props.showModal} title="Datos del Destinatario" onClose={() => props.setShowModal(false)}>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
-                        <input
-                            type="text"
-                            className="input"
-                            value={props.recipientName}
-                            onChange={(e) => props.setRecipientName(e.target.value)}
-                        />
+                {/* Modal */}
+                <Modal isOpen={props.showModal} title="Confirmar Envío" onClose={() => props.setShowModal(false)}>
+                    <div className="space-y-6">
+                        <div className="bg-blue-50 p-4 rounded-xl flex gap-4 items-start">
+                            <ShieldCheck className="text-blue-600 shrink-0 mt-1" />
+                            <div>
+                                <h4 className="font-bold text-blue-900">Seguro de Envío</h4>
+                                <p className="text-sm text-blue-700/80">Todos nuestros envíos incluyen un seguro base contra daños y pérdidas.</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Nombre del Destinatario</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-900 transition-all"
+                                    value={props.recipientName}
+                                    onChange={(e) => props.setRecipientName(e.target.value)}
+                                    placeholder="Juan Pérez"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Teléfono de Contacto</label>
+                                <input
+                                    type="tel"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-900 transition-all"
+                                    value={props.recipientPhone}
+                                    onChange={(e) => props.setRecipientPhone(e.target.value)}
+                                    placeholder="55 1234 5678"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
+                                onClick={() => props.setShowModal(false)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-800 transition-all"
+                                onClick={props.handleCreatePackage}
+                                disabled={!props.recipientName || !props.recipientPhone}
+                            >
+                                Confirmar
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                        <input
-                            type="tel"
-                            className="input"
-                            value={props.recipientPhone}
-                            onChange={(e) => props.setRecipientPhone(e.target.value)}
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-4">
-                        <button
-                            className="btn btn-secondary flex-1"
-                            onClick={() => props.setShowModal(false)}
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            className="btn btn-primary flex-1"
-                            onClick={props.handleCreatePackage}
-                            disabled={!props.recipientName || !props.recipientPhone}
-                        >
-                            Confirmar y Crear
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+                </Modal>
+            </div>
         </div>
     );
 }
-
