@@ -81,11 +81,17 @@ export default function QuotePage() {
     const isStep2Valid = isStep1Valid && weight > 0 && description.trim().length > 0;
 
     // Real-time calculation effect
+    // Real-time calculation effect
     useEffect(() => {
         if (isStep1Valid) {
             const baseRate = 40;
             const distanceCost = distanceKm * 8;
-            const weightCost = weight * 2;
+
+            // Volumetric Weight Calculation
+            const volWeight = (dimensions.length * dimensions.width * dimensions.height) / 5000;
+            const chargeableWeight = Math.max(weight, volWeight);
+
+            const weightCost = chargeableWeight * 2; // Using chargeable weight
             const subtotal = baseRate + distanceCost + weightCost;
 
             // Surcharges
@@ -111,7 +117,7 @@ export default function QuotePage() {
             setQuotePrice(finalPrice);
             setCalculated(true);
         }
-    }, [distanceKm, weight, serviceLevel, isStep1Valid]);
+    }, [distanceKm, weight, dimensions, serviceLevel, isStep1Valid]);
 
     const handleCreatePackage = async () => {
         if (!user) {
@@ -438,7 +444,10 @@ function QuoteContent(props: any) {
                                                         <input
                                                             type="number"
                                                             value={props.dimensions?.length || ''}
-                                                            onChange={(e) => props.setDimensions((prev: any) => ({ ...prev, length: Number(e.target.value) }))}
+                                                            onChange={(e) => {
+                                                                props.setDimensions((prev: any) => ({ ...prev, length: Number(e.target.value) }));
+                                                                props.setPackageDetails(''); // Reset preset
+                                                            }}
                                                             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
                                                             placeholder="10"
                                                         />
@@ -448,7 +457,10 @@ function QuoteContent(props: any) {
                                                         <input
                                                             type="number"
                                                             value={props.dimensions?.width || ''}
-                                                            onChange={(e) => props.setDimensions((prev: any) => ({ ...prev, width: Number(e.target.value) }))}
+                                                            onChange={(e) => {
+                                                                props.setDimensions((prev: any) => ({ ...prev, width: Number(e.target.value) }));
+                                                                props.setPackageDetails('');
+                                                            }}
                                                             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
                                                             placeholder="10"
                                                         />
@@ -458,7 +470,10 @@ function QuoteContent(props: any) {
                                                         <input
                                                             type="number"
                                                             value={props.dimensions?.height || ''}
-                                                            onChange={(e) => props.setDimensions((prev: any) => ({ ...prev, height: Number(e.target.value) }))}
+                                                            onChange={(e) => {
+                                                                props.setDimensions((prev: any) => ({ ...prev, height: Number(e.target.value) }));
+                                                                props.setPackageDetails('');
+                                                            }}
                                                             className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
                                                             placeholder="10"
                                                         />
@@ -502,7 +517,14 @@ function QuoteContent(props: any) {
                                                         <CustomSelect
                                                             label="Tamaño de Caja (Opcional)"
                                                             value={props.packageDetails}
-                                                            onChange={props.setPackageDetails}
+                                                            onChange={(val) => {
+                                                                props.setPackageDetails(val);
+                                                                // Set standard dimensions based on selection
+                                                                if (val.includes('Chica')) props.setDimensions({ length: 20, width: 20, height: 20 });
+                                                                if (val.includes('Mediana')) props.setDimensions({ length: 40, width: 30, height: 30 });
+                                                                if (val.includes('Grande')) props.setDimensions({ length: 50, width: 50, height: 50 });
+                                                                if (val.includes('Extra Grande')) props.setDimensions({ length: 70, width: 60, height: 50 });
+                                                            }}
                                                             placeholder="Selecciona un tamaño estándar..."
                                                             options={[
                                                                 { value: 'Chica (20x20x20)', label: 'Chica (20x20x20 cm)' },
@@ -519,7 +541,11 @@ function QuoteContent(props: any) {
                                                         <CustomSelect
                                                             label="Tipo de Tarima (Opcional)"
                                                             value={props.packageDetails}
-                                                            onChange={props.setPackageDetails}
+                                                            onChange={(val) => {
+                                                                props.setPackageDetails(val);
+                                                                if (val.includes('Americana')) props.setDimensions({ length: 120, width: 100, height: 15 });
+                                                                if (val.includes('Europea')) props.setDimensions({ length: 120, width: 80, height: 15 });
+                                                            }}
                                                             placeholder="Especifica el tipo..."
                                                             options={[
                                                                 { value: 'Estándar Americana', label: 'Estándar Americana (1.0x1.2m)' },
