@@ -96,20 +96,50 @@ export default function QuotePage() {
     // Real-time calculation effect
     useEffect(() => {
         if (isRouteValid && typeof weight === 'number' && weight > 0) {
-            const baseRate = 40;
-            const distanceCost = distanceKm * 8;
+            let baseRate = 0;
+            let distanceCost = 0;
+            let weightCost = 0;
+            let subtotal = 0;
 
-            // Volumetric Weight Calculation
-            const volWeight = (dimensions.length * dimensions.width * dimensions.height) / 5000;
-            const chargeableWeight = Math.max(Number(weight) || 0, volWeight);
+            // Pricing Configuration
+            const VEHICLE_RATES: Record<string, { base: number; perKm: number }> = {
+                'Nissan Estacas': { base: 450, perKm: 12 },
+                '1.5 Toneladas': { base: 550, perKm: 14 },
+                '3.5 Toneladas': { base: 850, perKm: 18 },
+                'Panel': { base: 600, perKm: 15 },
+                'Eurovan': { base: 600, perKm: 15 },
+                'Rabón': { base: 2500, perKm: 24 },
+                'Torton': { base: 3500, perKm: 32 },
+                "Trailer 48'": { base: 5000, perKm: 45 },
+                "Trailer 53'": { base: 5500, perKm: 50 },
+                'Full (Doble)': { base: 7500, perKm: 75 },
+            };
 
-            const weightCost = chargeableWeight * 2; // Using chargeable weight
-            const subtotal = baseRate + distanceCost + weightCost;
+            if (loadType === 'full-truck' || loadType === 'van') {
+                const vehicleType = loadTypeDetails?.vehicleType || '';
+                const rates = VEHICLE_RATES[vehicleType] || { base: 1000, perKm: 20 }; // Fallback
 
-            // Surcharges
-            const fuelSurcharge = subtotal * 0.10; // 10%
-            const demandSurcharge = 20; // Fixed flat demand fee
-            const serviceMult = serviceLevel === 'express' ? 1.5 : 1.0;
+                baseRate = rates.base;
+                distanceCost = distanceKm * rates.perKm;
+                weightCost = 0; // FTL usually doesn't charge per kg, just simple capacity check (omitted for quote)
+                subtotal = baseRate + distanceCost;
+            } else {
+                // Package & Recurring (Standard Calculation)
+                baseRate = 40;
+                distanceCost = distanceKm * 8;
+
+                // Volumetric Weight Calculation
+                const volWeight = (dimensions.length * dimensions.width * dimensions.height) / 5000;
+                const chargeableWeight = Math.max(Number(weight) || 0, volWeight);
+
+                weightCost = chargeableWeight * 2;
+                subtotal = baseRate + distanceCost + weightCost;
+            }
+
+            // Common Surcharges
+            const fuelSurcharge = subtotal * 0.15; // Increased to 15% for realism
+            const demandSurcharge = loadType === 'package' ? 20 : 0; // Flat fee mainly for packages
+            const serviceMult = serviceLevel === 'express' ? 1.4 : 1.0;
 
             const preTax = (subtotal + fuelSurcharge + demandSurcharge) * serviceMult;
             const iva = preTax * 0.16;
@@ -129,7 +159,7 @@ export default function QuotePage() {
             setQuotePrice(finalPrice);
             setCalculated(true);
         }
-    }, [distanceKm, weight, dimensions, serviceLevel, isStep1Valid]);
+    }, [distanceKm, weight, dimensions, serviceLevel, isRouteValid, loadType, loadTypeDetails]);
 
     const handleCreatePackage = async () => {
         if (!user) {
@@ -528,8 +558,24 @@ function QuoteContent(props: any) {
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                                            {/* Vehicle Info for Non-Package types */}
+                                            {(props.loadType === 'full-truck' || props.loadType === 'van') && (
+                                                <div className="md:col-span-2 bg-blue-50 border border-blue-200 p-6 rounded-2xl flex items-center gap-4">
+                                                    <div className="p-3 bg-blue-500 text-white rounded-xl">
+                                                        {props.loadType === 'full-truck' ? <Truck size={24} /> : <Car size={24} />}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-blue-900">Vehículo Seleccionado</h4>
+                                                        <p className="text-blue-700">{props.loadTypeDetails?.vehicleType || 'Vehículo estándar'}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Peso (Kg)</label>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
+                                                    {(props.loadType === 'full-truck' || props.loadType === 'van') ? 'Peso Estimado Carga' : 'Peso (Kg)'}
+                                                </label>
                                                 <div className="flex items-baseline gap-2">
                                                     <input
                                                         type="number"
@@ -546,50 +592,53 @@ function QuoteContent(props: any) {
                                                 </div>
                                             </div>
 
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2 space-y-4">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Dimensiones (cm)</label>
-                                                <div className="grid grid-cols-3 gap-4">
-                                                    <div>
-                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Largo</label>
-                                                        <input
-                                                            type="number"
-                                                            value={props.dimensions?.length || ''}
-                                                            onChange={(e) => {
-                                                                props.setDimensions((prev: any) => ({ ...prev, length: Number(e.target.value) }));
-                                                                props.setPackageDetails(''); // Reset preset
-                                                            }}
-                                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
-                                                            placeholder="10"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Ancho</label>
-                                                        <input
-                                                            type="number"
-                                                            value={props.dimensions?.width || ''}
-                                                            onChange={(e) => {
-                                                                props.setDimensions((prev: any) => ({ ...prev, width: Number(e.target.value) }));
-                                                                props.setPackageDetails('');
-                                                            }}
-                                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
-                                                            placeholder="10"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Alto</label>
-                                                        <input
-                                                            type="number"
-                                                            value={props.dimensions?.height || ''}
-                                                            onChange={(e) => {
-                                                                props.setDimensions((prev: any) => ({ ...prev, height: Number(e.target.value) }));
-                                                                props.setPackageDetails('');
-                                                            }}
-                                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
-                                                            placeholder="10"
-                                                        />
+                                            {/* Dimensions - Only for Package or Recurring */}
+                                            {(props.loadType === 'package' || props.loadType === 'recurring' || !props.loadType) && (
+                                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2 space-y-4">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Dimensiones (cm)</label>
+                                                    <div className="grid grid-cols-3 gap-4">
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Largo</label>
+                                                            <input
+                                                                type="number"
+                                                                value={props.dimensions?.length || ''}
+                                                                onChange={(e) => {
+                                                                    props.setDimensions((prev: any) => ({ ...prev, length: Number(e.target.value) }));
+                                                                    props.setPackageDetails(''); // Reset preset
+                                                                }}
+                                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
+                                                                placeholder="10"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Ancho</label>
+                                                            <input
+                                                                type="number"
+                                                                value={props.dimensions?.width || ''}
+                                                                onChange={(e) => {
+                                                                    props.setDimensions((prev: any) => ({ ...prev, width: Number(e.target.value) }));
+                                                                    props.setPackageDetails('');
+                                                                }}
+                                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
+                                                                placeholder="10"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Alto</label>
+                                                            <input
+                                                                type="number"
+                                                                value={props.dimensions?.height || ''}
+                                                                onChange={(e) => {
+                                                                    props.setDimensions((prev: any) => ({ ...prev, height: Number(e.target.value) }));
+                                                                    props.setPackageDetails('');
+                                                                }}
+                                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
+                                                                placeholder="10"
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            )}
 
                                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2">
                                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Descripción (Opcional)</label>
