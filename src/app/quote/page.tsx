@@ -14,7 +14,7 @@ import Modal from '@/components/Modal';
 import PinSelectionModal from '@/components/PinSelectionModal';
 import CostBreakdownModal from '@/components/CostBreakdownModal';
 import CustomSelect from '@/components/CustomSelect';
-import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box } from 'lucide-react';
+import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box, Repeat, Car } from 'lucide-react';
 
 
 interface LocationState {
@@ -29,8 +29,11 @@ export default function QuotePage() {
     const { language } = useLanguage();
     const t = useTranslation(language);
 
-    // Steps: 1 = Route, 2 = Package, 3 = Service
-    const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+    // Steps: 1 = LoadType, 2 = Route, 3 = Package, 4 = Service
+    const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+
+    // Load Type
+    const [loadType, setLoadType] = useState<'package' | 'full-truck' | 'van' | 'recurring' | ''>('');
 
     const [origin, setOrigin] = useState<LocationState | null>(null);
     const [destination, setDestination] = useState<LocationState | null>(null);
@@ -78,12 +81,18 @@ export default function QuotePage() {
 
     // Step Validation Logic
     // Step Validation Logic
-    const isStep1Valid = !!origin && !!destination;
-    const isStep2Valid = isStep1Valid && (typeof weight === 'number' && weight > 0) && packageType !== '';
+    const isLoadTypeValid = loadType !== '';
+    const isRouteValid = !!origin && !!destination;
+    const isPackageDetailsValid = (typeof weight === 'number' && weight > 0) && packageType !== '';
+
+    const isStep1Valid = isLoadTypeValid;
+    const isStep2Valid = isStep1Valid && isRouteValid;
+    const isStep3Valid = isStep2Valid && isPackageDetailsValid;
 
     // Real-time calculation effect
+    // Real-time calculation effect
     useEffect(() => {
-        if (isStep1Valid && typeof weight === 'number' && weight > 0) {
+        if (isRouteValid && typeof weight === 'number' && weight > 0) {
             const baseRate = 40;
             const distanceCost = distanceKm * 8;
 
@@ -140,6 +149,7 @@ export default function QuotePage() {
                 recipientPhone,
                 serviceLevel,
                 packageType,
+                loadType,
             };
 
             const res = await authenticatedFetch('/api/packages', {
@@ -175,7 +185,7 @@ export default function QuotePage() {
     };
 
     const handleRequestQuote = () => {
-        if (!isStep2Valid) return;
+        if (!isStep3Valid) return;
         setShowBreakdownModal(true);
     };
 
@@ -203,10 +213,13 @@ export default function QuotePage() {
                 setPackageDetails={setPackageDetails}
                 serviceLevel={serviceLevel}
                 setServiceLevel={setServiceLevel}
+                loadType={loadType}
+                setLoadType={setLoadType}
                 currentStep={currentStep}
                 setCurrentStep={setCurrentStep}
                 isStep1Valid={isStep1Valid}
                 isStep2Valid={isStep2Valid}
+                isStep3Valid={isStep3Valid}
                 distanceKm={distanceKm}
                 setDistanceKm={setDistanceKm}
                 quoteDetails={quoteDetails}
@@ -305,14 +318,21 @@ function QuoteContent(props: any) {
                             <div className="bg-white/80 backdrop-blur-xl p-2 rounded-2xl shadow-sm border border-slate-200/60 sticky top-4 z-50">
                                 <div className="flex relative">
                                     {[
-                                        { id: 1, label: 'Ruta', icon: Navigation },
-                                        { id: 2, label: 'Paquete', icon: Package },
-                                        { id: 3, label: 'Servicio', icon: Zap }
+                                        { id: 1, label: 'Tipo', icon: Box },
+                                        { id: 2, label: 'Ruta', icon: Navigation },
+                                        { id: 3, label: 'Paquete', icon: Package },
+                                        { id: 4, label: 'Servicio', icon: Zap }
                                     ].map((step) => {
                                         const isActive = props.currentStep === step.id;
                                         const isCompleted = props.currentStep > step.id;
-                                        const isDisabled = step.id > props.currentStep &&
-                                            ((step.id === 2 && !props.isStep1Valid) || (step.id === 3 && !props.isStep2Valid));
+
+                                        // Validation logic for disabling next steps
+                                        let isDisabled = false;
+                                        if (step.id > props.currentStep) {
+                                            if (step.id === 2 && !props.isStep1Valid) isDisabled = true;
+                                            if (step.id === 3 && !props.isStep2Valid) isDisabled = true;
+                                            if (step.id === 4 && !props.isStep3Valid) isDisabled = true;
+                                        }
 
                                         return (
                                             <button
@@ -340,8 +360,59 @@ function QuoteContent(props: any) {
                             {/* Cards Container */}
                             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-visible relative min-h-[500px] transition-all duration-500">
 
-                                {/* Step 1: Route */}
+                                {/* Step 1: Load Type */}
                                 {props.currentStep === 1 && (
+                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-left-8 duration-500">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h2 className="text-2xl font-bold text-slate-800">¿Qué vas a transportar?</h2>
+                                                <p className="text-slate-500">Selecciona el tipo de servicio que mejor se adapte a tus necesidades.</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {[
+                                                { id: 'package', label: 'Paquetería', icon: Package, desc: 'Cajas, sobres y mercancía pequeña.' },
+                                                { id: 'full-truck', label: 'Camión Completo', icon: Truck, desc: 'Transporte dedicado de gran volumen.' },
+                                                { id: 'van', label: 'Camioneta', icon: Car, desc: 'Mudanzas pequeñas y volumen medio.' },
+                                                { id: 'recurring', label: 'Envíos Recurrentes', icon: Repeat, desc: 'Rutas programadas frecuentes.' }
+                                            ].map((type) => (
+                                                <button
+                                                    key={type.id}
+                                                    onClick={() => props.setLoadType(type.id)}
+                                                    className={`group relative p-6 rounded-3xl text-left border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
+                                                        ${props.loadType === type.id
+                                                            ? 'border-blue-500 bg-blue-50/50 ring-4 ring-blue-100'
+                                                            : 'border-slate-100 bg-white hover:border-blue-200'}
+                                                    `}
+                                                >
+                                                    <div className="flex justify-between items-center mb-4">
+                                                        <div className={`p-3 rounded-2xl ${props.loadType === type.id ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500'} group-hover:scale-110 transition-transform duration-300`}>
+                                                            <type.icon size={24} />
+                                                        </div>
+                                                        {props.loadType === type.id && <CheckCircle className="text-blue-500 fill-blue-100" />}
+                                                    </div>
+                                                    <h3 className="text-xl font-bold text-slate-800 mb-1">{type.label}</h3>
+                                                    <p className="text-slate-500 text-sm">{type.desc}</p>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {props.isStep1Valid && (
+                                            <div className="flex justify-end pt-6">
+                                                <button
+                                                    onClick={() => props.setCurrentStep(2)}
+                                                    className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3"
+                                                >
+                                                    Continuar <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Step 2: Route */}
+                                {props.currentStep === 2 && (
                                     <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-left-8 duration-500">
                                         <div className="flex justify-between items-start">
                                             <div>
@@ -400,10 +471,10 @@ function QuoteContent(props: any) {
                                             </div>
                                         </div>
 
-                                        {props.isStep1Valid && (
+                                        {props.isStep2Valid && (
                                             <div className="flex justify-end pt-6">
                                                 <button
-                                                    onClick={() => props.setCurrentStep(2)}
+                                                    onClick={() => props.setCurrentStep(3)}
                                                     className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3"
                                                 >
                                                     Continuar <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
@@ -413,8 +484,8 @@ function QuoteContent(props: any) {
                                     </div>
                                 )}
 
-                                {/* Step 2: Package */}
-                                {props.currentStep === 2 && (
+                                {/* Step 3: Package */}
+                                {props.currentStep === 3 && (
                                     <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                                         <div>
                                             <h2 className="text-2xl font-bold text-slate-800">¿Qué envías?</h2>
@@ -562,10 +633,10 @@ function QuoteContent(props: any) {
                                             </div>
                                         </div>
 
-                                        {props.isStep2Valid && (
+                                        {props.isStep3Valid && (
                                             <div className="flex justify-end pt-6">
                                                 <button
-                                                    onClick={() => props.setCurrentStep(3)}
+                                                    onClick={() => props.setCurrentStep(4)}
                                                     className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3"
                                                 >
                                                     Ver Precios <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
@@ -575,8 +646,8 @@ function QuoteContent(props: any) {
                                     </div>
                                 )}
 
-                                {/* Step 3: Service */}
-                                {props.currentStep === 3 && (
+                                {/* Step 4: Service */}
+                                {props.currentStep === 4 && (
                                     <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                                         <div>
                                             <h2 className="text-2xl font-bold text-slate-800">Elige tu velocidad</h2>
@@ -676,7 +747,7 @@ function QuoteContent(props: any) {
                                 />
 
                                 {/* Mini Quote Overlay */}
-                                {props.quotePrice > 0 && props.currentStep < 3 && (
+                                {props.quotePrice > 0 && props.currentStep < 4 && (
                                     <div className="absolute bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/50 flex justify-between items-center animate-in slide-in-from-bottom-4 duration-300">
                                         <div>
                                             <p className="text-xs font-bold text-slate-400 uppercase">Estimado</p>
