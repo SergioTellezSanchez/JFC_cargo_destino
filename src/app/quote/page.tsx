@@ -34,6 +34,9 @@ export default function QuotePage() {
 
     // Load Type
     const [loadType, setLoadType] = useState<'package' | 'full-truck' | 'van' | 'recurring' | ''>('');
+    const [loadTypeDetails, setLoadTypeDetails] = useState<any>({});
+    const [tempLoadType, setTempLoadType] = useState<string>(''); // For modal handling
+    const [showLoadInfoModal, setShowLoadInfoModal] = useState(false);
 
     const [origin, setOrigin] = useState<LocationState | null>(null);
     const [destination, setDestination] = useState<LocationState | null>(null);
@@ -150,6 +153,7 @@ export default function QuotePage() {
                 serviceLevel,
                 packageType,
                 loadType,
+                loadTypeDetails,
             };
 
             const res = await authenticatedFetch('/api/packages', {
@@ -215,6 +219,12 @@ export default function QuotePage() {
                 setServiceLevel={setServiceLevel}
                 loadType={loadType}
                 setLoadType={setLoadType}
+                loadTypeDetails={loadTypeDetails}
+                setLoadTypeDetails={setLoadTypeDetails}
+                showLoadInfoModal={showLoadInfoModal}
+                setShowLoadInfoModal={setShowLoadInfoModal}
+                tempLoadType={tempLoadType}
+                setTempLoadType={setTempLoadType}
                 currentStep={currentStep}
                 setCurrentStep={setCurrentStep}
                 isStep1Valid={isStep1Valid}
@@ -379,7 +389,27 @@ function QuoteContent(props: any) {
                                             ].map((type) => (
                                                 <button
                                                     key={type.id}
-                                                    onClick={() => props.setLoadType(type.id)}
+                                                    onClick={() => {
+                                                        if (type.id === 'package') {
+                                                            props.setLoadType('package');
+                                                            props.setLoadTypeDetails({});
+                                                            // Keep on step 1 until continued? or auto advance? 
+                                                            // Usually better to let user click Continue for consistency, 
+                                                            // but logic says we select, then maybe fill details.
+                                                            // Implementation: Select here, Continue button advances.
+                                                            // If we want modal popup, we do it differently.
+                                                            // The user requirement: "al seleccionar... se debe abrir un modal"
+                                                            if (type.id === 'package') {
+                                                                props.setLoadType('package');
+                                                            } else {
+                                                                props.setTempLoadType(type.id);
+                                                                props.setShowLoadInfoModal(true);
+                                                            }
+                                                        } else {
+                                                            props.setTempLoadType(type.id);
+                                                            props.setShowLoadInfoModal(true);
+                                                        }
+                                                    }}
                                                     className={`group relative p-6 rounded-3xl text-left border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
                                                         ${props.loadType === type.id
                                                             ? 'border-blue-500 bg-blue-50/50 ring-4 ring-blue-100'
@@ -394,6 +424,11 @@ function QuoteContent(props: any) {
                                                     </div>
                                                     <h3 className="text-xl font-bold text-slate-800 mb-1">{type.label}</h3>
                                                     <p className="text-slate-500 text-sm">{type.desc}</p>
+                                                    {props.loadType === type.id && props.loadType !== 'package' && props.loadTypeDetails && (
+                                                        <div className="mt-3 py-1 px-3 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold inline-block">
+                                                            {props.loadTypeDetails.vehicleType || props.loadTypeDetails.frequency || 'Detalles configurados'}
+                                                        </div>
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>
@@ -569,20 +604,30 @@ function QuoteContent(props: any) {
                                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2 space-y-4">
                                                 <div>
                                                     <CustomSelect
-                                                        label="Tipo de Paquete"
+                                                        label="Tipo de Carga/Paquete"
                                                         value={props.packageType}
                                                         onChange={(val) => {
                                                             props.setPackageType(val);
                                                             props.setPackageDetails(''); // Reset details on type change
                                                         }}
-                                                        options={[
-                                                            { value: 'Caja de cartón', label: 'Caja de cartón' },
-                                                            { value: 'Sobre / Documentos', label: 'Sobre / Documentos' },
-                                                            { value: 'Tarima', label: 'Tarima' },
-                                                            { value: 'Bolsa', label: 'Bolsa' },
-                                                            { value: 'Muebles', label: 'Muebles' },
-                                                            { value: 'Otro', label: 'Otro' }
-                                                        ]}
+                                                        options={
+                                                            props.loadType === 'package' ? [
+                                                                { value: 'Caja de cartón', label: 'Caja de cartón' },
+                                                                { value: 'Sobre / Documentos', label: 'Sobre / Documentos' },
+                                                                { value: 'Tarima', label: 'Tarima' },
+                                                                { value: 'Bolsa', label: 'Bolsa' },
+                                                                { value: 'Muebles', label: 'Muebles' },
+                                                                { value: 'Otro', label: 'Otro' }
+                                                            ] : [
+                                                                { value: 'Paletizado / Tarimas', label: 'Paletizado / Tarimas' },
+                                                                { value: 'Granel', label: 'Granel (Bulk)' },
+                                                                { value: 'Maquinaria', label: 'Maquinaria' },
+                                                                { value: 'Productos Químicos', label: 'Productos Químicos' },
+                                                                { value: 'Perecederos', label: 'Perecederos / Refrigerados' },
+                                                                { value: 'Muebles / Mudanza', label: 'Muebles / Mudanza' },
+                                                                { value: 'Otro', label: 'Otro' }
+                                                            ]
+                                                        }
                                                     />
                                                 </div>
 
@@ -811,6 +856,87 @@ function QuoteContent(props: any) {
                                 disabled={!props.recipientName || !props.recipientPhone}
                             >
                                 Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+
+                {/* Load Type Specifics Modal */}
+                <Modal
+                    isOpen={props.showLoadInfoModal}
+                    title={
+                        props.tempLoadType === 'full-truck' ? 'Detalles de Camión' :
+                            props.tempLoadType === 'van' ? 'Detalles de Camioneta' :
+                                'Configuración de Envío Recurrente'
+                    }
+                    onClose={() => props.setShowLoadInfoModal(false)}
+                >
+                    <div className="space-y-6">
+                        {props.tempLoadType === 'full-truck' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                {['Trailer 53\'', 'Trailer 48\'', 'Full (Doble)', 'Torton', 'Rabón'].map(truck => (
+                                    <button
+                                        key={truck}
+                                        onClick={() => {
+                                            props.setLoadType('full-truck');
+                                            props.setLoadTypeDetails({ vehicleType: truck });
+                                            props.setShowLoadInfoModal(false);
+                                        }}
+                                        className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 text-left transition-all"
+                                    >
+                                        <Truck className="mb-2 text-slate-400" />
+                                        <div className="font-bold text-slate-700">{truck}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {props.tempLoadType === 'van' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                {['Nissan Estacas', '1.5 Toneladas', '3.5 Toneladas', 'Panel', 'Eurovan'].map(van => (
+                                    <button
+                                        key={van}
+                                        onClick={() => {
+                                            props.setLoadType('van');
+                                            props.setLoadTypeDetails({ vehicleType: van });
+                                            props.setShowLoadInfoModal(false);
+                                        }}
+                                        className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 text-left transition-all"
+                                    >
+                                        <Car className="mb-2 text-slate-400" />
+                                        <div className="font-bold text-slate-700">{van}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {props.tempLoadType === 'recurring' && (
+                            <div className="space-y-4">
+                                <label className="block font-bold text-slate-700">Frecuencia Estimada</label>
+                                <div className="grid grid-cols-1 gap-3">
+                                    {['Diario', 'Semanal', 'Quincenal', 'Mensual'].map(freq => (
+                                        <button
+                                            key={freq}
+                                            onClick={() => {
+                                                props.setLoadType('recurring');
+                                                props.setLoadTypeDetails({ frequency: freq });
+                                                props.setShowLoadInfoModal(false);
+                                            }}
+                                            className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 flex justify-between items-center transition-all"
+                                        >
+                                            <span className="font-bold text-slate-700">{freq}</span>
+                                            <Repeat size={18} className="text-slate-400" />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <div className="pt-4">
+                            <button
+                                onClick={() => props.setShowLoadInfoModal(false)}
+                                className="w-full py-3 text-slate-400 hover:text-slate-600 font-bold"
+                            >
+                                Cancelar
                             </button>
                         </div>
                     </div>
