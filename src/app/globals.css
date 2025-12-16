@@ -28,6 +28,18 @@ body {
   color: var(--error);
 }
 
+/* Map Markers */
+.map-marker-label {
+  color: white !important;
+  font-weight: 900 !important;
+  font-size: 16px !important;
+  text-shadow: 
+    -1.5px -1.5px 0 #000,  
+     1.5px -1.5px 0 #000,
+    -1.5px  1.5px 0 #000,
+     1.5px  1.5px 0 #000 !important; /* Slightly thicker border for better readability */
+}
+
 /* Utility Classes */
 .card {
   background: var(--card-bg);
