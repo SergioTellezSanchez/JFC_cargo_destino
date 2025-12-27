@@ -31,16 +31,20 @@ if (!admin.apps.length) {
 
 let adminDb: FirebaseFirestore.Firestore;
 let adminAuth: admin.auth.Auth;
+let adminStorage: admin.storage.Storage;
 
 try {
     adminDb = admin.firestore();
     adminAuth = admin.auth();
+    adminStorage = admin.storage();
 } catch (_e) {
     console.warn('Firebase Admin services not available');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     adminDb = {} as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     adminAuth = {} as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    adminStorage = {} as any;
 }
 
-export { adminDb, adminAuth };
+export { adminDb, adminAuth, adminStorage };

@@ -5,7 +5,7 @@ import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-type UserRole = 'ADMIN' | 'DRIVER' | 'USER';
+type UserRole = 'ADMIN_MASTER' | 'ADMIN_JR' | 'DRIVER' | 'USER';
 
 interface UserData {
     uid: string;
@@ -42,8 +42,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                     role = userSnap.data().role as UserRole;
                 } else {
                     // Check if admin email
-                    if (firebaseUser.email === 'sergiotellezsanchez@gmail.com') {
-                        role = 'ADMIN';
+                    if (firebaseUser.email === 'sergiotellezsanchez@gmail.com' || firebaseUser.email === 'contacto@jfccargodestino.com') {
+                        role = 'ADMIN_MASTER';
                     }
                     // Create user document
                     await setDoc(userRef, {
@@ -87,7 +87,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const isAdmin = user?.role === 'ADMIN';
+    const userEmail = user?.email?.toLowerCase();
+    const adminEmails = [
+        'sergiotellezsanchez@gmail.com',
+        'contacto@jfccargodestino.com',
+        'jairblanco300@gmail.com',
+        'sergio.tellez@live.com'
+    ];
+    const isAdmin = !!(user?.role === 'ADMIN_MASTER' || user?.role === 'ADMIN_JR' || (userEmail && adminEmails.includes(userEmail)));
 
     return (
         <UserContext.Provider value={{ user, loading, loginWithGoogle, logout, isAdmin }}>

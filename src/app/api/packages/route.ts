@@ -39,11 +39,15 @@ export async function POST(request: Request) {
     if (!auth) return unauthorized();
     try {
         const body = await request.json();
-        const { trackingId, recipientName, address, postalCode, weight, size, latitude, longitude, instructions, leaveWithSecurity } = body;
+        const { recipientName, weight, size, latitude, longitude, instructions, leaveWithSecurity } = body;
 
-        if (!trackingId || !recipientName || !address || !postalCode) {
+        const trackingId = body.trackingId || `PKG-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+        const address = body.address || body.destination || '';
+        const postalCode = body.postalCode || '00000'; // Default if missing
+
+        if (!recipientName || !address) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: 'Missing recipient name or destination address' },
                 { status: 400 }
             );
         }
@@ -56,21 +60,27 @@ export async function POST(request: Request) {
             latitude: latitude || null,
             longitude: longitude || null,
             weight: weight ? parseFloat(weight) : null,
-            size,
+            size: size || 'MEDIUM',
             instructions: instructions || null,
             leaveWithSecurity: leaveWithSecurity || false,
             storageStatus: 'NONE',
             createdAt: new Date().toISOString(),
             status: 'PENDING',
-            createdBy: body.createdBy || null,
+            createdBy: body.userId || body.createdBy || null,
             // Enhanced fields from Quote flow
             origin: body.origin || null,
-            destination: body.destination || null, // This might duplicate address/postalCode but useful for display
+            destination: body.destination || address,
             senderName: body.senderName || null,
             senderPhone: body.senderPhone || null,
-            receiverPhone: body.receiverPhone || null,
-            type: body.type || 'BOX',
-            cost: body.cost || 0
+            receiverPhone: body.recipientPhone || body.receiverPhone || null,
+            type: body.packageType || body.type || 'BOX',
+            price: body.price || body.cost || 0,
+            loadType: body.loadType || null,
+            loadTypeDetails: body.loadTypeDetails || null,
+            serviceLevel: body.serviceLevel || 'standard',
+            dimensions: body.dimensions || null,
+            declaredValue: body.declaredValue || 0,
+            distanceKm: body.distanceKm || 0
         };
 
         const docRef = await adminDb.collection('packages').add(newPackage);

@@ -13,8 +13,15 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
         'Authorization': `Bearer ${token}`,
     };
 
-    return fetch(url, {
+    const res = await fetch(url, {
         ...options,
         headers,
     });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error(`API Error [${res.status}] ${url}:`, errorData);
+    }
+
+    return res;
 }

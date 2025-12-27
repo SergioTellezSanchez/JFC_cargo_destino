@@ -11,19 +11,24 @@ export const deliveryMachine = createMachine({
     },
     assigned: {
       on: {
-        PICK_UP: 'picked_up',
+        CONFIRM_ARRIVAL_ORIGIN: 'loading',
         UNASSIGN: 'pending',
       },
     },
-    picked_up: {
+    loading: {
       on: {
-        START_DELIVERY: 'in_transit',
+        START_TRANSIT: 'in_transit',
       },
     },
     in_transit: {
       on: {
-        CONFIRM_DELIVERY: 'delivered',
+        CONFIRM_ARRIVAL_DESTINATION: 'unloading',
         REPORT_ISSUE: 'failed',
+      },
+    },
+    unloading: {
+      on: {
+        CONFIRM_DELIVERY: 'delivered',
       },
     },
     delivered: {
@@ -31,7 +36,7 @@ export const deliveryMachine = createMachine({
     },
     failed: {
       on: {
-        RETRY: 'assigned', // Or pending, depending on logic
+        RETRY: 'assigned',
       },
     },
   },

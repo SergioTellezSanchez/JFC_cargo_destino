@@ -15,6 +15,7 @@ import PinSelectionModal from '@/components/PinSelectionModal';
 import CostBreakdownModal from '@/components/CostBreakdownModal';
 import CustomSelect from '@/components/CustomSelect';
 import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box, Repeat, Car } from 'lucide-react';
+import { calculateLogisticsCosts, Vehicle, Package as PackageType } from '@/lib/logistics';
 
 
 interface LocationState {
@@ -54,17 +55,7 @@ export default function QuotePage() {
     // Calculation State
     const [distanceKm, setDistanceKm] = useState(0);
     const [quotePrice, setQuotePrice] = useState(0);
-    const [quoteDetails, setQuoteDetails] = useState<{
-        base: number;
-        distance: number;
-        weight: number;
-        serviceMultiplier: number;
-        serviceFee: number;
-        fuelSurcharge: number;
-        demandSurcharge: number;
-        iva: number;
-        total: number;
-    } | null>(null);
+    const [quoteDetails, setQuoteDetails] = useState<any>(null);
     const [calculated, setCalculated] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -80,9 +71,26 @@ export default function QuotePage() {
     const [recipientName, setRecipientName] = useState('');
     const [recipientPhone, setRecipientPhone] = useState('');
 
+    const [settings, setSettings] = useState<any>(null);
+    const [vehicles, setVehicles] = useState<any[]>([]);
+    const [declaredValue, setDeclaredValue] = useState<number>(1000);
+
+    useEffect(() => {
+        const fetchConfig = async () => {
+            try {
+                const [sRes, vRes] = await Promise.all([
+                    authenticatedFetch('/api/settings'),
+                    authenticatedFetch('/api/vehicles')
+                ]);
+                if (sRes.ok) setSettings(await sRes.json());
+                if (vRes.ok) setVehicles(await vRes.json());
+            } catch (err) { console.error(err); }
+        };
+        fetchConfig();
+    }, []);
+
     const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-    // Step Validation Logic
     // Step Validation Logic
     const isLoadTypeValid = loadType !== '';
     const isRouteValid = !!origin && !!destination;
@@ -93,73 +101,24 @@ export default function QuotePage() {
     const isStep3Valid = isStep2Valid && isPackageDetailsValid;
 
     // Real-time calculation effect
-    // Real-time calculation effect
     useEffect(() => {
-        if (isRouteValid && typeof weight === 'number' && weight > 0) {
-            let baseRate = 0;
-            let distanceCost = 0;
-            let weightCost = 0;
-            let subtotal = 0;
+        if (isRouteValid && typeof weight === 'number' && weight > 0 && settings) {
+            const vehicleType = loadTypeDetails?.vehicleType || '';
+            const selectedVehicle = vehicles.find(v => v.name === vehicleType) || vehicles[0];
 
-            // Pricing Configuration
-            const VEHICLE_RATES: Record<string, { base: number; perKm: number }> = {
-                'Nissan Estacas': { base: 450, perKm: 12 },
-                '1.5 Toneladas': { base: 550, perKm: 14 },
-                '3.5 Toneladas': { base: 850, perKm: 18 },
-                'Panel': { base: 600, perKm: 15 },
-                'Eurovan': { base: 600, perKm: 15 },
-                'Rabón': { base: 2500, perKm: 24 },
-                'Torton': { base: 3500, perKm: 32 },
-                "Trailer 48'": { base: 5000, perKm: 45 },
-                "Trailer 53'": { base: 5500, perKm: 50 },
-                'Full (Doble)': { base: 7500, perKm: 75 },
-            };
-
-            if (loadType === 'full-truck' || loadType === 'van') {
-                const vehicleType = loadTypeDetails?.vehicleType || '';
-                const rates = VEHICLE_RATES[vehicleType] || { base: 1000, perKm: 20 }; // Fallback
-
-                baseRate = rates.base;
-                distanceCost = distanceKm * rates.perKm;
-                weightCost = 0; // FTL usually doesn't charge per kg, just simple capacity check (omitted for quote)
-                subtotal = baseRate + distanceCost;
-            } else {
-                // Package & Recurring (Standard Calculation)
-                baseRate = 40;
-                distanceCost = distanceKm * 8;
-
-                // Volumetric Weight Calculation
-                const volWeight = (dimensions.length * dimensions.width * dimensions.height) / 5000;
-                const chargeableWeight = Math.max(Number(weight) || 0, volWeight);
-
-                weightCost = chargeableWeight * 2;
-                subtotal = baseRate + distanceCost + weightCost;
+            if (selectedVehicle) {
+                const results = calculateLogisticsCosts(
+                    { weight: Number(weight), declaredValue, distanceKm, loadType, packageType } as PackageType,
+                    selectedVehicle as Vehicle,
+                    settings,
+                    serviceLevel
+                );
+                setQuoteDetails(results);
+                setQuotePrice(results.priceToClient);
+                setCalculated(true);
             }
-
-            // Common Surcharges
-            const fuelSurcharge = subtotal * 0.15; // Increased to 15% for realism
-            const demandSurcharge = loadType === 'package' ? 20 : 0; // Flat fee mainly for packages
-            const serviceMult = serviceLevel === 'express' ? 1.4 : 1.0;
-
-            const preTax = (subtotal + fuelSurcharge + demandSurcharge) * serviceMult;
-            const iva = preTax * 0.16;
-            const finalPrice = preTax + iva;
-
-            setQuoteDetails({
-                base: baseRate,
-                distance: distanceCost,
-                weight: weightCost,
-                serviceMultiplier: serviceMult,
-                serviceFee: (subtotal + fuelSurcharge + demandSurcharge) * (serviceMult - 1),
-                fuelSurcharge,
-                demandSurcharge,
-                iva,
-                total: finalPrice
-            });
-            setQuotePrice(finalPrice);
-            setCalculated(true);
         }
-    }, [distanceKm, weight, dimensions, serviceLevel, isRouteValid, loadType, loadTypeDetails]);
+    }, [distanceKm, weight, dimensions, serviceLevel, isRouteValid, loadType, loadTypeDetails, settings, declaredValue, vehicles, packageType]);
 
     const handleCreatePackage = async () => {
         if (!user) {
@@ -184,6 +143,8 @@ export default function QuotePage() {
                 packageType,
                 loadType,
                 loadTypeDetails,
+                distanceKm,
+                declaredValue
             };
 
             const res = await authenticatedFetch('/api/packages', {
@@ -273,6 +234,8 @@ export default function QuotePage() {
                 setRecipientPhone={setRecipientPhone}
                 loading={loading}
                 // New Props
+                declaredValue={declaredValue}
+                onDeclaredValueChange={setDeclaredValue}
                 onAddressSelect={handleAddressSelect}
                 onRequestQuote={handleRequestQuote}
                 onOpenPinModal={(type: 'origin' | 'destination') => {
@@ -412,35 +375,26 @@ function QuoteContent(props: any) {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             {[
-                                                { id: 'package', label: 'Paquetería', icon: Package, desc: 'Cajas, sobres y mercancía pequeña.' },
+                                                { id: 'package', label: 'Paquetería (Pausado)', icon: Package, desc: 'Cajas, sobres y mercancía pequeña.', disabled: true },
                                                 { id: 'full-truck', label: 'Camión Completo', icon: Truck, desc: 'Transporte dedicado de gran volumen.' },
                                                 { id: 'van', label: 'Camioneta', icon: Car, desc: 'Mudanzas pequeñas y volumen medio.' },
                                                 { id: 'recurring', label: 'Envíos Recurrentes', icon: Repeat, desc: 'Rutas programadas frecuentes.' }
                                             ].map((type) => (
                                                 <button
                                                     key={type.id}
+                                                    disabled={type.disabled}
                                                     onClick={() => {
+                                                        if (type.disabled) return;
                                                         if (type.id === 'package') {
                                                             props.setLoadType('package');
                                                             props.setLoadTypeDetails({});
-                                                            // Keep on step 1 until continued? or auto advance? 
-                                                            // Usually better to let user click Continue for consistency, 
-                                                            // but logic says we select, then maybe fill details.
-                                                            // Implementation: Select here, Continue button advances.
-                                                            // If we want modal popup, we do it differently.
-                                                            // The user requirement: "al seleccionar... se debe abrir un modal"
-                                                            if (type.id === 'package') {
-                                                                props.setLoadType('package');
-                                                            } else {
-                                                                props.setTempLoadType(type.id);
-                                                                props.setShowLoadInfoModal(true);
-                                                            }
                                                         } else {
                                                             props.setTempLoadType(type.id);
                                                             props.setShowLoadInfoModal(true);
                                                         }
                                                     }}
                                                     className={`group relative p-6 rounded-3xl text-left border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
+                                                        ${type.disabled ? 'opacity-50 grayscale cursor-not-allowed' : ''}
                                                         ${props.loadType === type.id
                                                             ? 'border-blue-500 bg-blue-50/50 ring-4 ring-blue-100'
                                                             : 'border-slate-100 bg-white hover:border-blue-200'}
@@ -640,6 +594,21 @@ function QuoteContent(props: any) {
                                                 </div>
                                             )}
 
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-green-500 focus-within:bg-white transition-all">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Valor Declarado (Seguro)</label>
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-slate-400 font-medium">$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={props.declaredValue || ''}
+                                                        onChange={(e) => props.onDeclaredValueChange(Number(e.target.value))}
+                                                        placeholder="1000"
+                                                        className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
+                                                    />
+                                                    <span className="text-slate-400 font-medium">MXN</span>
+                                                </div>
+                                            </div>
+
                                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2">
                                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Descripción (Opcional)</label>
                                                 <textarea
@@ -781,216 +750,215 @@ function QuoteContent(props: any) {
                                                 onClick={() => props.setServiceLevel('express')}
                                                 className={`group relative p-6 rounded-3xl text-left border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
                                                     ${props.serviceLevel === 'express'
-                                                        ? 'border-orange-500 bg-orange-50/50 ring-4 ring-orange-100'
-                                                        : 'border-slate-100 bg-white hover:border-orange-200'}
+                                                        ? 'border-blue-600 bg-blue-50/50 ring-4 ring-blue-100'
+                                                        : 'border-slate-100 bg-white hover:border-blue-200'}
                                                 `}
                                             >
                                                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                                                    <Zap size={100} className="text-orange-900" />
+                                                    <Zap size={100} className="text-blue-600" />
                                                 </div>
                                                 <div className="relative z-10">
                                                     <div className="flex justify-between items-center mb-4">
-                                                        <div className={`p-3 rounded-2xl ${props.serviceLevel === 'express' ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30' : 'bg-slate-100 text-slate-500'}`}>
-                                                            <Zap size={24} className={props.serviceLevel === 'express' ? 'animate-pulse' : ''} />
+                                                        <div className={`p-3 rounded-2xl ${props.serviceLevel === 'express' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                            <Zap size={24} />
                                                         </div>
-                                                        {props.serviceLevel === 'express' && <CheckCircle className="text-orange-500 fill-orange-100" />}
+                                                        {props.serviceLevel === 'express' && <CheckCircle className="text-blue-600 fill-blue-100" />}
                                                     </div>
-                                                    <h3 className="text-xl font-bold text-slate-800 mb-1">Express Plus</h3>
-                                                    <p className="text-slate-500 text-sm mb-4">Máxima prioridad. Tu paquete en tiempo récord.</p>
-                                                    <div className="inline-block bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">
-                                                        ⚡ Entrega Hoy
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h3 className="text-xl font-bold text-slate-800">Express</h3>
+                                                        <span className="bg-amber-100 text-amber-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">Popular</span>
+                                                    </div>
+                                                    <p className="text-slate-500 text-sm mb-4">Máxima prioridad para tus entregas críticas.</p>
+                                                    <div className="inline-block bg-blue-100 px-3 py-1 rounded-full text-xs font-bold text-blue-600">
+                                                        Mismo Día / 24 hrs
                                                     </div>
                                                 </div>
                                             </button>
                                         </div>
 
-                                        {/* Total & Action */}
-                                        <div className="mt-8 bg-slate-900 rounded-3xl p-8 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-[60px] translate-x-1/2 -translate-y-1/2" />
-
-                                            <div className="relative z-10 flex flex-col gap-8">
-                                                <div className="w-full">
-                                                    <p className="text-slate-400 font-medium text-sm uppercase tracking-widest mb-2">Total Estimado</p>
-                                                    <div className="text-5xl font-bold mb-2 tracking-tight w-full truncate tabular-nums">{formatCurrency(props.quotePrice)}</div>
-                                                    <div className="flex gap-4 text-sm text-slate-400">
-                                                        <span className="flex items-center gap-1"><Navigation size={14} /> {props.distanceKm.toFixed(1)} km</span>
-                                                        <span className="flex items-center gap-1"><Package size={14} /> {props.weight} kg</span>
+                                        {props.quotePrice > 0 && (
+                                            <div className="bg-[#1f4a5e] p-8 rounded-3xl text-white shadow-2xl shadow-blue-200 relative overflow-hidden animate-in zoom-in duration-500">
+                                                <div className="absolute top-0 right-0 p-8 opacity-10">
+                                                    <ShieldCheck size={120} />
+                                                </div>
+                                                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                                                    <div>
+                                                        <p className="text-blue-100 text-sm font-bold uppercase tracking-widest mb-1">Total Estimado</p>
+                                                        <div className="flex items-baseline gap-2">
+                                                            <h2 className="text-5xl font-black">{formatCurrency(props.quotePrice)}</h2>
+                                                            <span className="text-blue-200 font-bold">MXN</span>
+                                                        </div>
+                                                        <p className="text-blue-200/60 text-xs mt-2 flex items-center gap-1">
+                                                            <Clock size={12} /> Incluye IVA y seguro de mercancía.
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex flex-col gap-3 w-full md:w-auto">
+                                                        <button
+                                                            onClick={props.onRequestQuote}
+                                                            className="bg-white text-blue-900 hover:bg-blue-50 px-10 py-4 rounded-full font-bold text-lg shadow-lg hover:shadow-xl transition-all active:scale-95"
+                                                        >
+                                                            Solicitar Ahora
+                                                        </button>
+                                                        <button
+                                                            onClick={() => props.setCurrentStep(3)}
+                                                            className="text-blue-100 hover:text-white text-sm font-bold transition-colors"
+                                                        >
+                                                            Ajustar detalles
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={props.onRequestQuote}
-                                                    className="w-full bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition-colors shadow-lg flex items-center justify-center gap-2"
-                                                >
-                                                    Solicitar Ahora <ChevronRight size={20} />
-                                                </button>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Map Column */}
-                        <div className="w-full h-[600px] mt-8">
-                            <div className={`h-[600px] rounded-3xl overflow-hidden shadow-2xl relative transition-all duration-300 ring-1 ring-slate-200`}>
-
-                                <DirectionsMap
-                                    origin={props.origin}
-                                    destination={props.destination}
-                                    onDistanceCalculated={props.setDistanceKm}
-                                />
-
-                                {/* Mini Quote Overlay */}
-                                {props.quotePrice > 0 && props.currentStep < 4 && (
-                                    <div className="absolute bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/50 flex justify-between items-center animate-in slide-in-from-bottom-4 duration-300">
-                                        <div>
-                                            <p className="text-xs font-bold text-slate-400 uppercase">Estimado</p>
-                                            <p className="text-xl font-bold text-slate-900">{formatCurrency(props.quotePrice)}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs font-bold text-slate-400 uppercase">Distancia</p>
-                                            <p className="text-sm font-bold text-slate-900">{props.distanceKm.toFixed(1)} km</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                        {/* Map Preview area */}
+                        <div className="w-full lg:sticky lg:top-24 h-[400px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
+                            <DirectionsMap
+                                origin={props.origin ? { lat: props.origin.lat, lng: props.origin.lng } : null}
+                                destination={props.destination ? { lat: props.destination.lat, lng: props.destination.lng } : null}
+                                onDistanceChange={props.setDistanceKm}
+                            />
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Modal */}
-                <Modal isOpen={props.showModal} title="Confirmar Envío" onClose={() => props.setShowModal(false)}>
-                    <div className="space-y-6">
-                        <div className="bg-blue-50 p-4 rounded-xl flex gap-4 items-start">
-                            <ShieldCheck className="text-blue-600 shrink-0 mt-1" />
-                            <div>
-                                <h4 className="font-bold text-blue-900">Seguro de Envío</h4>
-                                <p className="text-sm text-blue-700/80">Todos nuestros envíos incluyen un seguro base contra daños y pérdidas.</p>
-                            </div>
+            {/* Verification Modal for Recipient Contact */}
+            <Modal
+                isOpen={props.showModal}
+                onClose={() => props.setShowModal(false)}
+                title="Datos de Contacto"
+            >
+                <div className="space-y-6 p-2">
+                    <div className="flex items-center gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                        <div className="p-2 bg-amber-100 text-amber-600 rounded-full">
+                            <Info size={20} />
                         </div>
+                        <p className="text-sm text-amber-800">Necesitamos los datos de quién recibe para coordinar la entrega final.</p>
+                    </div>
 
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Nombre del Destinatario</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-900 transition-all"
-                                    value={props.recipientName}
-                                    onChange={(e) => props.setRecipientName(e.target.value)}
-                                    placeholder="Juan Pérez"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Teléfono de Contacto</label>
-                                <input
-                                    type="tel"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-slate-900 transition-all"
-                                    value={props.recipientPhone}
-                                    onChange={(e) => props.setRecipientPhone(e.target.value)}
-                                    placeholder="55 1234 5678"
-                                />
-                            </div>
+                    <div className="space-y-4">
+                        <div className="input-group">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Nombre del Destinatario</label>
+                            <input
+                                type="text"
+                                className="input w-full"
+                                value={props.recipientName}
+                                onChange={(e) => props.setRecipientName(e.target.value)}
+                                placeholder="Ej. Juan Pérez"
+                            />
                         </div>
-
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
-                                onClick={() => props.setShowModal(false)}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-800 transition-all"
-                                onClick={props.handleCreatePackage}
-                                disabled={!props.recipientName || !props.recipientPhone}
-                            >
-                                Confirmar
-                            </button>
+                        <div className="input-group">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Teléfono de Contacto</label>
+                            <input
+                                type="tel"
+                                className="input w-full"
+                                value={props.recipientPhone}
+                                onChange={(e) => props.setRecipientPhone(e.target.value)}
+                                placeholder="55 1234 5678"
+                            />
                         </div>
                     </div>
-                </Modal>
 
-                {/* Load Type Specifics Modal */}
-                <Modal
-                    isOpen={props.showLoadInfoModal}
-                    title={
-                        props.tempLoadType === 'full-truck' ? 'Detalles de Camión' :
-                            props.tempLoadType === 'van' ? 'Detalles de Camioneta' :
-                                'Configuración de Envío Recurrente'
-                    }
-                    onClose={() => props.setShowLoadInfoModal(false)}
-                >
-                    <div className="space-y-6">
-                        {props.tempLoadType === 'full-truck' && (
-                            <div className="grid grid-cols-2 gap-4">
-                                {['Trailer 53\'', 'Trailer 48\'', 'Full (Doble)', 'Torton', 'Rabón'].map(truck => (
+                    <div className="pt-4 flex gap-4">
+                        <button
+                            className="btn btn-secondary flex-1 py-4"
+                            onClick={() => props.setShowModal(false)}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            className="btn btn-primary flex-1 py-4 shadow-xl shadow-blue-100"
+                            onClick={props.handleCreatePackage}
+                            disabled={!props.recipientName || !props.recipientPhone || props.loading}
+                        >
+                            {props.loading ? 'Procesando...' : 'Confirmar Envío'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Load Type Info Modal */}
+            <Modal
+                isOpen={props.showLoadInfoModal}
+                onClose={() => props.setShowLoadInfoModal(false)}
+                title="Configura tu servicio"
+            >
+                <div className="space-y-6">
+                    {props.tempLoadType === 'full-truck' && (
+                        <div className="space-y-4">
+                            <p className="text-slate-500">Selecciona el tipo de unidad que requieres para tu carga completa:</p>
+                            <div className="grid grid-cols-1 gap-3">
+                                {[
+                                    { id: 'Torton', label: 'Torton (14 Tons)', desc: 'Ideal para carga pesada urbana y carretera.' },
+                                    { id: 'Trailer', label: 'Tráiler (25-30 Tons)', desc: 'Máxima capacidad para rutas largas.' },
+                                    { id: 'Plataforma', label: 'Plataforma', desc: 'Para materiales de construcción o maquinaria.' }
+                                ].map(v => (
                                     <button
-                                        key={truck}
+                                        key={v.id}
                                         onClick={() => {
                                             props.setLoadType('full-truck');
-                                            props.setLoadTypeDetails({ vehicleType: truck });
+                                            props.setLoadTypeDetails({ vehicleType: v.id });
                                             props.setShowLoadInfoModal(false);
                                         }}
-                                        className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 text-left transition-all"
+                                        className="p-4 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 text-left transition-all"
                                     >
-                                        <Truck className="mb-2 text-slate-400" />
-                                        <div className="font-bold text-slate-700">{truck}</div>
+                                        <h4 className="font-bold text-slate-800">{v.label}</h4>
+                                        <p className="text-xs text-slate-500">{v.desc}</p>
                                     </button>
                                 ))}
                             </div>
-                        )}
-
-                        {props.tempLoadType === 'van' && (
-                            <div className="grid grid-cols-2 gap-4">
-                                {['Nissan Estacas', '1.5 Toneladas', '3.5 Toneladas', 'Panel', 'Eurovan'].map(van => (
+                        </div>
+                    )}
+                    {props.tempLoadType === 'van' && (
+                        <div className="space-y-4">
+                            <p className="text-slate-500">Selecciona el tamaño de la unidad:</p>
+                            <div className="grid grid-cols-1 gap-3">
+                                {[
+                                    { id: 'Nissan NPM', label: 'Camioneta 1.5 Tons', desc: 'Ágil para zonas urbanas restringidas.' },
+                                    { id: 'Van 3.5', label: 'Camioneta 3.5 Tons', desc: 'Equilibrio perfecto volumen/peso.' }
+                                ].map(v => (
                                     <button
-                                        key={van}
+                                        key={v.id}
                                         onClick={() => {
                                             props.setLoadType('van');
-                                            props.setLoadTypeDetails({ vehicleType: van });
+                                            props.setLoadTypeDetails({ vehicleType: v.id });
                                             props.setShowLoadInfoModal(false);
                                         }}
-                                        className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 text-left transition-all"
+                                        className="p-4 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 text-left transition-all"
                                     >
-                                        <Car className="mb-2 text-slate-400" />
-                                        <div className="font-bold text-slate-700">{van}</div>
+                                        <h4 className="font-bold text-slate-800">{v.label}</h4>
+                                        <p className="text-xs text-slate-500">{v.desc}</p>
                                     </button>
                                 ))}
                             </div>
-                        )}
-
-                        {props.tempLoadType === 'recurring' && (
-                            <div className="space-y-4">
-                                <label className="block font-bold text-slate-700">Frecuencia Estimada</label>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {['Diario', 'Semanal', 'Quincenal', 'Mensual'].map(freq => (
-                                        <button
-                                            key={freq}
-                                            onClick={() => {
-                                                props.setLoadType('recurring');
-                                                props.setLoadTypeDetails({ frequency: freq });
-                                                props.setShowLoadInfoModal(false);
-                                            }}
-                                            className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 flex justify-between items-center transition-all"
-                                        >
-                                            <span className="font-bold text-slate-700">{freq}</span>
-                                            <Repeat size={18} className="text-slate-400" />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        <div className="pt-4">
-                            <button
-                                onClick={() => props.setShowLoadInfoModal(false)}
-                                className="w-full py-3 text-slate-400 hover:text-slate-600 font-bold"
-                            >
-                                Cancelar
-                            </button>
                         </div>
-                    </div>
-                </Modal>
-            </div>
+                    )}
+                    {props.tempLoadType === 'recurring' && (
+                        <div className="space-y-4">
+                            <p className="text-slate-500">Frecuencia estimada de envíos:</p>
+                            <div className="grid grid-cols-1 gap-3">
+                                {['Diario', 'Semanal', 'Mensual'].map(f => (
+                                    <button
+                                        key={f}
+                                        onClick={() => {
+                                            props.setLoadType('recurring');
+                                            props.setLoadTypeDetails({ frequency: f });
+                                            props.setShowLoadInfoModal(false);
+                                        }}
+                                        className="p-4 rounded-2xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 text-left transition-all"
+                                    >
+                                        <h4 className="font-bold text-slate-800">{f}</h4>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 }

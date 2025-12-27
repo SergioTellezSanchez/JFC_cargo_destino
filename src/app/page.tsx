@@ -109,7 +109,7 @@ export default function Dashboard() {
                     title={t('myServices')}
                     description="Gestiona tus paquetes y consulta tu historial de envíos."
                     icon={<History size={32} color="white" />}
-                    onClick={() => router.push('/admin?tab=packages&filter=mine')}
+                    onClick={() => router.push('/my-services')}
                     gradient="linear-gradient(135deg, var(--accent) 0%, #c5a059 100%)"
                 />
             </div>

@@ -3,6 +3,29 @@ import { adminDb } from '@/lib/firebaseAdmin';
 
 export const dynamic = 'force-dynamic';
 
+export async function PUT(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const body = await request.json();
+
+        // Remove id from body to avoid saving it as a field
+        const { id: _, ...updateData } = body;
+
+        await adminDb.collection('vehicles').doc(id).update({
+            ...updateData,
+            updatedAt: new Date().toISOString()
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error updating vehicle:', error);
+        return NextResponse.json({ error: 'Failed to update vehicle' }, { status: 500 });
+    }
+}
+
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }

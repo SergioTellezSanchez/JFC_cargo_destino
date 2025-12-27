@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertTriangle, Clock, Scale, Package, Navigation, Camera, Check, Truck } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
@@ -131,8 +131,9 @@ export default function DriverApp() {
     const getPinColor = (status: string) => {
         switch (status) {
             case 'ASSIGNED': return '#FBBC04';
-            case 'PICKED_UP': return '#4285F4';
+            case 'LOADING': return '#4285F4';
             case 'IN_TRANSIT': return '#34A853';
+            case 'UNLOADING': return '#1F4A5E';
             case 'DELIVERED': return '#9AA0A6';
             case 'FAILED': return '#EA4335';
             default: return '#FBBC04';
@@ -276,23 +277,33 @@ export default function DriverApp() {
                                                 <button
                                                     className="btn btn-primary"
                                                     style={{ width: '100%', justifyContent: 'center', padding: '1rem' }}
-                                                    onClick={() => updateStatus(delivery.id, 'PICK_UP')}
+                                                    onClick={() => updateStatus(delivery.id, 'CONFIRM_ARRIVAL_ORIGIN')}
                                                 >
-                                                    {t('confirmPickup')}
+                                                    Confirmar Llegada a Carga
                                                 </button>
                                             )}
 
-                                            {status === 'PICKED_UP' && (
+                                            {status === 'LOADING' && (
                                                 <button
                                                     className="btn btn-primary"
-                                                    style={{ width: '100%', justifyContent: 'center', padding: '1rem' }}
-                                                    onClick={() => updateStatus(delivery.id, 'START_DELIVERY')}
+                                                    style={{ width: '100%', justifyContent: 'center', padding: '1rem', background: '#3b82f6' }}
+                                                    onClick={() => updateStatus(delivery.id, 'START_TRANSIT')}
                                                 >
-                                                    {t('startRoute')}
+                                                    Iniciar Tránsito
                                                 </button>
                                             )}
 
                                             {status === 'IN_TRANSIT' && (
+                                                <button
+                                                    className="btn btn-primary"
+                                                    style={{ width: '100%', justifyContent: 'center', padding: '1rem', background: '#10b981' }}
+                                                    onClick={() => updateStatus(delivery.id, 'CONFIRM_ARRIVAL_DESTINATION')}
+                                                >
+                                                    Llegada a Destino (Descarga)
+                                                </button>
+                                            )}
+
+                                            {status === 'UNLOADING' && (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                         <label
@@ -300,7 +311,7 @@ export default function DriverApp() {
                                                             className={`btn ${evidenceFile ? 'btn-success' : 'btn-secondary'}`}
                                                             style={{ flex: 1, justifyContent: 'center', cursor: 'pointer', border: evidenceFile ? 'none' : '2px dashed var(--border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                                                         >
-                                                            {evidenceFile ? <><Check size={18} /> Foto Lista</> : <><Camera size={18} /> Tomar Foto</>}
+                                                            {evidenceFile ? <><Check size={18} /> Evidencia Lista</> : <><Camera size={18} /> Tomar Foto Evidencia</>}
                                                         </label>
                                                         <input
                                                             id={`evidence-${delivery.id}`}
@@ -317,14 +328,7 @@ export default function DriverApp() {
                                                         style={{ width: '100%', justifyContent: 'center', padding: '1rem' }}
                                                         onClick={() => updateStatus(delivery.id, 'CONFIRM_DELIVERY', evidenceFile)}
                                                     >
-                                                        {t('delivered')}
-                                                    </button>
-                                                    <button
-                                                        className="btn btn-danger"
-                                                        style={{ width: '100%', justifyContent: 'center' }}
-                                                        onClick={() => updateStatus(delivery.id, 'REPORT_ISSUE')}
-                                                    >
-                                                        {t('failed')}
+                                                        Finalizar Entrega
                                                     </button>
                                                 </div>
                                             )}

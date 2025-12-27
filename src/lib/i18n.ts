@@ -51,8 +51,9 @@ export const translations = {
         // Status
         PENDING: 'PENDIENTE',
         ASSIGNED: 'ASIGNADO',
-        PICKED_UP: 'RECOGIDO',
+        LOADING: 'EN CARGA',
         IN_TRANSIT: 'EN TRÁNSITO',
+        UNLOADING: 'EN DESCARGA',
         DELIVERED: 'ENTREGADO',
         FAILED: 'FALLIDO',
 
@@ -166,8 +167,9 @@ export const translations = {
         // Status
         PENDING: 'PENDING',
         ASSIGNED: 'ASSIGNED',
-        PICKED_UP: 'PICKED UP',
+        LOADING: 'LOADING',
         IN_TRANSIT: 'IN TRANSIT',
+        UNLOADING: 'UNLOADING',
         DELIVERED: 'DELIVERED',
         FAILED: 'FAILED',
 

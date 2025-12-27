@@ -5,11 +5,11 @@ import { Calculator, MapPin, Package, Zap, ArrowRight, Truck } from 'lucide-reac
 interface QuoteDetails {
     base: number;
     distance: number;
-    weight: number;
-    serviceMultiplier: number;
+    operatingCost: number;
+    depreciation: number;
+    insurance: number;
+    suspensionPremium: number;
     serviceFee: number;
-    fuelSurcharge: number;
-    demandSurcharge: number;
     iva: number;
     total: number;
 }
@@ -44,7 +44,7 @@ export default function CostBreakdownModal({
                     <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-200">
                         <h4 className="font-bold text-slate-700 flex items-center gap-2">
                             <Calculator size={18} className="text-blue-500" />
-                            Resumen de Costos
+                            Resumen de Costos B2B
                         </h4>
                         <span className="text-xs font-bold bg-slate-200 text-slate-600 px-2 py-1 rounded-full uppercase">
                             {serviceLevel === 'express' ? 'Express Plus' : 'Estándar'}
@@ -55,42 +55,44 @@ export default function CostBreakdownModal({
                         {/* Base Rate */}
                         <div className="flex justify-between items-center">
                             <span className="text-slate-500 flex items-center gap-2">
-                                <Truck size={14} /> Tarifa Base
+                                <Truck size={14} /> Tarifa Base (Servicio)
                             </span>
                             <span className="font-medium text-slate-900">{formatCurrency(details.base)}</span>
                         </div>
 
-                        {/* Distance */}
+                        {/* Operating Cost */}
                         <div className="flex justify-between items-center">
                             <span className="text-slate-500 flex items-center gap-2">
-                                <MapPin size={14} /> Distancia ({distanceKm.toFixed(1)} km)
+                                <Zap size={14} /> Costo Operativo ({distanceKm.toFixed(1)} km)
                             </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.distance)}</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.operatingCost)}</span>
                         </div>
 
-                        {/* Weight */}
+                        {/* Depreciation */}
                         <div className="flex justify-between items-center">
                             <span className="text-slate-500 flex items-center gap-2">
-                                <Package size={14} /> Peso ({weight} kg)
+                                <Calculator size={14} /> Depreciación de Activo
                             </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.weight)}</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.depreciation)}</span>
                         </div>
 
-                        {/* Fuel Surcharge */}
+                        {/* Insurance */}
                         <div className="flex justify-between items-center">
                             <span className="text-slate-500 flex items-center gap-2">
-                                <Zap size={14} /> Recargo por Combustible
+                                <Calculator size={14} /> Seguro de Carga
                             </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.fuelSurcharge)}</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.insurance)}</span>
                         </div>
 
-                        {/* Demand Surcharge */}
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500 flex items-center gap-2">
-                                <Calculator size={14} /> Demand Surcharge
-                            </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.demandSurcharge)}</span>
-                        </div>
+                        {/* Suspension Premium */}
+                        {details.suspensionPremium > 0 && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-slate-500 flex items-center gap-2">
+                                    <Truck size={14} /> Premium Suspensión Neumática
+                                </span>
+                                <span className="font-medium text-slate-900">{formatCurrency(details.suspensionPremium)}</span>
+                            </div>
+                        )}
 
                         {/* Service Fee */}
                         {details.serviceFee > 0 && (

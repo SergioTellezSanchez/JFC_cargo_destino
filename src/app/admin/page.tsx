@@ -1,217 +1,131 @@
-
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { MapPin, Truck, ChevronDown, ChevronUp, Save, DollarSign, Package as PackageIcon, Users, Warehouse, Plus, Edit, Trash2, X } from 'lucide-react';
+import { Truck, Save, DollarSign, Package as PackageIcon, Users, Warehouse, Plus, LayoutGrid, Database, Lock, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
 import { useUser } from '@/lib/UserContext';
 import WorldClock from '@/components/WorldClock';
-import Modal from '@/components/Modal';
 import { authenticatedFetch } from '@/lib/api';
+import WarehouseManagement from '@/components/management/WarehouseManagement';
+import UserRoleManagement from '@/components/management/UserRoleManagement';
+import PackageManagement from '@/components/management/PackageManagement';
+import VehicleManagement from '@/components/management/VehicleManagement';
+import DriverManagement from '@/components/management/DriverManagement';
+import { Info, HelpCircle } from 'lucide-react';
 
 function AdminContent() {
     const { language } = useLanguage();
     const t = useTranslation(language);
-    const { user, isAdmin } = useUser();
+    const { user, isAdmin, loading: authLoading } = useUser();
     const searchParams = useSearchParams();
     const router = useRouter();
 
     const [activeTab, setActiveTab] = useState('packages');
-    const [filterMode, setFilterMode] = useState<'all' | 'mine'>('all');
-
-    const [packages, setPackages] = useState<any[]>([]);
-    const [drivers, setDrivers] = useState<any[]>([]);
-    const [vehicles, setVehicles] = useState<any[]>([]);
-    const [warehouses, setWarehouses] = useState<any[]>([]);
+    const [settings, setSettings] = useState<any>({
+        insuranceRate: 1.5,
+        profitMargin: 1.4,
+        suspensionTypes: ['Neumática', 'Muelles', 'Hidráulica'],
+        usefulLifeKm: 500000,
+        basePrice: 1000
+    });
     const [loading, setLoading] = useState(true);
-    const [expandedRow, setExpandedRow] = useState<string | null>(null);
-
-    // Modal State
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-    const [currentItem, setCurrentItem] = useState<any>(null);
-    const [itemType, setItemType] = useState<'package' | 'vehicle' | 'driver' | 'warehouse'>('package');
-
-    // Edit state for assignment
-    const [assignmentState, setAssignmentState] = useState<{
-        driverId: string;
-        vehicleId: string;
-    }>({ driverId: '', vehicleId: '' });
 
     useEffect(() => {
         const tab = searchParams.get('tab');
-        const modal = searchParams.get('modal');
-        const filter = searchParams.get('filter');
-
-        if (tab && ['packages', 'vehicles', 'drivers', 'warehouses'].includes(tab)) {
+        if (tab && ['packages', 'vehicles', 'drivers', 'warehouses', 'settings'].includes(tab)) {
             setActiveTab(tab);
-            if (modal === 'create') {
-                setTimeout(() => openModal(tab as any, 'create'), 100);
+        }
+
+        if (!authLoading) {
+            if (user) {
+                fetchSettings();
+            } else {
+                setLoading(false);
             }
         }
+    }, [searchParams, authLoading, user]);
 
-        if (filter === 'mine') {
-            setFilterMode('mine');
-        } else {
-            setFilterMode('all');
-        }
+    const handleTabChange = (tabId: string) => {
+        setActiveTab(tabId);
+        window.history.pushState(null, '', `/admin?tab=${tabId}`);
+    };
 
-        fetchData();
-    }, [searchParams]);
-
-    const fetchData = async () => {
+    const fetchSettings = async () => {
         setLoading(true);
         try {
-            const [packagesRes, driversRes, vehiclesRes, warehousesRes] = await Promise.all([
-                authenticatedFetch('/api/packages'),
-                authenticatedFetch('/api/drivers'),
-                authenticatedFetch('/api/vehicles'),
-                authenticatedFetch('/api/storage')
-            ]);
-
-            if (packagesRes.ok) setPackages(await packagesRes.json());
-            if (driversRes.ok) setDrivers(await driversRes.json());
-            if (vehiclesRes.ok) setVehicles(await vehiclesRes.json());
-            if (warehousesRes.ok) setWarehouses(await warehousesRes.json());
-
+            const res = await authenticatedFetch('/api/settings');
+            if (res.ok) setSettings(await res.json());
         } catch (error) {
-            console.error('Error fetching data:', error);
+            console.error('Error fetching settings:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const getFilteredData = (data: any[]) => {
-        if (filterMode === 'mine' && user) {
-            return data.filter(item => item.createdBy === user.uid);
-        }
-        return data;
-    };
+    if (authLoading || (user && loading)) return <div className="container" style={{ padding: '2rem', textAlign: 'center' }}>Cargando administrador...</div>;
 
-    const toggleRow = (pkgId: string, currentDriverId: string, currentVehicleId: string = '') => {
-        if (expandedRow === pkgId) {
-            setExpandedRow(null);
-        } else {
-            setExpandedRow(pkgId);
-            setAssignmentState({
-                driverId: currentDriverId || '',
-                vehicleId: currentVehicleId || ''
-            });
-        }
-    };
+    // Access Control
+    if (!user) {
+        return (
+            <div className="container" style={{ padding: '10vh 2rem', textAlign: 'center' }}>
+                <div className="card" style={{ maxWidth: '400px', margin: '0 auto', padding: '3rem' }}>
+                    <Lock size={48} color="var(--primary)" style={{ marginBottom: '1.5rem' }} />
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Acceso Restringido</h2>
+                    <p style={{ color: 'var(--secondary)', marginBottom: '2rem' }}>Debes iniciar sesión para acceder al panel administrativo.</p>
+                    <button className="btn btn-primary w-full" onClick={() => router.push('/login')}>Ir al Login</button>
+                </div>
+            </div>
+        );
+    }
 
-    const handleSaveAssignment = async (pkgId: string) => {
-        if (assignmentState.driverId && assignmentState.vehicleId) {
-            try {
-                const response = await authenticatedFetch(`/api/packages/${pkgId}/assign`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        driverId: assignmentState.driverId,
-                        vehicleId: assignmentState.vehicleId
-                    }),
-                });
-                if (response.ok) {
-                    fetchData();
-                    setExpandedRow(null);
-                    alert('Asignación guardada correctamente');
-                } else {
-                    alert('Error al guardar la asignación');
-                }
-            } catch (error) {
-                console.error('Error assigning resources:', error);
-                alert('Error de conexión');
-            }
-        } else {
-            alert('Por favor selecciona conductor y vehículo');
-        }
-    };
-
-    const openModal = (type: 'package' | 'vehicle' | 'driver' | 'warehouse', mode: 'create' | 'edit', item: any = null) => {
-        setItemType(type);
-        setModalMode(mode);
-        setCurrentItem(item || {});
-        setIsModalOpen(true);
-    };
-
-    const handleDelete = async (type: string, id: string) => {
-        if (!confirm(t('delete') + '?')) return;
-
-        try {
-            const endpoint = `/api/${type === 'warehouse' ? 'storage' : type + 's'}/${id}`;
-            const response = await authenticatedFetch(endpoint, {
-                method: 'DELETE',
-            });
-
-            if (response.ok) {
-                alert(t('delete') + ' ' + t('completed'));
-                fetchData();
-            } else {
-                alert(t('failed'));
-            }
-        } catch (error) {
-            console.error(error);
-            alert(t('failed'));
-        }
-    };
-
-    const canEdit = (item: any) => {
-        if (isAdmin) return true;
-        return item.createdBy === user?.uid;
-    };
-
-    // Calculations (Mock)
-    const calculateCosts = (pkg: any, vehicleId: string) => {
-        const vehicle = vehicles.find((v: any) => v.id === vehicleId);
-        const weight = pkg.weight || 10;
-        const declaredValue = pkg.declaredValue || 1000;
-
-        const shippingCost = weight * 15;
-        const insurance = declaredValue * 0.02;
-        const totalCost = shippingCost + insurance;
-        const priceToClient = totalCost * 1.4;
-        const utility = priceToClient - totalCost;
-        const utilityPercent = (utility / priceToClient) * 100;
-
-        const vehicleCapacity = vehicle ? vehicle.capacity : 1000;
-        const currentLoad = vehicle ? vehicle.currentLoad : 0;
-        const newLoad = currentLoad + weight;
-        const loadPercent = (newLoad / vehicleCapacity) * 100;
-
-        return { shippingCost, insurance, totalCost, priceToClient, utility, utilityPercent, loadPercent };
-    };
-
-    if (loading) return <div className="container" style={{ padding: '2rem', textAlign: 'center' }}>Cargando datos...</div>;
+    if (!isAdmin) {
+        return (
+            <div className="container" style={{ padding: '10vh 2rem', textAlign: 'center' }}>
+                <div className="card" style={{ maxWidth: '500px', margin: '0 auto', padding: '3rem', border: '2px solid var(--error-bg)' }}>
+                    <AlertCircle size={48} color="var(--error)" style={{ marginBottom: '1.5rem' }} />
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--error)' }}>Sin Privilegios</h2>
+                    <p style={{ color: 'var(--secondary)', marginBottom: '1rem' }}>
+                        Tu cuenta <strong>({user.email})</strong> no tiene permisos de administrador.
+                    </p>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--secondary)', marginBottom: '2rem' }}>
+                        Si crees que esto es un error, contacta al soporte técnico.
+                    </p>
+                    <button className="btn btn-secondary w-full" onClick={() => router.push('/')}>Volver al Inicio</button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container">
             <WorldClock />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <h1 className="text-gradient" style={{ fontSize: '2rem', fontWeight: 'bold' }}>{t('adminDashboard')}</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <h1 className="text-gradient" style={{ fontSize: '2rem', fontWeight: 'bold' }}>{t('adminDashboard')}</h1>
+                    <span className="badge badge-primary" style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>{user?.role || 'ADMIN'}</span>
+                </div>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--card-bg)', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--card-bg)', padding: '0.25rem', borderRadius: '0.75rem', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
                     {[
                         { id: 'packages', label: t('packages'), icon: <PackageIcon size={18} /> },
                         { id: 'vehicles', label: t('vehicles'), icon: <Truck size={18} /> },
                         { id: 'drivers', label: t('drivers'), icon: <Users size={18} /> },
                         { id: 'warehouses', label: t('warehouses'), icon: <Warehouse size={18} /> },
+                        { id: 'settings', label: 'Configuración', icon: <LayoutGrid size={18} /> },
                     ].map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => {
-                                setActiveTab(tab.id);
-                                router.push(`/admin?tab=${tab.id}`, { scroll: false });
-                            }}
+                            onClick={() => handleTabChange(tab.id)}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '0.5rem',
-                                padding: '0.5rem 1rem',
-                                borderRadius: '0.25rem',
+                                padding: '0.6rem 1.2rem',
+                                borderRadius: '0.6rem',
                                 border: 'none',
                                 background: activeTab === tab.id ? 'var(--primary)' : 'transparent',
                                 color: activeTab === tab.id ? 'white' : 'var(--secondary)',
@@ -224,405 +138,119 @@ function AdminContent() {
                         </button>
                     ))}
                 </div>
-
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    {/* Filter Toggle */}
-                    <div style={{ display: 'flex', background: 'var(--card-bg)', borderRadius: '0.5rem', border: '1px solid var(--border)', overflow: 'hidden' }}>
-                        <button
-                            onClick={() => setFilterMode('all')}
-                            style={{
-                                padding: '0.5rem 1rem',
-                                border: 'none',
-                                background: filterMode === 'all' ? 'var(--secondary-bg)' : 'transparent',
-                                color: filterMode === 'all' ? 'var(--foreground)' : 'var(--secondary)',
-                                cursor: 'pointer',
-                                fontWeight: filterMode === 'all' ? '600' : '400'
-                            }}
-                        >
-                            Todos
-                        </button>
-                        <button
-                            onClick={() => setFilterMode('mine')}
-                            style={{
-                                padding: '0.5rem 1rem',
-                                border: 'none',
-                                background: filterMode === 'mine' ? 'var(--secondary-bg)' : 'transparent',
-                                color: filterMode === 'mine' ? 'var(--foreground)' : 'var(--secondary)',
-                                cursor: 'pointer',
-                                fontWeight: filterMode === 'mine' ? '600' : '400'
-                            }}
-                        >
-                            Mis Items
-                        </button>
-                    </div>
-
-                    <button className="btn btn-primary" onClick={() => openModal(activeTab as any, 'create')}>
-                        <Plus size={18} /> {t('create')} {activeTab === 'packages' ? 'Paquete' : activeTab === 'vehicles' ? 'Vehículo' : activeTab === 'drivers' ? 'Conductor' : 'Almacén'}
-                    </button>
-                </div>
             </div>
 
             {/* Content Area */}
-            <div className="card" style={{ overflowX: 'auto', minHeight: '400px' }}>
-                {activeTab === 'packages' && (
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Destinatario</th>
-                                <th>Estado</th>
-                                <th>Conductor</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {getFilteredData(packages).map((pkg: any) => {
-                                const currentDelivery = pkg.deliveries?.[0];
-                                const status = currentDelivery?.status || 'PENDING';
-                                const driver = currentDelivery?.driver;
-                                const isExpanded = expandedRow === pkg.id;
-                                const costs = calculateCosts(pkg, assignmentState.vehicleId);
+            <div className={activeTab === 'settings' ? '' : 'card'} style={{ minHeight: '400px', background: activeTab === 'settings' ? 'transparent' : 'var(--card-bg)', border: activeTab === 'settings' ? 'none' : '1px solid var(--border)', padding: activeTab === 'settings' ? 0 : '1px' }}>
+                {activeTab === 'packages' && <PackageManagement isAdminView={true} />}
+                {activeTab === 'vehicles' && <VehicleManagement isAdminView={true} />}
+                {activeTab === 'drivers' && <DriverManagement isAdminView={true} />}
+                {activeTab === 'warehouses' && <WarehouseManagement isAdminView={true} />}
 
-                                return (
-                                    <>
-                                        <tr key={pkg.id} style={{ background: isExpanded ? 'var(--secondary-bg)' : 'transparent' }}>
-                                            <td style={{ fontWeight: 'bold' }}>{pkg.trackingId}</td>
-                                            <td>{pkg.recipientName}</td>
-                                            <td><span className={`badge badge-${status.toLowerCase()}`}>{t(status as any)}</span></td>
-                                            <td>{driver?.name || <span style={{ color: 'var(--error)' }}>Sin Asignar</span>}</td>
-                                            <td>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={() => toggleRow(pkg.id, driver?.id)}>
-                                                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                                    </button>
-                                                    {canEdit(pkg) && (
-                                                        <>
-                                                            <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={() => openModal('package', 'edit', pkg)}>
-                                                                <Edit size={16} />
-                                                            </button>
-                                                            <button className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }} onClick={() => handleDelete('package', pkg.id)}>
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {isExpanded && (
-                                            <tr>
-                                                <td colSpan={5} style={{ padding: '1.5rem', background: 'var(--secondary-bg)' }}>
-                                                    <div className="responsive-grid" style={{ alignItems: 'flex-start' }}>
-                                                        {/* Shipping Details */}
-                                                        <div className="card responsive-card">
-                                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                <PackageIcon size={18} /> Detalles del Envío
-                                                            </h3>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
-                                                                <div><span className="font-bold">Origen:</span> {pkg.origin || 'N/A'}</div>
-                                                                <div><span className="font-bold">Destino:</span> {pkg.destination || pkg.address}</div>
-                                                                <div className="border-t my-2"></div>
-                                                                <div><span className="font-bold">Remitente:</span> {pkg.senderName || 'N/A'}</div>
-                                                                <div><span className="font-bold">Tel:</span> {pkg.senderPhone || 'N/A'}</div>
-                                                                <div className="border-t my-2"></div>
-                                                                <div><span className="font-bold">Destinatario:</span> {pkg.recipientName}</div>
-                                                                <div><span className="font-bold">Tel:</span> {pkg.receiverPhone || 'N/A'}</div>
-                                                                <div className="border-t my-2"></div>
-                                                                <div><span className="font-bold">Instrucciones:</span> {pkg.instructions || 'Ninguna'}</div>
-                                                            </div>
-                                                        </div>
+                {activeTab === 'settings' && (
+                    <div className="space-y-8">
+                        <div className="card" style={{ padding: '2.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', }}>
+                                    <div style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                                        <DollarSign size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Parámetros Globales</h2>
+                                        <p style={{ color: 'var(--secondary)', fontSize: '0.9rem' }}>Configura los valores base para la operación.</p>
+                                    </div>
+                                </div>
+                            </div>
 
-                                                        {/* Resource Assignment */}
-                                                        <div className="card responsive-card">
-                                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                <Truck size={18} /> Asignación de Recursos
-                                                            </h3>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                                <div>
-                                                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: '600' }}>Conductor</label>
-                                                                    <select
-                                                                        className="input"
-                                                                        value={assignmentState.driverId}
-                                                                        onChange={(e) => setAssignmentState(prev => ({ ...prev, driverId: e.target.value }))}
-                                                                    >
-                                                                        <option value="">Seleccionar Conductor...</option>
-                                                                        {drivers.map((d: any) => (
-                                                                            <option key={d.id} value={d.id}>{d.name}</option>
-                                                                        ))}
-                                                                    </select>
-                                                                </div>
-                                                                <div>
-                                                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: '600' }}>Vehículo</label>
-                                                                    <select
-                                                                        className="input"
-                                                                        value={assignmentState.vehicleId}
-                                                                        onChange={(e) => setAssignmentState(prev => ({ ...prev, vehicleId: e.target.value }))}
-                                                                    >
-                                                                        <option key="default-vehicle" value="">Seleccionar Vehículo...</option>
-                                                                        {vehicles.map((v: any) => (
-                                                                            <option key={v.id} value={v.id}>{v.name} - {v.plate}</option>
-                                                                        ))}
-                                                                    </select>
-                                                                </div>
-                                                                <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => handleSaveAssignment(pkg.id)}>
-                                                                    <Save size={18} /> Confirmar Asignación
-                                                                </button>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Financial Breakdown */}
-                                                        <div className="card responsive-card">
-                                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                <DollarSign size={18} /> Desglose Financiero
-                                                            </h3>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
-                                                                    <span style={{ color: 'var(--secondary)' }}>Costo Envío Base</span>
-                                                                    <span>${costs.shippingCost.toFixed(2)}</span>
-                                                                </div>
-                                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
-                                                                    <span style={{ color: 'var(--secondary)' }}>Seguro (2%)</span>
-                                                                    <span>${costs.insurance.toFixed(2)}</span>
-                                                                </div>
-                                                                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
-                                                                    <span style={{ fontWeight: 'bold' }}>Costo Total Operativo</span>
-                                                                    <span style={{ fontWeight: 'bold' }}>${costs.totalCost.toFixed(2)}</span>
-                                                                </div>
-                                                                <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--primary-light)', padding: '0.75rem', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
-                                                                    <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>Utilidad Estimada</span>
-                                                                    <div style={{ textAlign: 'right' }}>
-                                                                        <div style={{ fontWeight: 'bold', color: 'var(--success)' }}>${costs.utility.toFixed(2)}</div>
-                                                                        <div style={{ fontSize: '0.8rem', color: 'var(--secondary)' }}>{costs.utilityPercent.toFixed(1)}% margen</div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                )}
-
-                {activeTab === 'vehicles' && (
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Placa</th>
-                                <th>Capacidad</th>
-                                <th>Carga Actual</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {getFilteredData(vehicles).map((v: any) => (
-                                <tr key={v.id}>
-                                    <td>{v.name}</td>
-                                    <td>{v.plate}</td>
-                                    <td>{v.capacity} kg</td>
-                                    <td>{v.currentLoad} kg</td>
-                                    <td>
-                                        {canEdit(v) && (
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={() => openModal('vehicle', 'edit', v)}><Edit size={16} /></button>
-                                                <button className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }} onClick={() => handleDelete('vehicle', v.id)}><Trash2 size={16} /></button>
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                const formData = new FormData(e.currentTarget);
+                                const payload = {
+                                    insuranceRate: Number(formData.get('insuranceRate')),
+                                    profitMargin: Number(formData.get('profitMargin')),
+                                    usefulLifeKm: Number(formData.get('usefulLifeKm')),
+                                    basePrice: Number(formData.get('basePrice')),
+                                    suspensionTypes: formData.getAll('suspensionTypes')
+                                };
+                                try {
+                                    const res = await authenticatedFetch('/api/settings', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(payload)
+                                    });
+                                    if (res.ok) alert('Configuración guardada');
+                                } catch (err) { alert('Error al guardar'); }
+                            }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                                    <div className="space-y-4">
+                                        <div className="input-group">
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                <label style={{ fontWeight: '600' }}>Tasa de Seguro (%)</label>
+                                                <div style={{ cursor: 'help' }}><HelpCircle size={14} color="var(--secondary)" /></div>
                                             </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-
-                {activeTab === 'drivers' && (
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Teléfono</th>
-                                <th>Licencia</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {getFilteredData(drivers).map((d: any) => (
-                                <tr key={d.id}>
-                                    <td>{d.name}</td>
-                                    <td>{d.phone}</td>
-                                    <td>{d.license || 'N/A'}</td>
-                                    <td><span className="badge badge-success">Activo</span></td>
-                                    <td>
-                                        {canEdit(d) && (
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={() => openModal('driver', 'edit', d)}><Edit size={16} /></button>
-                                                <button className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }} onClick={() => handleDelete('driver', d.id)}><Trash2 size={16} /></button>
+                                            <input name="insuranceRate" type="number" step="0.01" lang="en-US" className="input" defaultValue={settings.insuranceRate} required />
+                                        </div>
+                                        <div className="input-group">
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                <label style={{ fontWeight: '600' }}>Margen de Utilidad (Factor)</label>
+                                                <div style={{ cursor: 'help' }}><HelpCircle size={14} color="var(--secondary)" /></div>
                                             </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-
-                {activeTab === 'warehouses' && (
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Ubicación</th>
-                                <th>Capacidad</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {getFilteredData(warehouses).map((w: any) => (
-                                <tr key={w.id}>
-                                    <td>{w.name}</td>
-                                    <td>{w.location || 'N/A'}</td>
-                                    <td>{w.capacity}</td>
-                                    <td>
-                                        {canEdit(w) && (
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={() => openModal('warehouse', 'edit', w)}><Edit size={16} /></button>
-                                                <button className="btn btn-danger" style={{ padding: '0.25rem 0.5rem' }} onClick={() => handleDelete('warehouse', w.id)}><Trash2 size={16} /></button>
+                                            <input name="profitMargin" type="number" step="0.01" lang="en-US" className="input" defaultValue={settings.profitMargin} required />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="input-group">
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                <label style={{ fontWeight: '600' }}>Precio Base Ruta ($)</label>
+                                                <div style={{ cursor: 'help' }}><HelpCircle size={14} color="var(--secondary)" /></div>
                                             </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                            <input name="basePrice" type="number" className="input" defaultValue={settings.basePrice} required />
+                                        </div>
+                                        <div className="input-group">
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                <label style={{ fontWeight: '600' }}>Tipos de Suspensión</label>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.75rem', background: 'var(--card-bg)', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
+                                                {['Neumática', 'Muelles', 'Mecánica', 'Hidráulica', 'Bolsas de Aire'].map(type => (
+                                                    <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', cursor: 'pointer' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            name="suspensionTypes"
+                                                            value={type}
+                                                            defaultChecked={settings.suspensionTypes?.includes(type)}
+                                                        />
+                                                        {type}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                    <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 2rem' }}>
+                                        <Save size={18} /> Guardar Configuración
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {user?.role === 'ADMIN_MASTER' && (
+                            <div className="card" style={{ padding: '2.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
+                                    <div style={{ background: 'var(--foreground)', color: 'white', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                                        <Users size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Gestión de Usuarios y Roles</h2>
+                                        <p style={{ color: 'var(--secondary)', fontSize: '0.9rem' }}>Controla quién tiene acceso a las funciones administrativas.</p>
+                                    </div>
+                                </div>
+                                <UserRoleManagement />
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
-
-
-            {/* Modal */}
-            <Modal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                title={`${modalMode === 'create' ? t('create') : t('edit')} ${itemType === 'package' ? t('packages') : itemType === 'vehicle' ? t('vehicles') : itemType === 'driver' ? t('drivers') : t('warehouses')}`}
-            >
-                <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.currentTarget);
-                    const data = Object.fromEntries(formData.entries());
-
-                    try {
-                        const endpoint = `/api/${itemType === 'warehouse' ? 'storage' : itemType + 's'}${modalMode === 'edit' ? `/${currentItem.id}` : ''}`;
-                        const method = modalMode === 'create' ? 'POST' : 'PUT';
-
-                        // Add createdBy if creating
-                        if (modalMode === 'create' && user) {
-                            // @ts-ignore
-                            data.createdBy = user.uid;
-                        }
-
-                        const response = await authenticatedFetch(endpoint, {
-                            method,
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(data),
-                        });
-
-                        if (response.ok) {
-                            alert(t('save') + ' ' + t('completed'));
-                            setIsModalOpen(false);
-                            fetchData();
-                        } else {
-                            alert(t('failed'));
-                        }
-                    } catch (error) {
-                        console.error(error);
-                        alert(t('failed'));
-                    }
-                }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-
-                        {itemType === 'package' && (
-                            <>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('trackingId')}</label>
-                                    <input name="trackingId" type="text" className="input" defaultValue={currentItem?.trackingId} required />
-                                </div>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('recipientName')}</label>
-                                    <input name="recipientName" type="text" className="input" defaultValue={currentItem?.recipientName} required />
-                                </div>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('address')}</label>
-                                    <input name="address" type="text" className="input" defaultValue={currentItem?.address} required />
-                                </div>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('weight')}</label>
-                                    <input name="weight" type="number" className="input" defaultValue={currentItem?.weight} required />
-                                </div>
-                            </>
-                        )}
-
-                        {itemType === 'vehicle' && (
-                            <>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('name')}</label>
-                                    <input name="name" type="text" className="input" defaultValue={currentItem?.name} required />
-                                </div>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('plate')}</label>
-                                    <input name="plate" type="text" className="input" defaultValue={currentItem?.plate} required />
-                                </div>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('capacity')} (kg)</label>
-                                    <input name="capacity" type="number" className="input" defaultValue={currentItem?.capacity} required />
-                                </div>
-                            </>
-                        )}
-
-                        {itemType === 'driver' && (
-                            <>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('name')}</label>
-                                    <input name="name" type="text" className="input" defaultValue={currentItem?.name} required />
-                                </div>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('phone')}</label>
-                                    <input name="phone" type="text" className="input" defaultValue={currentItem?.phone} required />
-                                </div>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('license')}</label>
-                                    <input name="license" type="text" className="input" defaultValue={currentItem?.license} />
-                                </div>
-                            </>
-                        )}
-
-                        {itemType === 'warehouse' && (
-                            <>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('name')}</label>
-                                    <input name="name" type="text" className="input" defaultValue={currentItem?.name} required />
-                                </div>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('location')}</label>
-                                    <input name="location" type="text" className="input" defaultValue={currentItem?.location} required />
-                                </div>
-                                <div className="input-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('capacity')}</label>
-                                    <input name="capacity" type="number" className="input" defaultValue={currentItem?.capacity} required />
-                                </div>
-                            </>
-                        )}
-
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-                            <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>{t('cancel')}</button>
-                            <button type="submit" className="btn btn-primary">{t('save')}</button>
-                        </div>
-                    </div>
-                </form>
-            </Modal>
         </div>
     );
 }
