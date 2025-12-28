@@ -283,6 +283,11 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                                 <option key={v.id} value={v.id}>{v.name || 'Vehículo'} ({v.plate || 'S/P'})</option>
                                                                             ))}
                                                                     </select>
+                                                                    {vehicles.filter(v => (!assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany) && isVehicleSuitable(v, pkg as PackageType)).length === 0 && (
+                                                                        <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '0.25rem' }}>
+                                                                            No hay vehículos adecuados para este tipo de carga ({pkg.loadType || 'Paquete'}).
+                                                                        </p>
+                                                                    )}
                                                                 </div>
 
                                                                 <div className="input-group">
