@@ -6,11 +6,11 @@ import { Map, useMapsLibrary, useMap, MapMouseEvent, Marker } from '@vis.gl/reac
 interface DirectionsMapProps {
     origin: { lat: number; lng: number } | null;
     destination: { lat: number; lng: number } | null;
-    onDistanceCalculated?: (distanceKm: number) => void;
+    onDistanceChange?: (distanceKm: number) => void;
     onMapClick?: (e: MapMouseEvent) => void;
 }
 
-function DirectionsController({ origin, destination, onDistanceCalculated }: DirectionsMapProps) {
+function DirectionsController({ origin, destination, onDistanceChange }: DirectionsMapProps) {
     const map = useMap(); // Access parent map instance reliably
     const routesLibrary = useMapsLibrary('routes');
     const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
@@ -56,15 +56,15 @@ function DirectionsController({ origin, destination, onDistanceCalculated }: Dir
 
             if (response.routes[0] && response.routes[0].legs[0]) {
                 const distanceMeters = response.routes[0].legs[0].distance?.value || 0;
-                if (onDistanceCalculated) {
-                    onDistanceCalculated(distanceMeters / 1000);
+                if (onDistanceChange) {
+                    onDistanceChange(distanceMeters / 1000);
                 }
             }
         }).catch(err => {
             console.error('Directions failed', err);
             // Don't clear directions on error to avoid flickering if it's transient
         });
-    }, [directionsService, directionsRenderer, origin, destination, onDistanceCalculated, map]);
+    }, [directionsService, directionsRenderer, origin, destination, onDistanceChange, map]);
 
     return (
         <>
