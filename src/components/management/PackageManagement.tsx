@@ -44,6 +44,7 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('ALL');
+    const [selectedCompanies, setSelectedCompanies] = useState<string[]>(['ALL']);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -110,16 +111,31 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
         } catch (error) { console.error(error); }
     };
 
-    const handleQuickStatusUpdate = async (packageId: string, newStatus: string) => {
+    const handleQuickStatusUpdate = async (id: string, newStatus: string) => {
         try {
-            const pkg = packages.find(p => p.id === packageId);
-            const res = await authenticatedFetch(`/api/packages/${packageId}`, {
+            const res = await authenticatedFetch(`/api/packages/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...pkg, status: newStatus })
+                body: JSON.stringify({ status: newStatus })
             });
             if (res.ok) fetchData();
-        } catch (err) { console.error(err); }
+        } catch (error) { console.error(error); }
+    };
+
+    const toggleCompany = (company: string) => {
+        if (company === 'ALL') {
+            setSelectedCompanies(['ALL']);
+            return;
+        }
+
+        let newSelected = selectedCompanies.filter(c => c !== 'ALL');
+        if (newSelected.includes(company)) {
+            newSelected = newSelected.filter(c => c !== company);
+            if (newSelected.length === 0) newSelected = ['ALL'];
+        } else {
+            newSelected.push(company);
+        }
+        setSelectedCompanies(newSelected);
     };
 
     const handleAssignmentUpdate = async (packageId: string) => {
@@ -163,32 +179,59 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
         const idMatch = p.trackingId?.toLowerCase().includes(searchTerm.toLowerCase());
         const nameMatch = p.recipientName?.toLowerCase().includes(searchTerm.toLowerCase());
         const statusMatch = filterStatus === 'ALL' || (p.status || p.deliveries?.[0]?.status) === filterStatus;
-        return (idMatch || nameMatch) && statusMatch;
+
+        let companyMatch = true;
+        if (!selectedCompanies.includes('ALL')) {
+            const pkgCompany = p.logisticsCompany || 'UNASSIGNED';
+            companyMatch = selectedCompanies.includes(pkgCompany);
+        }
+
+        return (idMatch || nameMatch) && statusMatch && companyMatch;
     });
 
     return (
         <div className="space-y-6">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ display: 'flex', gap: '0.5rem', flex: 1, maxWidth: '600px' }}>
-                    <div style={{ position: 'relative', flex: 1 }}>
-                        <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary)' }} />
-                        <input
-                            type="text"
-                            placeholder="Buscar por ID o Destinatario..."
-                            className="input"
-                            style={{ paddingLeft: '2.5rem' }}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+            <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '300px' }}>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary)' }} />
+                            <input
+                                type="text"
+                                placeholder="Buscar por ID o Destinatario..."
+                                className="input"
+                                style={{ paddingLeft: '2.5rem', margin: 0 }}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <select className="input" style={{ width: 'auto', margin: 0 }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                            <option value="ALL">Todos los Estados</option>
+                            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(s as any)}</option>)}
+                        </select>
                     </div>
-                    <select className="input" style={{ width: 'auto' }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                        <option value="ALL">Estados</option>
-                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(s as any)}</option>)}
-                    </select>
+                    <button className="btn btn-primary" onClick={() => handleOpenModal('create')}>
+                        <Plus size={18} /> Nuevo Envío
+                    </button>
                 </div>
-                <button className="btn btn-primary" onClick={() => handleOpenModal('create')}>
-                    <Plus size={18} /> Nuevo Envío
-                </button>
+
+                <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginRight: '0.5rem' }}>Filtrar por Aliado:</span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '0.5rem', background: selectedCompanies.includes('ALL') ? 'var(--primary-light)' : 'transparent', color: selectedCompanies.includes('ALL') ? 'var(--primary)' : 'inherit' }}>
+                        <input type="checkbox" checked={selectedCompanies.includes('ALL')} onChange={() => toggleCompany('ALL')} style={{ cursor: 'pointer' }} />
+                        Todos
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '0.5rem', background: selectedCompanies.includes('UNASSIGNED') ? 'rgba(239, 68, 68, 0.1)' : 'transparent', color: selectedCompanies.includes('UNASSIGNED') ? '#ef4444' : 'inherit' }}>
+                        <input type="checkbox" checked={selectedCompanies.includes('UNASSIGNED')} onChange={() => toggleCompany('UNASSIGNED')} style={{ cursor: 'pointer' }} />
+                        Sin asignar
+                    </label>
+                    {LOGISTICS_COMPANIES.map(company => (
+                        <label key={company} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '0.5rem', background: selectedCompanies.includes(company) ? 'var(--secondary-bg)' : 'transparent', color: selectedCompanies.includes(company) ? 'var(--primary)' : 'inherit', border: selectedCompanies.includes(company) ? '1px solid var(--primary)' : '1px solid transparent' }}>
+                            <input type="checkbox" checked={selectedCompanies.includes(company)} onChange={() => toggleCompany(company)} style={{ cursor: 'pointer' }} />
+                            {company}
+                        </label>
+                    ))}
+                </div>
             </div>
 
             {loading ? (

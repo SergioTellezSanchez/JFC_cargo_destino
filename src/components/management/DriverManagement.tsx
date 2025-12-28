@@ -46,6 +46,7 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
     const [vehicles, setVehicles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCompanies, setSelectedCompanies] = useState<string[]>(['ALL']);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -145,11 +146,34 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
         else setSelectedIds([...selectedIds, id]);
     };
 
-    const filteredDrivers = drivers.filter(d =>
-    (d.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        d.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        d.company?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const toggleCompany = (company: string) => {
+        if (company === 'ALL') {
+            setSelectedCompanies(['ALL']);
+            return;
+        }
+        let newSelected = selectedCompanies.filter(c => c !== 'ALL');
+        if (newSelected.includes(company)) {
+            newSelected = newSelected.filter(c => c !== company);
+            if (newSelected.length === 0) newSelected = ['ALL'];
+        } else {
+            newSelected.push(company);
+        }
+        setSelectedCompanies(newSelected);
+    };
+
+    const filteredDrivers = drivers.filter(d => {
+        const matchesSearch = (d.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            d.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            d.company?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+        let matchesCompany = true;
+        if (!selectedCompanies.includes('ALL')) {
+            const dCompany = d.company || 'UNASSIGNED';
+            matchesCompany = selectedCompanies.includes(dCompany);
+        }
+
+        return matchesSearch && matchesCompany;
+    });
 
     // Group vehicles by company for the assign modal
     const vehiclesByCompany = vehicles.reduce((acc: any, vehicle: any, index: number) => {
@@ -165,27 +189,47 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
 
     return (
         <div className="space-y-6">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
-                    <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary)' }} />
-                    <input
-                        type="text"
-                        placeholder="Buscar por nombre, teléfono o empresa..."
-                        className="input"
-                        style={{ paddingLeft: '2.5rem' }}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    {selectedIds.length > 0 && (
-                        <button className="btn btn-secondary" onClick={() => { if (confirm('¿Eliminar seleccionados?')) { } }}>
-                            <Trash2 size={18} /> ({selectedIds.length})
+            <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
+                    <div style={{ position: 'relative', flex: 1, maxWidth: '500px' }}>
+                        <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary)' }} />
+                        <input
+                            type="text"
+                            placeholder="Buscar por nombre, teléfono o empresa..."
+                            className="input"
+                            style={{ paddingLeft: '2.5rem', margin: 0 }}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        {selectedIds.length > 0 && (
+                            <button className="btn btn-secondary" onClick={() => { if (confirm('¿Eliminar seleccionados?')) { } }}>
+                                <Trash2 size={18} /> ({selectedIds.length})
+                            </button>
+                        )}
+                        <button className="btn btn-primary" onClick={() => handleOpenModal('create')}>
+                            <Plus size={18} /> Agregar Conductor
                         </button>
-                    )}
-                    <button className="btn btn-primary" onClick={() => handleOpenModal('create')}>
-                        <Plus size={18} /> Agregar Conductor
-                    </button>
+                    </div>
+                </div>
+
+                <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginRight: '0.5rem' }}>Filtrar por Aliado:</span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '0.5rem', background: selectedCompanies.includes('ALL') ? 'var(--primary-light)' : 'transparent', color: selectedCompanies.includes('ALL') ? 'var(--primary)' : 'inherit' }}>
+                        <input type="checkbox" checked={selectedCompanies.includes('ALL')} onChange={() => toggleCompany('ALL')} style={{ cursor: 'pointer' }} />
+                        Todos
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '0.5rem', background: selectedCompanies.includes('UNASSIGNED') ? 'rgba(239, 68, 68, 0.1)' : 'transparent', color: selectedCompanies.includes('UNASSIGNED') ? '#ef4444' : 'inherit' }}>
+                        <input type="checkbox" checked={selectedCompanies.includes('UNASSIGNED')} onChange={() => toggleCompany('UNASSIGNED')} style={{ cursor: 'pointer' }} />
+                        Sin asignar
+                    </label>
+                    {PARTNER_COMPANIES.map(company => (
+                        <label key={company} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer', padding: '0.25rem 0.6rem', borderRadius: '0.5rem', background: selectedCompanies.includes(company) ? 'var(--secondary-bg)' : 'transparent', color: selectedCompanies.includes(company) ? 'var(--primary)' : 'inherit', border: selectedCompanies.includes(company) ? '1px solid var(--primary)' : '1px solid transparent' }}>
+                            <input type="checkbox" checked={selectedCompanies.includes(company)} onChange={() => toggleCompany(company)} style={{ cursor: 'pointer' }} />
+                            {company}
+                        </label>
+                    ))}
                 </div>
             </div>
 

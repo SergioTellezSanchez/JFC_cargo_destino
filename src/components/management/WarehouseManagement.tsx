@@ -81,21 +81,23 @@ export default function WarehouseManagement({ isAdminView = false }: WarehouseMa
 
     return (
         <div className="space-y-6">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
-                    <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary)' }} />
-                    <input
-                        type="text"
-                        placeholder="Buscar por nombre o ubicación..."
-                        className="input"
-                        style={{ paddingLeft: '2.5rem' }}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+            <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
+                    <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+                        <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary)' }} />
+                        <input
+                            type="text"
+                            placeholder="Buscar por nombre o ubicación..."
+                            className="input"
+                            style={{ paddingLeft: '2.5rem', margin: 0 }}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <button className="btn btn-primary" onClick={() => handleOpenModal('create')}>
+                        <Plus size={18} /> Agregar Almacén
+                    </button>
                 </div>
-                <button className="btn btn-primary" onClick={() => handleOpenModal('create')}>
-                    <Plus size={18} /> Agregar Almacén
-                </button>
             </div>
 
             {loading ? (
