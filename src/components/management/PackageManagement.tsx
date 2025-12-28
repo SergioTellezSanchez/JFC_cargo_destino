@@ -247,18 +247,18 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                         {isExpanded && (
                                             <tr>
                                                 <td colSpan={5} style={{ padding: '2rem', background: 'var(--secondary-bg)' }}>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                                                        <div className="card" style={{ padding: '1.5rem', overflow: 'visible' }}>
-                                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                <Truck size={18} className="text-primary" /> Asignación Logística
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+                                                        <div className="card" style={{ padding: '1.5rem', background: 'var(--secondary-bg)', border: '1px solid var(--border)' }}>
+                                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--primary)' }}>
+                                                                <Truck size={20} /> Asignación Logística
                                                             </h3>
 
-                                                            <div className="space-y-4" style={{ paddingRight: '0.5rem' }}>
-                                                                <div className="input-group">
-                                                                    <label>Empresa Logística (Aliado)</label>
+                                                            <div className="space-y-5">
+                                                                <div className="input-group" style={{ margin: 0 }}>
+                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Empresa Logística (Aliado)</label>
                                                                     <select
                                                                         className="input"
-                                                                        style={{ width: '100%' }}
+                                                                        style={{ width: '100%', margin: 0, height: '42px' }}
                                                                         value={assignmentState.logisticsCompany}
                                                                         onChange={(e) => setAssignmentState({ ...assignmentState, logisticsCompany: e.target.value, vehicleId: '', driverId: '' })}
                                                                     >
@@ -267,11 +267,11 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                     </select>
                                                                 </div>
 
-                                                                <div className="input-group">
-                                                                    <label>Vehículo de Flotilla</label>
+                                                                <div className="input-group" style={{ margin: 0 }}>
+                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Vehículo de Flotilla</label>
                                                                     <select
                                                                         className="input"
-                                                                        style={{ width: '100%' }}
+                                                                        style={{ width: '100%', margin: 0, height: '42px' }}
                                                                         value={assignmentState.vehicleId}
                                                                         onChange={(e) => setAssignmentState({ ...assignmentState, vehicleId: e.target.value })}
                                                                     >
@@ -284,17 +284,17 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                             ))}
                                                                     </select>
                                                                     {vehicles.filter(v => (!assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany) && isVehicleSuitable(v, pkg as PackageType)).length === 0 && (
-                                                                        <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '0.25rem' }}>
-                                                                            No hay vehículos adecuados para este tipo de carga ({pkg.loadType || 'Paquete'}).
+                                                                        <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                                            <AlertTriangle size={12} /> No hay vehículos adecuados.
                                                                         </p>
                                                                     )}
                                                                 </div>
 
-                                                                <div className="input-group">
-                                                                    <label>Conductor Responsable</label>
+                                                                <div className="input-group" style={{ margin: 0 }}>
+                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Conductor Responsable</label>
                                                                     <select
                                                                         className="input"
-                                                                        style={{ width: '100%' }}
+                                                                        style={{ width: '100%', margin: 0, height: '42px' }}
                                                                         value={assignmentState.driverId}
                                                                         onChange={(e) => setAssignmentState({ ...assignmentState, driverId: e.target.value })}
                                                                     >
@@ -307,13 +307,13 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                     </select>
                                                                 </div>
 
-                                                                <button className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => handleAssignmentUpdate(pkg.id)}>
+                                                                <button className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', height: '45px', borderRadius: '0.75rem', boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)' }} onClick={() => handleAssignmentUpdate(pkg.id)}>
                                                                     <Save size={18} /> Actualizar Asignación
                                                                 </button>
                                                             </div>
                                                         </div>
 
-                                                        <div className="card" style={{ padding: '1.5rem' }}>
+                                                        <div className="card" style={{ padding: '1.5rem', border: '1px solid var(--border)' }}>
                                                             <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                                 <DollarSign size={18} className="text-secondary" /> Proyección ROI
                                                             </h3>

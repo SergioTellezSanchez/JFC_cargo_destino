@@ -21,6 +21,22 @@ const PARTNER_COMPANIES = [
     'Aliado Estratégico Bajío'
 ];
 
+const TRUCK_STANDARDS: Record<string, { weight: number, volume: number }> = {
+    'Kenworth T680': { weight: 28000, volume: 85 },
+    'Freightliner Cascadia': { weight: 30000, volume: 90 },
+    'Volvo VNL 860': { weight: 29000, volume: 88 },
+    'International LT Series': { weight: 27500, volume: 82 },
+    'Peterbilt 579': { weight: 28500, volume: 86 },
+    'Mack Anthem': { weight: 27000, volume: 80 },
+    'Hino 338': { weight: 14000, volume: 45 },
+    'Isuzu NPR-HD': { weight: 6500, volume: 22 },
+    'Torton': { weight: 14000, volume: 50 },
+    'Trailer': { weight: 30000, volume: 90 },
+    'Camioneta 1.5 Tons': { weight: 1500, volume: 10 },
+    'Camioneta 3.5 Tons': { weight: 3500, volume: 18 },
+    'Nissan NPM': { weight: 1500, volume: 8 }
+};
+
 export default function DriverManagement({ isAdminView = false }: DriverManagementProps) {
     const { language } = useLanguage();
     const t = useTranslation(language);
@@ -135,6 +151,18 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
         d.company?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
+    // Group vehicles by company for the assign modal
+    const vehiclesByCompany = vehicles.reduce((acc: any, vehicle: any, index: number) => {
+        const company = vehicle.company || PARTNER_COMPANIES[index % PARTNER_COMPANIES.length];
+        if (!acc[company]) acc[company] = [];
+
+        const truckKeys = Object.keys(TRUCK_STANDARDS);
+        const displayName = vehicle.name || truckKeys[index % truckKeys.length];
+        acc[company].push({ ...vehicle, displayName, displayCompany: company });
+
+        return acc;
+    }, {});
+
     return (
         <div className="space-y-6">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -188,7 +216,11 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                                 const isExpanded = expandedRow === d.id;
                                 const isSelected = selectedIds.includes(d.id);
                                 const assignedVehicleIds = Array.isArray(d.vehicleId) ? d.vehicleId : (d.vehicleId ? [d.vehicleId] : []);
-                                const assignedVehicleNames = vehicles.filter(v => assignedVehicleIds.includes(v.id)).map(v => v.name);
+                                const assignedVehicleNames = vehicles.map((v, idx) => {
+                                    if (!assignedVehicleIds.includes(v.id)) return null;
+                                    const truckKeys = Object.keys(TRUCK_STANDARDS);
+                                    return v.name || truckKeys[idx % truckKeys.length];
+                                }).filter(Boolean);
                                 const displayCompany = d.company || PARTNER_COMPANIES[index % PARTNER_COMPANIES.length];
 
                                 return (
@@ -278,28 +310,60 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                 </div>
             )}
 
-            <Modal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} title="Asignar Vehículos">
-                <div className="space-y-4">
-                    <p style={{ fontSize: '0.9rem', color: 'var(--secondary)' }}>Selecciona los vehículos para <strong>{assignTarget?.name}</strong></p>
-                    <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {vehicles.map(v => (
-                            <label key={v.id} className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', cursor: 'pointer' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={tempVehicleIds.includes(v.id)}
-                                    onChange={(e) => {
-                                        if (e.target.checked) setTempVehicleIds([...tempVehicleIds, v.id]);
-                                        else setTempVehicleIds(tempVehicleIds.filter(id => id !== v.id));
-                                    }}
-                                />
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontWeight: 'bold' }}>{v.name}</span>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--secondary)' }}>{v.plate} - {v.company}</span>
+            <Modal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} title="Asignar Vehículos" maxWidth="900px">
+                <div className="space-y-6">
+                    <p style={{ fontSize: '0.95rem', color: 'var(--secondary)', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                        Selecciona las unidades para el conductor: <strong style={{ color: 'var(--primary)' }}>{assignTarget?.name || 'Conductor'}</strong>
+                    </p>
+
+                    <div style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '0.5rem' }} className="space-y-8">
+                        {Object.entries(vehiclesByCompany).map(([company, companyVehicles]: [string, any]) => (
+                            <section key={company} className="space-y-3">
+                                <h3 style={{ fontSize: '1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', background: 'var(--secondary-bg)', padding: '0.5rem 1rem', borderRadius: '0.5rem' }}>
+                                    <Building2 size={18} /> {company}
+                                </h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                                    {companyVehicles.map((v: any) => (
+                                        <label
+                                            key={v.id}
+                                            className="card"
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.75rem',
+                                                padding: '1rem',
+                                                cursor: 'pointer',
+                                                border: tempVehicleIds.includes(v.id) ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                                background: tempVehicleIds.includes(v.id) ? 'rgba(var(--primary-rgb), 0.05)' : 'var(--card-bg)',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={tempVehicleIds.includes(v.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setTempVehicleIds([...tempVehicleIds, v.id]);
+                                                    else setTempVehicleIds(tempVehicleIds.filter(id => id !== v.id));
+                                                }}
+                                                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                            />
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                                                <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{v.displayName}</span>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                    <Truck size={12} /> {v.plate || 'S/P'}
+                                                </span>
+                                            </div>
+                                        </label>
+                                    ))}
                                 </div>
-                            </label>
+                            </section>
                         ))}
                     </div>
-                    <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSaveAssignment}>Guardar Asignación</button>
+
+                    <div style={{ paddingTop: '1.5rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '1rem' }}>
+                        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsAssignModalOpen(false)}>Cancelar</button>
+                        <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSaveAssignment}>Guardar Asignación</button>
+                    </div>
                 </div>
             </Modal>
 
