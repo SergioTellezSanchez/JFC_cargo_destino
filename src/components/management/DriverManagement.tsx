@@ -243,114 +243,117 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                             {selectedIds.length > 0 ? `${selectedIds.length} seleccionados` : 'Seleccionar todos'}
                         </div>
                     </div>
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th style={{ width: '40px' }}></th>
-                                <th>Nombre</th>
-                                <th>Empresa</th>
-                                <th>Teléfono</th>
-                                <th>Licencia</th>
-                                <th>Vehículo(s)</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredDrivers.length > 0 ? filteredDrivers.map((d: any, index: number) => {
-                                const isExpanded = expandedRow === d.id;
-                                const isSelected = selectedIds.includes(d.id);
-                                const assignedVehicleIds = Array.isArray(d.vehicleId) ? d.vehicleId : (d.vehicleId ? [d.vehicleId] : []);
-                                const assignedVehicleNames = vehicles.map((v, idx) => {
-                                    if (!assignedVehicleIds.includes(v.id)) return null;
-                                    const truckKeys = Object.keys(TRUCK_STANDARDS);
-                                    return v.name || truckKeys[idx % truckKeys.length];
-                                }).filter(Boolean);
-                                const displayCompany = d.company || PARTNER_COMPANIES[index % PARTNER_COMPANIES.length];
+                    <div className="table-container">
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '40px' }}></th>
+                                    <th>Nombre</th>
+                                    <th>Empresa</th>
+                                    <th>Teléfono</th>
+                                    <th>Licencia</th>
+                                    <th>Vehículo(s)</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredDrivers.length > 0 ? filteredDrivers.map((d: any, index: number) => {
+                                    const isExpanded = expandedRow === d.id;
+                                    const isSelected = selectedIds.includes(d.id);
+                                    const assignedVehicleIds = Array.isArray(d.vehicleId) ? d.vehicleId : (d.vehicleId ? [d.vehicleId] : []);
+                                    const assignedVehicleNames = vehicles.map((v, idx) => {
+                                        if (!assignedVehicleIds.includes(v.id)) return null;
+                                        const truckKeys = Object.keys(TRUCK_STANDARDS);
+                                        return v.name || truckKeys[idx % truckKeys.length];
+                                    }).filter(Boolean);
+                                    const displayCompany = d.company || PARTNER_COMPANIES[index % PARTNER_COMPANIES.length];
 
-                                return (
-                                    <React.Fragment key={d.id}>
-                                        <tr
-                                            style={{
-                                                background: isSelected ? 'rgba(var(--primary-rgb), 0.05)' : (isExpanded ? 'var(--secondary-bg)' : 'transparent'),
-                                                cursor: 'pointer',
-                                                transition: 'background 0.2s'
-                                            }}
-                                            onClick={() => setExpandedRow(isExpanded ? null : d.id)}
-                                            onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--secondary-bg)'; }}
-                                            onMouseLeave={(e) => {
-                                                if (!isExpanded && !isSelected) e.currentTarget.style.background = 'transparent';
-                                            }}
-                                        >
-                                            <td onClick={(e) => { e.stopPropagation(); toggleSelect(d.id); }}>
-                                                {isSelected ? <CheckSquare size={18} color="var(--primary)" /> : <Square size={18} color="var(--secondary)" />}
-                                            </td>
-                                            <td style={{ fontWeight: '600' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                    {isExpanded ? <ChevronUp size={16} color="var(--primary)" /> : <ChevronDown size={16} color="var(--secondary)" />}
-                                                    {d.name || 'Conductor Sin Nombre'}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.9rem' }}>
-                                                    <Building2 size={14} /> {displayCompany}
-                                                </div>
-                                            </td>
-                                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Phone size={14} /> {d.phone || 'No registrado'}</div></td>
-                                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CreditCard size={14} /> {d.licenseNumber || d.license || 'Pendiente'}</div></td>
-                                            <td onClick={(e) => { e.stopPropagation(); handleOpenAssignModal(d); }}>
-                                                <button className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                    <Truck size={14} />
-                                                    {assignedVehicleNames.length > 0 ? assignedVehicleNames.join(', ') : 'Asignar'}
-                                                </button>
-                                            </td>
-                                            <td onClick={(e) => e.stopPropagation()}>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => handleOpenModal('edit', d)}><Edit size={16} /></button>
-                                                    <button className="btn btn-danger" style={{ padding: '0.4rem' }} onClick={() => handleDelete(d.id)}><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {isExpanded && (
-                                            <tr>
-                                                <td colSpan={7} style={{ padding: '1.5rem', background: 'var(--secondary-bg)' }}>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                                                        <div className="card" style={{ padding: '1rem' }}>
-                                                            <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Contacto / Empresa</h4>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
-                                                                <div><strong>Email:</strong> {d.email || 'N/A'}</div>
-                                                                <div><strong>Teléfono:</strong> {d.phone || 'N/A'}</div>
-                                                                <div><strong>Empresa:</strong> {displayCompany}</div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="card" style={{ padding: '1rem' }}>
-                                                            <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Documentación</h4>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
-                                                                <div><strong>Licencia:</strong> {d.licenseNumber || d.license || 'Pendiente'}</div>
-                                                                <div><strong>Vigencia:</strong> 12/2026</div>
-                                                                <div><strong>Estado:</strong> <span className="badge badge-success">Activo</span></div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="card" style={{ padding: '1rem' }}>
-                                                            <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Historial</h4>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
-                                                                <div><strong>Vehículos:</strong> {assignedVehicleNames.join(', ') || 'Ninguno'}</div>
-                                                                <div><strong>Viajes:</strong> {Math.floor(Math.random() * 50) + 10}</div>
-                                                                <div><strong>Calificación:</strong> ⭐ 4.90</div>
-                                                            </div>
-                                                        </div>
+                                    return (
+                                        <React.Fragment key={d.id}>
+                                            <tr
+                                                style={{
+                                                    background: isSelected ? 'rgba(var(--primary-rgb), 0.05)' : (isExpanded ? 'var(--secondary-bg)' : 'transparent'),
+                                                    cursor: 'pointer',
+                                                    transition: 'background 0.2s'
+                                                }}
+                                                onClick={() => setExpandedRow(isExpanded ? null : d.id)}
+                                                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--secondary-bg)'; }}
+                                                onMouseLeave={(e) => {
+                                                    if (!isExpanded && !isSelected) e.currentTarget.style.background = 'transparent';
+                                                }}
+                                            >
+                                                <td onClick={(e) => { e.stopPropagation(); toggleSelect(d.id); }}>
+                                                    {isSelected ? <CheckSquare size={18} color="var(--primary)" /> : <Square size={18} color="var(--secondary)" />}
+                                                </td>
+                                                <td style={{ fontWeight: '600' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                        {isExpanded ? <ChevronUp size={16} color="var(--primary)" /> : <ChevronDown size={16} color="var(--secondary)" />}
+                                                        {d.name || 'Conductor Sin Nombre'}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.9rem' }}>
+                                                        <Building2 size={14} /> {displayCompany}
+                                                    </div>
+                                                </td>
+                                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Phone size={14} /> {d.phone || 'No registrado'}</div></td>
+                                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CreditCard size={14} /> {d.licenseNumber || d.license || 'Pendiente'}</div></td>
+                                                <td onClick={(e) => { e.stopPropagation(); handleOpenAssignModal(d); }}>
+                                                    <button className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                        <Truck size={14} />
+                                                        {assignedVehicleNames.length > 0 ? assignedVehicleNames.join(', ') : 'Asignar'}
+                                                    </button>
+                                                </td>
+                                                <td onClick={(e) => e.stopPropagation()}>
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                        <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => handleOpenModal('edit', d)}><Edit size={16} /></button>
+                                                        <button className="btn btn-danger" style={{ padding: '0.4rem' }} onClick={() => handleDelete(d.id)}><Trash2 size={16} /></button>
                                                     </div>
                                                 </td>
                                             </tr>
-                                        )}
-                                    </React.Fragment>
-                                );
-                            }) : (
-                                <tr>
-                                    <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--secondary)' }}>No se encontraron conductores.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                            {isExpanded && (
+                                                <tr>
+                                                    <td colSpan={7} style={{ padding: '1.5rem', background: 'var(--secondary-bg)' }}>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                                                            <div className="card" style={{ padding: '1rem' }}>
+                                                                <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Contacto / Empresa</h4>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
+                                                                    <div><strong>Email:</strong> {d.email || 'N/A'}</div>
+                                                                    <div><strong>Teléfono:</strong> {d.phone || 'N/A'}</div>
+                                                                    <div><strong>Empresa:</strong> {displayCompany}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="card" style={{ padding: '1rem' }}>
+                                                                <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Documentación</h4>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
+                                                                    <div><strong>Licencia:</strong> {d.licenseNumber || d.license || 'Pendiente'}</div>
+                                                                    <div><strong>Vigencia:</strong> 12/2026</div>
+                                                                    <div><strong>Estado:</strong> <span className="badge badge-success">Activo</span></div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="card" style={{ padding: '1rem' }}>
+                                                                <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Historial</h4>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
+                                                                    <div><strong>Vehículos:</strong> {assignedVehicleNames.join(', ') || 'Ninguno'}</div>
+                                                                    <div><strong>Viajes:</strong> {Math.floor(Math.random() * 50) + 10}</div>
+                                                                    <div><strong>Calificación:</strong> ⭐ 4.90</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                }) : (
+                                    <tr>
+                                        <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--secondary)' }}>No se encontraron conductores.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
                 </div>
             )}
 
@@ -366,7 +369,7 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                                 <h3 style={{ fontSize: '1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', background: 'var(--secondary-bg)', padding: '0.5rem 1rem', borderRadius: '0.5rem' }}>
                                     <Building2 size={18} /> {company}
                                 </h3>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
                                     {companyVehicles.map((v: any) => (
                                         <label
                                             key={v.id}

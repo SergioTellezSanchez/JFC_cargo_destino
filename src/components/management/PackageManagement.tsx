@@ -153,6 +153,15 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
         } catch (err) { console.error(err); }
     };
 
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
+    };
+
     const toggleRow = (pkg: any) => {
         if (expandedRow === pkg.id) {
             setExpandedRow(null);
@@ -238,171 +247,174 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                 <div style={{ textAlign: 'center', padding: '3rem' }}>Cargando envíos...</div>
             ) : (
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>Tracking ID</th>
-                                <th>Destinatario</th>
-                                <th style={{ width: '180px' }}>Estado</th>
-                                <th>Aliado / Empresa</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredPackages.length > 0 ? filteredPackages.map((pkg: any) => {
-                                const currentDelivery = pkg.deliveries?.[0];
-                                const status = pkg.status || currentDelivery?.status || 'PENDING';
-                                const isExpanded = expandedRow === pkg.id;
+                    <div className="table-container">
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Tracking ID</th>
+                                    <th>Destinatario</th>
+                                    <th style={{ width: '180px' }}>Estado</th>
+                                    <th>Aliado / Empresa</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredPackages.length > 0 ? filteredPackages.map((pkg: any) => {
+                                    const currentDelivery = pkg.deliveries?.[0];
+                                    const status = pkg.status || currentDelivery?.status || 'PENDING';
+                                    const isExpanded = expandedRow === pkg.id;
 
-                                const selectedVehicle = vehicles.find(v => v.id === (assignmentState.vehicleId));
-                                const costs = selectedVehicle ? calculateLogisticsCosts(pkg as PackageType, selectedVehicle, settings) : null;
-                                const recommendation = getRecommendation(pkg);
+                                    const selectedVehicle = vehicles.find(v => v.id === (assignmentState.vehicleId));
+                                    const costs = selectedVehicle ? calculateLogisticsCosts(pkg as PackageType, selectedVehicle, settings) : null;
+                                    const recommendation = getRecommendation(pkg);
 
-                                return (
-                                    <React.Fragment key={pkg.id}>
-                                        <tr style={{ background: isExpanded ? 'var(--secondary-bg)' : 'transparent' }}>
-                                            <td style={{ fontWeight: 'bold' }}>{pkg.trackingId}</td>
-                                            <td>{pkg.recipientName}</td>
-                                            <td onClick={(e) => e.stopPropagation()}>
-                                                <select
-                                                    className="input"
-                                                    style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', height: 'auto', border: '1px solid var(--border)' }}
-                                                    value={status}
-                                                    onChange={(e) => handleQuickStatusUpdate(pkg.id, e.target.value)}
-                                                >
-                                                    {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(s as any)}</option>)}
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.9rem' }}>
-                                                    <Building2 size={14} /> {pkg.logisticsCompany || 'Pendiente'}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => generateShippingGuide(pkg)}><FileText size={16} /></button>
-                                                    <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => toggleRow(pkg)}>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
-                                                    <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => handleOpenModal('edit', pkg)}><Edit size={16} /></button>
-                                                    <button className="btn btn-danger" style={{ padding: '0.3rem' }} onClick={() => handleDelete(pkg.id)}><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {isExpanded && (
-                                            <tr>
-                                                <td colSpan={5} style={{ padding: '2rem', background: 'var(--secondary-bg)' }}>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
-                                                        <div className="card" style={{ padding: '1.5rem', background: 'var(--secondary-bg)', border: '1px solid var(--border)' }}>
-                                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--primary)' }}>
-                                                                <Truck size={20} /> Asignación Logística
-                                                            </h3>
-
-                                                            <div className="space-y-5">
-                                                                <div className="input-group" style={{ margin: 0 }}>
-                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Empresa Logística (Aliado)</label>
-                                                                    <select
-                                                                        className="input"
-                                                                        style={{ width: '100%', margin: 0, height: '42px' }}
-                                                                        value={assignmentState.logisticsCompany}
-                                                                        onChange={(e) => setAssignmentState({ ...assignmentState, logisticsCompany: e.target.value, vehicleId: '', driverId: '' })}
-                                                                    >
-                                                                        <option value="">Seleccionar Empresa</option>
-                                                                        {LOGISTICS_COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                                                    </select>
-                                                                </div>
-
-                                                                <div className="input-group" style={{ margin: 0 }}>
-                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Vehículo de Flotilla</label>
-                                                                    <select
-                                                                        className="input"
-                                                                        style={{ width: '100%', margin: 0, height: '42px' }}
-                                                                        value={assignmentState.vehicleId}
-                                                                        onChange={(e) => setAssignmentState({ ...assignmentState, vehicleId: e.target.value })}
-                                                                    >
-                                                                        <option value="">Seleccionar Vehículo</option>
-                                                                        {vehicles
-                                                                            .filter(v => !assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany)
-                                                                            .filter(v => isVehicleSuitable(v, pkg as PackageType))
-                                                                            .map(v => (
-                                                                                <option key={v.id} value={v.id}>{v.name || 'Vehículo'} ({v.plate || 'S/P'})</option>
-                                                                            ))}
-                                                                    </select>
-                                                                    {vehicles.filter(v => (!assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany) && isVehicleSuitable(v, pkg as PackageType)).length === 0 && (
-                                                                        <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                                            <AlertTriangle size={12} /> No hay vehículos adecuados.
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-
-                                                                <div className="input-group" style={{ margin: 0 }}>
-                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Conductor Responsable</label>
-                                                                    <select
-                                                                        className="input"
-                                                                        style={{ width: '100%', margin: 0, height: '42px' }}
-                                                                        value={assignmentState.driverId}
-                                                                        onChange={(e) => setAssignmentState({ ...assignmentState, driverId: e.target.value })}
-                                                                    >
-                                                                        <option value="">Seleccionar Conductor</option>
-                                                                        {drivers
-                                                                            .filter(d => !assignmentState.logisticsCompany || d.company === assignmentState.logisticsCompany)
-                                                                            .map(d => (
-                                                                                <option key={d.id} value={d.id}>{d.name}</option>
-                                                                            ))}
-                                                                    </select>
-                                                                </div>
-
-                                                                <button className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', height: '45px', borderRadius: '0.75rem', boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)' }} onClick={() => handleAssignmentUpdate(pkg.id)}>
-                                                                    <Save size={18} /> Actualizar Asignación
-                                                                </button>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="card" style={{ padding: '1.5rem', border: '1px solid var(--border)' }}>
-                                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                <DollarSign size={18} className="text-secondary" /> Proyección ROI
-                                                            </h3>
-                                                            {costs ? (
-                                                                <div className="space-y-3" style={{ fontSize: '0.95rem' }}>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                                                                        <span style={{ color: 'var(--secondary)' }}>Costo Operativo</span>
-                                                                        <strong>${costs.operationalCost.toLocaleString()}</strong>
-                                                                    </div>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                                                                        <span style={{ color: 'var(--secondary)' }}>Seguro (Base)</span>
-                                                                        <strong>${costs.insurance.toLocaleString()}</strong>
-                                                                    </div>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                                                                        <span style={{ color: 'var(--secondary)' }}>Depreciación</span>
-                                                                        <strong>${costs.depreciation.toLocaleString()}</strong>
-                                                                    </div>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success)' }}>
-                                                                        <span>Utilidad Estimada</span>
-                                                                        <strong>+${costs.utility.toLocaleString()} ({costs.utilityPercent.toFixed(1)}%)</strong>
-                                                                    </div>
-                                                                    <div style={{ marginTop: '1rem', borderTop: '2px dashed var(--border)', paddingTop: '1rem', fontSize: '1.1rem' }}>
-                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                            <strong style={{ color: 'var(--primary)' }}>Cotización Final</strong>
-                                                                            <strong style={{ fontSize: '1.25rem', color: 'var(--primary)' }}>${costs.priceToClient.toLocaleString()}</strong>
-                                                                        </div>
-                                                                        <p style={{ fontSize: '0.75rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>*Incluye margen operativo e IVA 16%</p>
-                                                                    </div>
-                                                                </div>
-                                                            ) : <div style={{ textAlign: 'center', color: 'var(--secondary)', padding: '2rem', background: 'var(--secondary-bg)', borderRadius: '0.5rem', border: '1px dashed var(--border)' }}>
-                                                                <Info size={24} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-                                                                <p style={{ fontSize: '0.85rem' }}>{recommendation.message}</p>
-                                                            </div>}
-                                                        </div>
+                                    return (
+                                        <React.Fragment key={pkg.id}>
+                                            <tr style={{ background: isExpanded ? 'var(--secondary-bg)' : 'transparent' }}>
+                                                <td style={{ fontWeight: 'bold' }}>{pkg.trackingId}</td>
+                                                <td>{pkg.recipientName}</td>
+                                                <td onClick={(e) => e.stopPropagation()}>
+                                                    <select
+                                                        className="input"
+                                                        style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', height: 'auto', border: '1px solid var(--border)' }}
+                                                        value={status}
+                                                        onChange={(e) => handleQuickStatusUpdate(pkg.id, e.target.value)}
+                                                    >
+                                                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(s as any)}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.9rem' }}>
+                                                        <Building2 size={14} /> {pkg.logisticsCompany || 'Pendiente'}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                        <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => generateShippingGuide(pkg)}><FileText size={16} /></button>
+                                                        <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => toggleRow(pkg)}>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
+                                                        <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => handleOpenModal('edit', pkg)}><Edit size={16} /></button>
+                                                        <button className="btn btn-danger" style={{ padding: '0.3rem' }} onClick={() => handleDelete(pkg.id)}><Trash2 size={16} /></button>
                                                     </div>
                                                 </td>
                                             </tr>
-                                        )}
-                                    </React.Fragment>
-                                );
-                            }) : (
-                                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>No hay envíos.</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+                                            {isExpanded && (
+                                                <tr>
+                                                    <td colSpan={5} style={{ padding: '2rem', background: 'var(--secondary-bg)' }}>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+                                                            <div className="card" style={{ padding: '1.5rem', background: 'var(--secondary-bg)', border: '1px solid var(--border)' }}>
+                                                                <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--primary)' }}>
+                                                                    <Truck size={20} /> Asignación Logística
+                                                                </h3>
+
+                                                                <div className="space-y-5">
+                                                                    <div className="input-group" style={{ margin: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Empresa Logística (Aliado)</label>
+                                                                        <select
+                                                                            className="input"
+                                                                            style={{ width: '100%', margin: 0, height: '42px' }}
+                                                                            value={assignmentState.logisticsCompany}
+                                                                            onChange={(e) => setAssignmentState({ ...assignmentState, logisticsCompany: e.target.value, vehicleId: '', driverId: '' })}
+                                                                        >
+                                                                            <option value="">Seleccionar Empresa</option>
+                                                                            {LOGISTICS_COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                                        </select>
+                                                                    </div>
+
+                                                                    <div className="input-group" style={{ margin: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Vehículo de Flotilla</label>
+                                                                        <select
+                                                                            className="input"
+                                                                            style={{ width: '100%', margin: 0, height: '42px' }}
+                                                                            value={assignmentState.vehicleId}
+                                                                            onChange={(e) => setAssignmentState({ ...assignmentState, vehicleId: e.target.value })}
+                                                                        >
+                                                                            <option value="">Seleccionar Vehículo</option>
+                                                                            {vehicles
+                                                                                .filter(v => !assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany)
+                                                                                .filter(v => isVehicleSuitable(v, pkg as PackageType))
+                                                                                .map(v => (
+                                                                                    <option key={v.id} value={v.id}>{v.name || 'Vehículo'} ({v.plate || 'S/P'})</option>
+                                                                                ))}
+                                                                        </select>
+                                                                        {vehicles.filter(v => (!assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany) && isVehicleSuitable(v, pkg as PackageType)).length === 0 && (
+                                                                            <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                                                <AlertTriangle size={12} /> No hay vehículos adecuados.
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="input-group" style={{ margin: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Conductor Responsable</label>
+                                                                        <select
+                                                                            className="input"
+                                                                            style={{ width: '100%', margin: 0, height: '42px' }}
+                                                                            value={assignmentState.driverId}
+                                                                            onChange={(e) => setAssignmentState({ ...assignmentState, driverId: e.target.value })}
+                                                                        >
+                                                                            <option value="">Seleccionar Conductor</option>
+                                                                            {drivers
+                                                                                .filter(d => !assignmentState.logisticsCompany || d.company === assignmentState.logisticsCompany)
+                                                                                .map(d => (
+                                                                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                                                                ))}
+                                                                        </select>
+                                                                    </div>
+
+                                                                    <button className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', height: '45px', borderRadius: '0.75rem', boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)' }} onClick={() => handleAssignmentUpdate(pkg.id)}>
+                                                                        <Save size={18} /> Actualizar Asignación
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="card" style={{ padding: '1.5rem', border: '1px solid var(--border)' }}>
+                                                                <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                    <DollarSign size={18} className="text-secondary" /> Proyección ROI
+                                                                </h3>
+                                                                {costs ? (
+                                                                    <div className="space-y-3" style={{ fontSize: '0.95rem' }}>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
+                                                                            <span style={{ color: 'var(--secondary)' }}>Costo Operativo</span>
+                                                                            <strong>{formatCurrency(costs.operationalCost)}</strong>
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
+                                                                            <span style={{ color: 'var(--secondary)' }}>Seguro (Base)</span>
+                                                                            <strong>{formatCurrency(costs.insurance)}</strong>
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
+                                                                            <span style={{ color: 'var(--secondary)' }}>Depreciación</span>
+                                                                            <strong>{formatCurrency(costs.depreciation)}</strong>
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success)' }}>
+                                                                            <span>Utilidad Estimada</span>
+                                                                            <strong>+{formatCurrency(costs.utility)} ({costs.utilityPercent.toFixed(1)}%)</strong>
+                                                                        </div>
+                                                                        <div style={{ marginTop: '1rem', borderTop: '2px dashed var(--border)', paddingTop: '1rem', fontSize: '1.1rem' }}>
+                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                                <strong style={{ color: 'var(--primary)' }}>Cotización Final</strong>
+                                                                                <strong style={{ fontSize: '1.25rem', color: 'var(--primary)' }}>{formatCurrency(costs.priceToClient)}</strong>
+                                                                            </div>
+                                                                            <p style={{ fontSize: '0.75rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>*Incluye margen operativo e IVA 16%</p>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : <div style={{ textAlign: 'center', color: 'var(--secondary)', padding: '2rem', background: 'var(--secondary-bg)', borderRadius: '0.5rem', border: '1px dashed var(--border)' }}>
+                                                                    <Info size={24} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                                                                    <p style={{ fontSize: '0.85rem' }}>{recommendation.message}</p>
+                                                                </div>}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                }) : (
+                                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>No hay envíos.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+
             )}
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Gestionar Envío">

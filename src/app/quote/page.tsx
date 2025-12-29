@@ -344,13 +344,13 @@ function QuoteContent(props: any) {
                                                     if (!isDisabled) props.setCurrentStep(step.id);
                                                 }}
                                                 disabled={isDisabled}
-                                                className={`flex-1 relative flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300
+                                                className={`flex-1 relative flex items-center justify-center gap-2 py-3 px-3 md:px-4 rounded-xl text-sm font-semibold transition-all duration-300
                                                     ${isActive ? 'text-blue-600 bg-blue-50 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}
                                                     ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
                                                 `}
                                             >
                                                 <step.icon size={18} className={isActive ? 'text-blue-500' : isCompleted ? 'text-green-500' : 'text-slate-400'} />
-                                                <span>{step.label}</span>
+                                                <span className="hidden sm:inline">{step.label}</span>
                                                 {isActive && (
                                                     <div className="absolute inset-0 border-2 border-blue-100 rounded-xl" />
                                                 )}
@@ -815,13 +815,15 @@ function QuoteContent(props: any) {
                         </div>
 
                         {/* Map Preview area */}
-                        <div className="w-full lg:sticky lg:top-24 h-[400px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
-                            <DirectionsMap
-                                origin={props.origin ? { lat: props.origin.lat, lng: props.origin.lng } : null}
-                                destination={props.destination ? { lat: props.destination.lat, lng: props.destination.lng } : null}
-                                onDistanceChange={props.setDistanceKm}
-                            />
-                        </div>
+                        {props.currentStep !== 1 && (
+                            <div className="w-full lg:sticky lg:top-24 h-[400px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
+                                <DirectionsMap
+                                    origin={props.origin ? { lat: props.origin.lat, lng: props.origin.lng } : null}
+                                    destination={props.destination ? { lat: props.destination.lat, lng: props.destination.lng } : null}
+                                    onDistanceChange={props.setDistanceKm}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

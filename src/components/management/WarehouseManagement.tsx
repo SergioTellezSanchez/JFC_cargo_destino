@@ -104,111 +104,114 @@ export default function WarehouseManagement({ isAdminView = false }: WarehouseMa
                 <div style={{ textAlign: 'center', padding: '3rem' }}>Cargando almacenes...</div>
             ) : (
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>Nombre / Ubicación</th>
-                                <th>Capacidad (kg)</th>
-                                <th>Capacidad (m³)</th>
-                                <th>Uso</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredWarehouses.length > 0 ? filteredWarehouses.map((w: any) => {
-                                const capacity = Number(w.capacity) || 50000;
-                                const volCapacity = Number(w.volumetricCapacity) || Math.round(capacity / 500);
-                                const currentLoad = Number(w.currentLoad) || 0;
-                                const usagePercent = Math.min(Math.round((currentLoad / capacity) * 100), 100);
-                                const isExpanded = expandedRow === w.id;
+                    <div className="table-container">
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre / Ubicación</th>
+                                    <th>Capacidad (kg)</th>
+                                    <th>Capacidad (m³)</th>
+                                    <th>Uso</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredWarehouses.length > 0 ? filteredWarehouses.map((w: any) => {
+                                    const capacity = Number(w.capacity) || 50000;
+                                    const volCapacity = Number(w.volumetricCapacity) || Math.round(capacity / 500);
+                                    const currentLoad = Number(w.currentLoad) || 0;
+                                    const usagePercent = Math.min(Math.round((currentLoad / capacity) * 100), 100);
+                                    const isExpanded = expandedRow === w.id;
 
-                                return (
-                                    <React.Fragment key={w.id}>
-                                        <tr
-                                            style={{
-                                                background: isExpanded ? 'var(--secondary-bg)' : 'transparent',
-                                                cursor: 'pointer',
-                                                transition: 'background 0.2s'
-                                            }}
-                                            onClick={() => setExpandedRow(isExpanded ? null : w.id)}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--secondary-bg)'}
-                                            onMouseLeave={(e) => {
-                                                if (!isExpanded) e.currentTarget.style.background = 'transparent';
-                                            }}
-                                        >
-                                            <td style={{ fontWeight: '600' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                    {isExpanded ? <ChevronUp size={16} color="var(--primary)" /> : <ChevronDown size={16} color="var(--secondary)" />}
-                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                        <span>{w.name || w.location}</span>
-                                                        <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: 'normal' }}>
-                                                            <MapPin size={10} style={{ display: 'inline', marginRight: '2px' }} /> {w.address || w.location}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td style={{ fontWeight: '600' }}>{capacity.toLocaleString()} kg</td>
-                                            <td style={{ fontWeight: '600', color: 'var(--secondary)' }}>{volCapacity.toLocaleString()} m³</td>
-                                            <td>
-                                                <div style={{ width: '100px', height: '8px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden', marginTop: '4px' }}>
-                                                    <div style={{ width: `${usagePercent}%`, height: '100%', background: usagePercent > 90 ? 'var(--error)' : 'var(--success)' }}></div>
-                                                </div>
-                                                <span style={{ fontSize: '0.7rem', color: 'var(--secondary)' }}>{usagePercent}%</span>
-                                            </td>
-                                            <td onClick={(e) => e.stopPropagation()}>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => handleOpenModal('edit', w)}><Edit size={16} /></button>
-                                                    <button className="btn btn-danger" style={{ padding: '0.4rem' }} onClick={() => handleDelete(w.id)}><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {isExpanded && (
-                                            <tr>
-                                                <td colSpan={5} style={{ padding: '1.5rem', background: 'var(--secondary-bg)' }}>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                                                        <div className="card" style={{ padding: '1rem' }}>
-                                                            <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Infraestructura</h4>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
-                                                                <div><strong>Superficie Estiba:</strong> {volCapacity / 5} m² (est. 5m altura)</div>
-                                                                <div><strong>Altura Libre:</strong> {w.height || '12'}m</div>
-                                                                <div><strong>Andenes:</strong> {w.docks || Math.floor(capacity / 20000) + 2}</div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="card" style={{ padding: '1rem' }}>
-                                                            <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Capacidad Detallada</h4>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                    <Box size={14} className="text-secondary" /> {volCapacity.toLocaleString()} m³ de almacenamiento
-                                                                </div>
-                                                                <div><strong>Carga Útil:</strong> {capacity.toLocaleString()} kg</div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="card" style={{ padding: '1rem' }}>
-                                                            <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Operación</h4>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
-                                                                <div><strong>Turnos:</strong> 24 Horas</div>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                    <UsersIcon size={14} /> {w.staff || Math.floor(capacity / 5000) + 5} operarios
-                                                                </div>
-                                                                <div><strong>Certificación:</strong> {w.certification || 'OEA / CTPAT'}</div>
-                                                            </div>
+                                    return (
+                                        <React.Fragment key={w.id}>
+                                            <tr
+                                                style={{
+                                                    background: isExpanded ? 'var(--secondary-bg)' : 'transparent',
+                                                    cursor: 'pointer',
+                                                    transition: 'background 0.2s'
+                                                }}
+                                                onClick={() => setExpandedRow(isExpanded ? null : w.id)}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--secondary-bg)'}
+                                                onMouseLeave={(e) => {
+                                                    if (!isExpanded) e.currentTarget.style.background = 'transparent';
+                                                }}
+                                            >
+                                                <td style={{ fontWeight: '600' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                        {isExpanded ? <ChevronUp size={16} color="var(--primary)" /> : <ChevronDown size={16} color="var(--secondary)" />}
+                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                            <span>{w.name || w.location}</span>
+                                                            <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: 'normal' }}>
+                                                                <MapPin size={10} style={{ display: 'inline', marginRight: '2px' }} /> {w.address || w.location}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </td>
+                                                <td style={{ fontWeight: '600' }}>{capacity.toLocaleString()} kg</td>
+                                                <td style={{ fontWeight: '600', color: 'var(--secondary)' }}>{volCapacity.toLocaleString()} m³</td>
+                                                <td>
+                                                    <div style={{ width: '100px', height: '8px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden', marginTop: '4px' }}>
+                                                        <div style={{ width: `${usagePercent}%`, height: '100%', background: usagePercent > 90 ? 'var(--error)' : 'var(--success)' }}></div>
+                                                    </div>
+                                                    <span style={{ fontSize: '0.7rem', color: 'var(--secondary)' }}>{usagePercent}%</span>
+                                                </td>
+                                                <td onClick={(e) => e.stopPropagation()}>
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                        <button className="btn btn-secondary" style={{ padding: '0.4rem' }} onClick={() => handleOpenModal('edit', w)}><Edit size={16} /></button>
+                                                        <button className="btn btn-danger" style={{ padding: '0.4rem' }} onClick={() => handleDelete(w.id)}><Trash2 size={16} /></button>
+                                                    </div>
+                                                </td>
                                             </tr>
-                                        )}
-                                    </React.Fragment>
-                                );
-                            }) : (
-                                <tr>
-                                    <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--secondary)' }}>
-                                        No se encontraron almacenes.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                            {isExpanded && (
+                                                <tr>
+                                                    <td colSpan={5} style={{ padding: '1.5rem', background: 'var(--secondary-bg)' }}>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                                                            <div className="card" style={{ padding: '1rem' }}>
+                                                                <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Infraestructura</h4>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
+                                                                    <div><strong>Superficie Estiba:</strong> {volCapacity / 5} m² (est. 5m altura)</div>
+                                                                    <div><strong>Altura Libre:</strong> {w.height || '12'}m</div>
+                                                                    <div><strong>Andenes:</strong> {w.docks || Math.floor(capacity / 20000) + 2}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="card" style={{ padding: '1rem' }}>
+                                                                <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Capacidad Detallada</h4>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                        <Box size={14} className="text-secondary" /> {volCapacity.toLocaleString()} m³ de almacenamiento
+                                                                    </div>
+                                                                    <div><strong>Carga Útil:</strong> {capacity.toLocaleString()} kg</div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="card" style={{ padding: '1rem' }}>
+                                                                <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Operación</h4>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
+                                                                    <div><strong>Turnos:</strong> 24 Horas</div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                        <UsersIcon size={14} /> {w.staff || Math.floor(capacity / 5000) + 5} operarios
+                                                                    </div>
+                                                                    <div><strong>Certificación:</strong> {w.certification || 'OEA / CTPAT'}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                }) : (
+                                    <tr>
+                                        <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--secondary)' }}>
+                                            No se encontraron almacenes.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+
             )}
 
             <Modal
