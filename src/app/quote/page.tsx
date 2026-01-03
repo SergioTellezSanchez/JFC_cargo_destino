@@ -822,7 +822,19 @@ function QuoteContent(props: any) {
                                                                 </div>
                                                             </div>
 
-                                                            <p className="text-blue-200/60 text-xs flex items-center gap-2 bg-white/5 py-2 px-3 rounded-lg w-fit">
+                                                            <div className="space-y-2 bg-white/5 p-4 rounded-2xl border border-white/10">
+                                                                <h4 className="text-xs font-bold text-blue-200 uppercase tracking-widest flex items-center gap-2">
+                                                                    <Info size={14} /> ¿Cómo se calcula?
+                                                                </h4>
+                                                                <ul className="text-[10px] text-blue-100/70 space-y-1 list-disc pl-4">
+                                                                    <li><strong>Costo Fijo:</strong> Tarifa base por gestión y despacho.</li>
+                                                                    <li><strong>Costo Operativo:</strong> (Combustible + Depreciación de unidad) x {props.distanceKm.toFixed(0)} km.</li>
+                                                                    <li><strong>Margen Logístico:</strong> Factor de utilidad operativa y gastos administrativos.</li>
+                                                                    <li><strong>Seguro:</strong> Calculado sobre el {props.quoteDetails?.insuranceRate || '1.5'}% del valor declarado.</li>
+                                                                </ul>
+                                                            </div>
+
+                                                            <p className="text-blue-200/60 text-xs flex items-center gap-2 py-1">
                                                                 <Clock size={14} /> Tarifa final incluye impuestos y cargos operativos.
                                                             </p>
                                                         </div>
