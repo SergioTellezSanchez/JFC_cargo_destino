@@ -76,6 +76,7 @@ export default function QuotePage() {
     const [declaredValue, setDeclaredValue] = useState<number>(1000);
 
     useEffect(() => {
+        if (!user) return;
         const fetchConfig = async () => {
             try {
                 const [sRes, vRes] = await Promise.all([
@@ -87,7 +88,7 @@ export default function QuotePage() {
             } catch (err) { console.error(err); }
         };
         fetchConfig();
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         if (loadType === 'full-truck' || loadType === 'van') {
@@ -114,10 +115,13 @@ export default function QuotePage() {
             const vehicleType = loadTypeDetails?.vehicleType || '';
             const selectedVehicle = vehicles.find(v => v.name === vehicleType) || vehicles[0];
 
-            if (selectedVehicle) {
+            if (selectedVehicle || vehicles.length === 0) {
+                // Fallback vehicle structure if none found to avoid calculation errors
+                const vehicleToUse = selectedVehicle || { costPerKm: 18.5, value: 2500000, usefulLifeKm: 800000, suspensionType: 'Neumática' };
+
                 const results = calculateLogisticsCosts(
                     { weight: Number(weight), declaredValue, distanceKm, loadType, packageType } as PackageType,
-                    selectedVehicle as Vehicle,
+                    vehicleToUse as Vehicle,
                     settings,
                     serviceLevel
                 );

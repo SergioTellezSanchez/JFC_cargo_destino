@@ -88,7 +88,10 @@ export default function Header() {
                         alignItems: 'center',
                         gap: '0.5rem'
                     }}
-                    onClick={logout}
+                    onClick={async () => {
+                        await logout();
+                        window.location.href = '/';
+                    }}
                     title="Cerrar Sesión"
                 >
                     <LogOut size={18} />
