@@ -89,12 +89,20 @@ export default function QuotePage() {
         fetchConfig();
     }, []);
 
+    useEffect(() => {
+        if (loadType === 'full-truck' || loadType === 'van') {
+            setPackageType('Paletizado / Tarimas');
+        } else if (loadType === 'package') {
+            setPackageType('Caja de cartón');
+        }
+    }, [loadType]);
+
     const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
     // Step Validation Logic
     const isLoadTypeValid = loadType !== '';
     const isRouteValid = !!origin && !!destination;
-    const isPackageDetailsValid = (typeof weight === 'number' && weight > 0) && packageType !== '';
+    const isPackageDetailsValid = !!weight && Number(weight) > 0 && !!packageType;
 
     const isStep1Valid = isLoadTypeValid;
     const isStep2Valid = isStep1Valid && isRouteValid;
@@ -102,7 +110,7 @@ export default function QuotePage() {
 
     // Real-time calculation effect
     useEffect(() => {
-        if (isRouteValid && typeof weight === 'number' && weight > 0 && settings) {
+        if (isRouteValid && !!weight && Number(weight) > 0 && settings) {
             const vehicleType = loadTypeDetails?.vehicleType || '';
             const selectedVehicle = vehicles.find(v => v.name === vehicleType) || vehicles[0];
 
@@ -696,20 +704,21 @@ function QuoteContent(props: any) {
                                             </div>
                                         </div>
 
-                                        {props.isStep3Valid && (
-                                            <div className="flex justify-end pt-6">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        props.setCurrentStep(4);
-                                                    }}
-                                                    className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 active:scale-95"
-                                                >
-                                                    Ver Precios <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
-                                                </button>
-                                            </div>
-                                        )}
+                                        <div className="flex justify-end pt-6">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (props.isStep3Valid) props.setCurrentStep(4);
+                                                }}
+                                                disabled={!props.isStep3Valid}
+                                                className={`group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 active:scale-95
+                                                    ${!props.isStep3Valid ? 'opacity-50 cursor-not-allowed shadow-none hover:translate-y-0' : ''}
+                                                `}
+                                            >
+                                                Ver Precios <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
 
