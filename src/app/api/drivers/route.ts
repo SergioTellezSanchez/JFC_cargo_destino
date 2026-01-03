@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebaseAdmin';
-
+import { adminDb, adminStorage } from '@/lib/firebaseAdmin';
 import { verifyAuth, unauthorized } from '@/lib/auth-server';
 
 export const dynamic = 'force-dynamic';
@@ -22,22 +21,48 @@ export async function POST(request: Request) {
     const auth = await verifyAuth(request);
     if (!auth) return unauthorized();
     try {
-        const body = await request.json();
-        const { name, email, phone, licenseNumber } = body;
+        let payload: any = {};
+        let photoFile: File | null = null;
 
-        const newDriver = {
+        const contentType = request.headers.get('content-type') || '';
+        if (contentType.includes('multipart/form-data')) {
+            const formData = await request.formData();
+            formData.forEach((value, key) => {
+                if (key === 'photo' && value instanceof File) {
+                    photoFile = value;
+                } else {
+                    payload[key] = value;
+                }
+            });
+        } else {
+            payload = await request.json();
+        }
+
+        const { name, email, phone, licenseNumber } = payload;
+
+        const newDriver: any = {
             name,
             email,
             phone,
-            licenseNumber,
+            licenseNumber: licenseNumber || payload.license,
             role: 'DRIVER',
             createdAt: new Date().toISOString(),
-            createdBy: body.createdBy || null
+            createdBy: payload.createdBy || null
         };
 
         const docRef = await adminDb.collection('users').add(newDriver);
+        const id = docRef.id;
 
-        return NextResponse.json({ id: docRef.id, ...newDriver });
+        if (photoFile) {
+            const buffer = Buffer.from(await (photoFile as File).arrayBuffer());
+            const fileRef = adminStorage.bucket().file(`drivers/${id}_${Date.now()}.jpg`);
+            await fileRef.save(buffer, { contentType: 'image/jpeg' });
+            const [url] = await fileRef.getSignedUrl({ action: 'read', expires: '03-01-2500' });
+            await docRef.update({ photoUrl: url });
+            newDriver.photoUrl = url;
+        }
+
+        return NextResponse.json({ id, ...newDriver });
     } catch (error) {
         console.error('Error creating driver:', error);
         return NextResponse.json(

@@ -14,7 +14,7 @@ import Modal from '@/components/Modal';
 import PinSelectionModal from '@/components/PinSelectionModal';
 import CostBreakdownModal from '@/components/CostBreakdownModal';
 import CustomSelect from '@/components/CustomSelect';
-import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box, Repeat, Car, Info } from 'lucide-react';
+import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box, Repeat, Car, Info, Edit } from 'lucide-react';
 import { calculateLogisticsCosts, Vehicle, Package as PackageType } from '@/lib/logistics';
 
 
@@ -699,8 +699,12 @@ function QuoteContent(props: any) {
                                         {props.isStep3Valid && (
                                             <div className="flex justify-end pt-6">
                                                 <button
-                                                    onClick={() => props.setCurrentStep(4)}
-                                                    className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3"
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        props.setCurrentStep(4);
+                                                    }}
+                                                    className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 active:scale-95"
                                                 >
                                                     Ver Precios <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
                                                 </button>
@@ -777,34 +781,61 @@ function QuoteContent(props: any) {
                                         </div>
 
                                         {props.quotePrice > 0 && (
-                                            <div className="bg-[#1f4a5e] p-8 rounded-3xl text-white shadow-2xl shadow-blue-200 relative overflow-hidden animate-in zoom-in duration-500">
+                                            <div className="bg-[#1f4a5e] p-8 lg:p-10 rounded-3xl text-white shadow-2xl shadow-blue-200 relative overflow-hidden animate-in zoom-in duration-500 border-4 border-white/10">
                                                 <div className="absolute top-0 right-0 p-8 opacity-10">
-                                                    <ShieldCheck size={120} />
+                                                    <ShieldCheck size={140} />
                                                 </div>
-                                                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
-                                                    <div>
-                                                        <p className="text-blue-100 text-sm font-bold uppercase tracking-widest mb-1">Total Estimado</p>
-                                                        <div className="flex items-baseline gap-2">
-                                                            <h2 className="text-5xl font-black">{formatCurrency(props.quotePrice)}</h2>
-                                                            <span className="text-blue-200 font-bold">MXN</span>
+                                                <div className="relative z-10">
+                                                    <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-8">
+                                                        <div className="space-y-4">
+                                                            <div>
+                                                                <p className="text-blue-100 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                                                                    <Scale size={16} /> Total Estimado
+                                                                </p>
+                                                                <div className="flex items-baseline gap-3">
+                                                                    <h2 className="text-6xl font-black tracking-tight">{formatCurrency(props.quotePrice)}</h2>
+                                                                    <span className="text-blue-200 text-xl font-bold">MXN</span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
+                                                                <div>
+                                                                    <p className="text-blue-200/60 text-xs uppercase font-bold">Distancia</p>
+                                                                    <p className="font-bold">{props.distanceKm.toFixed(1)} km</p>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-blue-200/60 text-xs uppercase font-bold">Seguro Incl.</p>
+                                                                    <p className="font-bold">{formatCurrency(props.quoteDetails?.insurance || 0)}</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <p className="text-blue-200/60 text-xs flex items-center gap-2 bg-white/5 py-2 px-3 rounded-lg w-fit">
+                                                                <Clock size={14} /> Tarifa final incluye impuestos y cargos operativos.
+                                                            </p>
                                                         </div>
-                                                        <p className="text-blue-200/60 text-xs mt-2 flex items-center gap-1">
-                                                            <Clock size={12} /> Incluye IVA y seguro de mercancía.
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex flex-col gap-3 w-full md:w-auto">
-                                                        <button
-                                                            onClick={props.onRequestQuote}
-                                                            className="bg-white text-blue-900 hover:bg-blue-50 px-10 py-4 rounded-full font-bold text-lg shadow-lg hover:shadow-xl transition-all active:scale-95"
-                                                        >
-                                                            Solicitar Ahora
-                                                        </button>
-                                                        <button
-                                                            onClick={() => props.setCurrentStep(3)}
-                                                            className="text-blue-100 hover:text-white text-sm font-bold transition-colors"
-                                                        >
-                                                            Ajustar detalles
-                                                        </button>
+
+                                                        <div className="flex flex-col gap-4 w-full md:w-auto min-w-[240px]">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    props.onRequestQuote();
+                                                                }}
+                                                                className="bg-white text-blue-900 hover:bg-blue-50 px-10 py-5 rounded-2xl font-black text-xl shadow-lg hover:shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 w-full"
+                                                            >
+                                                                Solicitar Ahora <ChevronRight size={24} />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    props.setCurrentStep(3);
+                                                                }}
+                                                                className="text-blue-100 hover:text-white text-sm font-bold transition-colors py-2 flex items-center justify-center gap-2"
+                                                            >
+                                                                <Edit size={14} /> Ajustar detalles del envío
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>

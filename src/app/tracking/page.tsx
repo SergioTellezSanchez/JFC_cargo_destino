@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Package, MapPin, Warehouse, AlertCircle, CheckCircle, Clock, Truck, Box } from 'lucide-react';
+import { Search, Package, MapPin, Warehouse, AlertCircle, CheckCircle, Clock, Truck, Box, FileText, Download } from 'lucide-react';
 import { APIProvider, Map, Marker } from '@vis.gl/react-google-maps';
+import { generateShippingGuide } from '@/lib/pdfGenerator';
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string;
 const MAP_ID = "4b2094d4b3b1a5ccd5a74cb9";
@@ -156,6 +157,16 @@ export default function TrackingPage() {
                                         <div className="w-2 h-2 rounded-full bg-current animate-pulse" />
                                         {getStatusLabel(packageData.deliveries?.[0]?.status)}
                                     </div>
+                                    <button
+                                        onClick={() => generateShippingGuide({
+                                            ...packageData,
+                                            dimensions: packageData.dimensions || packageData.size,
+                                            destination: packageData.address || packageData.destination
+                                        })}
+                                        className="btn btn-secondary flex items-center gap-2 py-2 px-4 rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-all text-slate-700 font-bold text-sm shadow-sm"
+                                    >
+                                        <Download size={16} /> Descargar Guía
+                                    </button>
                                 </div>
 
                                 <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">

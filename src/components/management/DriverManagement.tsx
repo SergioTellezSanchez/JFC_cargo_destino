@@ -248,6 +248,7 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                             <thead>
                                 <tr>
                                     <th style={{ width: '40px' }}></th>
+                                    <th>Foto</th>
                                     <th>Nombre</th>
                                     <th>Empresa</th>
                                     <th>Teléfono</th>
@@ -285,6 +286,15 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                                                 <td onClick={(e) => { e.stopPropagation(); toggleSelect(d.id); }}>
                                                     {isSelected ? <CheckSquare size={18} color="var(--primary)" /> : <Square size={18} color="var(--secondary)" />}
                                                 </td>
+                                                <td>
+                                                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--secondary-bg)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
+                                                        {d.photoUrl ? (
+                                                            <img src={d.photoUrl} alt={d.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                        ) : (
+                                                            <Users size={20} style={{ margin: 'auto', color: 'var(--secondary)' }} />
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td style={{ fontWeight: '600' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                                         {isExpanded ? <ChevronUp size={16} color="var(--primary)" /> : <ChevronDown size={16} color="var(--secondary)" />}
@@ -313,7 +323,7 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                                             </tr>
                                             {isExpanded && (
                                                 <tr>
-                                                    <td colSpan={7} style={{ padding: '1.5rem', background: 'var(--secondary-bg)' }}>
+                                                    <td colSpan={8} style={{ padding: '1.5rem', background: 'var(--secondary-bg)' }}>
                                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                                                             <div className="card" style={{ padding: '1rem' }}>
                                                                 <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Contacto / Empresa</h4>
@@ -347,7 +357,7 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                                     );
                                 }) : (
                                     <tr>
-                                        <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--secondary)' }}>No se encontraron conductores.</td>
+                                        <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--secondary)' }}>No se encontraron conductores.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -424,17 +434,15 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                     onSubmit={async (e) => {
                         e.preventDefault();
                         const formData = new FormData(e.currentTarget);
-                        const payload: any = Object.fromEntries(formData.entries());
+                        if (modalMode === 'create') formData.append('createdBy', user?.uid || '');
 
                         try {
                             const endpoint = modalMode === 'create' ? '/api/drivers' : `/api/drivers/${currentItem.id}`;
                             const method = modalMode === 'create' ? 'POST' : 'PUT';
-                            if (modalMode === 'create') payload.createdBy = user?.uid;
 
                             const res = await authenticatedFetch(endpoint, {
                                 method,
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload),
+                                body: formData,
                             });
                             if (res.ok) {
                                 setIsModalOpen(false);
@@ -465,6 +473,20 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Número de Licencia</label>
                             <input name="license" type="text" className="input" defaultValue={currentItem?.license || currentItem?.licenseNumber} placeholder="ABC-123456" />
+                        </div>
+                        <div className="input-group" style={{ gridColumn: '1 / -1' }}>
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Foto del Conductor</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+                                {currentItem?.photoUrl && (
+                                    <div style={{ width: '60px', height: '60px', borderRadius: '12px', overflow: 'hidden', border: '2px solid var(--border)' }}>
+                                        <img src={currentItem.photoUrl} alt="Vigente" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    </div>
+                                )}
+                                <div style={{ flex: 1 }}>
+                                    <input name="photo" type="file" accept="image/*" className="input" style={{ fontSize: '0.8rem' }} />
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>PNG, JPG o JPEG (Máx. 5MB)</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>

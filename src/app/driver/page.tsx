@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, AlertTriangle, Clock, Scale, Package, Navigation, Camera, Check, Truck } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Clock, Scale, Package, Navigation, Camera, Check, Truck, Users } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
 import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from '@vis.gl/react-google-maps';
@@ -120,6 +120,24 @@ export default function DriverApp() {
         }
     };
 
+    const handleProfilePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0] && currentDriverId) {
+            const file = e.target.files[0];
+            const formData = new FormData();
+            formData.append('photo', file);
+
+            try {
+                const res = await authenticatedFetch(`/api/drivers/${currentDriverId}`, {
+                    method: 'PUT',
+                    body: formData
+                });
+                if (res.ok) {
+                    fetchDrivers(); // Refresh to get new photoUrl
+                }
+            } catch (err) { console.error(err); }
+        }
+    };
+
     const openNavigation = (pkg: any) => {
         const destination = pkg.latitude && pkg.longitude
             ? `${pkg.latitude},${pkg.longitude}`
@@ -172,19 +190,52 @@ export default function DriverApp() {
     return (
         <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}>
             <div className="container" style={{ maxWidth: '800px', margin: '0 auto', padding: '1rem', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+                {/* Driver Profile Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', padding: '1rem', background: 'white', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ position: 'relative' }}>
+                            <div style={{ width: '56px', height: '56px', borderRadius: '50%', overflow: 'hidden', background: 'var(--secondary-bg)', border: '2px solid var(--primary-light)' }}>
+                                {(() => {
+                                    const curr = drivers.find((d: any) => d.id === currentDriverId) as any;
+                                    return curr?.photoUrl ? (
+                                        <img src={curr.photoUrl} alt="Me" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <Users size={24} style={{ margin: '14px auto', display: 'block', color: 'var(--secondary)' }} />
+                                    );
+                                })()}
+                            </div>
+                            <label htmlFor="profile-photo" style={{ position: 'absolute', bottom: -2, right: -2, background: 'var(--primary)', color: 'white', borderRadius: '50%', padding: '6px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', display: 'flex' }}>
+                                <Camera size={14} />
+                            </label>
+                            <input id="profile-photo" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleProfilePhotoChange} />
+                        </div>
+                        <div>
+                            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--foreground)' }}>
+                                {(drivers.find((d: any) => d.id === currentDriverId) as any)?.name}
+                            </h2>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--secondary)' }}>
+                                {(drivers.find((d: any) => d.id === currentDriverId) as any)?.company || 'Conductor Independiente'}
+                            </p>
+                        </div>
+                    </div>
+                    <button className="btn btn-secondary" onClick={() => setCurrentDriverId('')} style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>Cerrar Sesión</button>
+                </div>
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>{t('myRoute')}</h1>
+                        <h1 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('myRoute')}</h1>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--secondary-bg)', padding: '0.25rem', borderRadius: '12px' }}>
                         <button
                             className={`btn ${viewMode === 'list' ? 'btn-primary' : ''}`}
+                            style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', borderRadius: '10px', boxShadow: viewMode === 'list' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}
                             onClick={() => setViewMode('list')}
                         >
                             Lista
                         </button>
                         <button
                             className={`btn ${viewMode === 'map' ? 'btn-primary' : ''}`}
+                            style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', borderRadius: '10px', boxShadow: viewMode === 'map' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}
                             onClick={() => setViewMode('map')}
                         >
                             Mapa

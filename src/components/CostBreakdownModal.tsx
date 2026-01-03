@@ -3,15 +3,14 @@ import { formatCurrency } from '@/lib/utils';
 import { Calculator, MapPin, Package, Zap, ArrowRight, Truck } from 'lucide-react';
 
 interface QuoteDetails {
-    base: number;
-    distance: number;
-    operatingCost: number;
+    basePrice: number;
+    operationalCost: number;
     depreciation: number;
     insurance: number;
     suspensionPremium: number;
     serviceFee: number;
     iva: number;
-    total: number;
+    priceToClient: number;
 }
 
 interface CostBreakdownModalProps {
@@ -57,7 +56,7 @@ export default function CostBreakdownModal({
                             <span className="text-slate-500 flex items-center gap-2">
                                 <Truck size={14} /> Tarifa Base (Servicio)
                             </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.base)}</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.basePrice)}</span>
                         </div>
 
                         {/* Operating Cost */}
@@ -65,7 +64,7 @@ export default function CostBreakdownModal({
                             <span className="text-slate-500 flex items-center gap-2">
                                 <Zap size={14} /> Costo Operativo ({distanceKm.toFixed(1)} km)
                             </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.operatingCost)}</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.operationalCost)}</span>
                         </div>
 
                         {/* Depreciation */}
