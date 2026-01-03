@@ -118,12 +118,40 @@ export default function CostBreakdownModal({
                     </div>
                 </div>
 
+                <div className="bg-slate-900 text-slate-300 p-5 rounded-xl text-[11px] font-mono border border-slate-800 space-y-3">
+                    <h5 className="text-blue-400 font-bold uppercase tracking-widest flex items-center gap-2 mb-2">
+                        <Calculator size={14} /> Memoria de Cálculo
+                    </h5>
+
+                    <div className="space-y-2">
+                        <p className="border-b border-white/5 pb-1">
+                            <span className="text-white block mb-1">1. Costo Operativo:</span>
+                            ({formatCurrency(details.operationalCost / distanceKm)}/km avg) × {distanceKm.toFixed(1)} km = <span className="text-blue-300">{formatCurrency(details.operationalCost)}</span>
+                        </p>
+
+                        <p className="border-b border-white/5 pb-1">
+                            <span className="text-white block mb-1">2. Seguro de Carga:</span>
+                            Valor Declarado × Tasa Seguro = <span className="text-blue-300">{formatCurrency(details.insurance)}</span>
+                        </p>
+
+                        <p className="border-b border-white/5 pb-1">
+                            <span className="text-white block mb-1">3. Margen y Servicios:</span>
+                            (Base + Op + Dep) × Margen {details.serviceFee > 0 ? '+ Fee Express' : ''} = <span className="text-blue-300">{formatCurrency(totalPrice / 1.16 - details.iva)}</span>
+                        </p>
+
+                        <p>
+                            <span className="text-white block mb-1">4. Impuestos:</span>
+                            Subtotal × 0.16 (IVA) = <span className="text-blue-300">{formatCurrency(details.iva)}</span>
+                        </p>
+                    </div>
+                </div>
+
                 <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-800 flex items-start gap-3">
                     <div className="bg-blue-100 p-1 rounded-full shrink-0">
                         <Calculator size={14} className="text-blue-600" />
                     </div>
                     <p>
-                        Este precio incluye impuestos y seguro básico. El costo final puede variar ligeramente si hay cambios en la ruta o tiempo de espera.
+                        Este desglose técnico detalla la formación del precio final basado en parámetros de flota y mercado vigentes.
                     </p>
                 </div>
 
