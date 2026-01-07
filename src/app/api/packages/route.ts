@@ -80,7 +80,24 @@ export async function POST(request: Request) {
             serviceLevel: body.serviceLevel || 'standard',
             dimensions: body.dimensions || null,
             declaredValue: body.declaredValue || 0,
-            distanceKm: body.distanceKm || 0
+            distanceKm: body.distanceKm || 0,
+            // Operational & Personnel Details
+            fuelPrice: body.fuelPrice || null,
+            fuelEfficiency: body.fuelEfficiency || null,
+            tolls: body.tolls || 0,
+            travelDays: body.travelDays || 1,
+            driverSalary: body.driverSalary || 0,
+            driverCommission: body.driverCommission || 0,
+            assistantSalary: body.assistantSalary || 0,
+            assistantCommission: body.assistantCommission || 0,
+            food: body.food || 0,
+            lodging: body.lodging || 0,
+            unforeseenPercent: body.unforeseenPercent || 0,
+            otherExpenses: body.otherExpenses || 0,
+            seller: body.seller || null,
+            clientName: body.clientName || null,
+            folio: body.folio || null,
+            quoteDetails: body.quoteDetails || null
         };
 
         const docRef = await adminDb.collection('packages').add(newPackage);

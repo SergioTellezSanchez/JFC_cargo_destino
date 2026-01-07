@@ -3,6 +3,7 @@ export interface PricingSettings {
     profitMargin: number;
     basePrice: number;
     usefulLifeKm: number;
+    defaultFuelPrice?: number;
 }
 
 export interface Vehicle {
@@ -16,6 +17,8 @@ export interface Vehicle {
     suspensionType: string;
     plate?: string;
     company?: string;
+    fuelEfficiency?: number; // km/l
+    depreciationPerDay?: number;
 }
 
 export interface Package {
@@ -26,6 +29,22 @@ export interface Package {
     type?: string;
     packageType?: string;
     loadType?: string;
+    // New detailed fields
+    fuelPrice?: number;
+    fuelEfficiency?: number;
+    tolls?: number;
+    driverSalary?: number;
+    driverCommission?: number;
+    assistantSalary?: number;
+    assistantCommission?: number;
+    food?: number;
+    lodging?: number;
+    travelDays?: number;
+    unforeseenPercent?: number;
+    otherExpenses?: number;
+    seller?: string;
+    clientName?: string;
+    folio?: string;
 }
 
 export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle, settings: PricingSettings, serviceLevel: 'standard' | 'express' = 'standard') {
@@ -34,45 +53,89 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle, settings
     const basePrice = settings.basePrice || 1000;
     const usefulLife = settings.usefulLifeKm || 500000;
 
-    const costPerKm = Number(vehicle?.costPerKm) || 15;
+    const distance = pkg.distanceKm || 0;
+    const days = pkg.travelDays || 1;
+
+    // Fuel calculation
+    const fuelPrice = pkg.fuelPrice || settings.defaultFuelPrice || 25;
+    const efficiency = pkg.fuelEfficiency || vehicle.fuelEfficiency || 2;
+    const fuelCost = (distance / efficiency) * fuelPrice;
+
+    // Personnel costs (Total for the trip)
+    const driverSalaryTotal = (pkg.driverSalary || 0) * days;
+    const assistantSalaryTotal = (pkg.assistantSalary || 0) * days;
+    const driverCommission = pkg.driverCommission || 0;
+    const assistantCommission = pkg.assistantCommission || 0;
+    const food = pkg.food || 0;
+    const lodging = pkg.lodging || 0;
+
+    // Depreciation
     const assetValue = Number(vehicle?.value) || 1000000;
     const depreciationPerKm = assetValue / usefulLife;
+    const depreciationKmTotal = depreciationPerKm * distance;
+    const depreciationDayTotal = (vehicle.depreciationPerDay || 0) * days;
+    const totalDepreciation = Math.max(depreciationKmTotal, depreciationDayTotal);
 
-    const distance = pkg.distanceKm || 100;
+    // Tolls and others
+    const tolls = pkg.tolls || 0;
+    const otherExpenses = pkg.otherExpenses || 0;
 
-    // Additional premium for special suspension
-    let suspensionPremium = 0;
-    if (vehicle?.suspensionType?.includes('Neumática')) {
-        suspensionPremium = basePrice * 0.10; // 10% premium for air suspension
-    }
+    // Operational Cost (Sum of all direct costs)
+    const totalOperationalCost =
+        fuelCost +
+        tolls +
+        driverSalaryTotal +
+        driverCommission +
+        assistantSalaryTotal +
+        assistantCommission +
+        food +
+        lodging +
+        totalDepreciation +
+        otherExpenses;
 
-    const operationalCost = (costPerKm + depreciationPerKm) * distance;
-    const totalBaseCost = basePrice + operationalCost + suspensionPremium;
+    // Capacity calculation
+    const capacityOccupiedPercent = (pkg.weight / (vehicle.capacity || 1)) * 100;
 
+    // Unforeseen (Imponderables)
+    const unforeseenPercent = pkg.unforeseenPercent || 0;
+    const unforeseenAmount = totalOperationalCost * (unforeseenPercent / 100);
+
+    // Subtotal before margin and insurance
+    const costWithUnforeseen = totalOperationalCost + unforeseenAmount;
+
+    // Applying margin (Profit)
     const serviceMult = serviceLevel === 'express' ? 1.4 : 1.0;
-    const priceBeforeInsurance = (totalBaseCost * margin) * serviceMult;
+    const priceBeforeInsurance = (costWithUnforeseen * margin * serviceMult);
+
+    // Insurance
     const insurance = (pkg.declaredValue || 0) * insuranceRate;
+
+    // Total final
     const priceToClient = priceBeforeInsurance + insurance;
-
     const iva = priceToClient * 0.16;
-    const finalPrice = priceToClient + iva;
-
-    const utility = finalPrice - (totalBaseCost + insurance + iva);
-    const utilityPercent = (utility / finalPrice) * 100;
+    const finalPriceWithIva = priceToClient + iva;
 
     return {
-        operationalCost,
+        fuelCost,
+        tolls,
+        driverSalary: driverSalaryTotal,
+        driverCommission,
+        assistantSalary: assistantSalaryTotal,
+        assistantCommission,
+        food,
+        lodging,
+        depreciation: totalDepreciation,
+        otherExpenses,
+        unforeseen: unforeseenAmount,
+        operationalCost: totalOperationalCost,
         insurance,
-        totalCost: totalBaseCost + insurance,
-        priceToClient: finalPrice, // Including IVA for the user view
-        priceBeforeTax: priceToClient,
+        subtotal: priceToClient,
         iva,
-        utility,
-        utilityPercent,
-        depreciation: depreciationPerKm * distance,
-        basePrice,
-        suspensionPremium,
-        serviceFee: (totalBaseCost * margin) * (serviceMult - 1)
+        priceToClient: finalPriceWithIva,
+        priceBeforeTax: priceToClient,
+        capacityOccupiedPercent,
+        utility: priceToClient - costWithUnforeseen - insurance,
+        insuranceRate: insuranceRate * 100
     };
 }
 

@@ -1,16 +1,26 @@
 import Modal from '@/components/Modal';
 import { formatCurrency } from '@/lib/utils';
-import { Calculator, MapPin, Package, Zap, ArrowRight, Truck } from 'lucide-react';
+import { Calculator, MapPin, Package, Zap, ArrowRight, Truck, ShieldCheck } from 'lucide-react';
 
 interface QuoteDetails {
-    basePrice: number;
-    operationalCost: number;
+    fuelCost: number;
+    tolls: number;
+    driverSalary: number;
+    driverCommission: number;
+    assistantSalary: number;
+    assistantCommission: number;
+    food: number;
+    lodging: number;
     depreciation: number;
+    otherExpenses: number;
+    unforeseen: number;
+    operationalCost: number;
     insurance: number;
-    suspensionPremium: number;
-    serviceFee: number;
+    subtotal: number;
     iva: number;
     priceToClient: number;
+    capacityOccupiedPercent: number;
+    utility: number;
 }
 
 interface CostBreakdownModalProps {
@@ -39,109 +49,126 @@ export default function CostBreakdownModal({
     return (
         <Modal isOpen={isOpen} title="Desglose del Precio" onClose={onClose}>
             <div className="space-y-6">
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 max-h-[60vh] overflow-y-auto custom-scrollbar">
                     <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-200">
                         <h4 className="font-bold text-slate-700 flex items-center gap-2">
                             <Calculator size={18} className="text-blue-500" />
-                            Resumen de Costos B2B
+                            Análisis de Costos Operativos
                         </h4>
                         <span className="text-xs font-bold bg-slate-200 text-slate-600 px-2 py-1 rounded-full uppercase">
-                            {serviceLevel === 'express' ? 'Express Plus' : 'Estándar'}
+                            {serviceLevel === 'express' ? 'Prioridad Express' : 'Servicio Estándar'}
                         </span>
                     </div>
 
                     <div className="space-y-3 text-sm">
-                        {/* Base Rate */}
+                        {/* Direct Costs Section */}
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Costos Directos</div>
+
                         <div className="flex justify-between items-center">
                             <span className="text-slate-500 flex items-center gap-2">
-                                <Truck size={14} /> Tarifa Base (Servicio)
+                                <Zap size={14} className="text-blue-400" /> Combustible ({distanceKm.toFixed(1)} km)
                             </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.basePrice)}</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.fuelCost)}</span>
                         </div>
 
-                        {/* Operating Cost */}
                         <div className="flex justify-between items-center">
                             <span className="text-slate-500 flex items-center gap-2">
-                                <Zap size={14} /> Costo Operativo ({distanceKm.toFixed(1)} km)
+                                <MapPin size={14} className="text-slate-400" /> Casetas y Peajes
                             </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.operationalCost)}</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.tolls)}</span>
                         </div>
 
-                        {/* Depreciation */}
                         <div className="flex justify-between items-center">
                             <span className="text-slate-500 flex items-center gap-2">
-                                <Calculator size={14} /> Depreciación de Activo
+                                <Truck size={14} className="text-slate-400" /> Depreciación de Unidad
                             </span>
                             <span className="font-medium text-slate-900">{formatCurrency(details.depreciation)}</span>
                         </div>
 
-                        {/* Insurance */}
+                        {/* Personnel Section */}
+                        <div className="pt-2 mt-2 border-t border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">Personal y Viáticos</div>
+
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500">Sueldos (Chofer + Ayudante)</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.driverSalary + details.assistantSalary)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500">Comisiones</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.driverCommission + details.assistantCommission)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500">Alimentación y Hospedaje</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.food + details.lodging)}</span>
+                        </div>
+
+                        {/* Other Section */}
+                        <div className="pt-2 mt-2 border-t border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">Administración y Riesgos</div>
+
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500">Imponderables (Prevención)</span>
+                            <span className="font-medium text-slate-900">{formatCurrency(details.unforeseen)}</span>
+                        </div>
+
                         <div className="flex justify-between items-center">
                             <span className="text-slate-500 flex items-center gap-2">
-                                <Calculator size={14} /> Seguro de Carga
+                                <ShieldCheck size={14} className="text-green-500" /> Seguro de Carga
                             </span>
                             <span className="font-medium text-slate-900">{formatCurrency(details.insurance)}</span>
                         </div>
 
-                        {/* Suspension Premium */}
-                        {details.suspensionPremium > 0 && (
-                            <div className="flex justify-between items-center">
-                                <span className="text-slate-500 flex items-center gap-2">
-                                    <Truck size={14} /> Premium Suspensión Neumática
-                                </span>
-                                <span className="font-medium text-slate-900">{formatCurrency(details.suspensionPremium)}</span>
+                        {/* Summary Section */}
+                        <div className="pt-4 mt-2 border-t-2 border-slate-200">
+                            <div className="flex justify-between items-center font-bold text-slate-900">
+                                <span>Subtotal Servicio</span>
+                                <span>{formatCurrency(details.subtotal)}</span>
                             </div>
-                        )}
-
-                        {/* Service Fee */}
-                        {details.serviceFee > 0 && (
-                            <div className="flex justify-between items-center text-orange-600 bg-orange-50 p-2 rounded-lg">
-                                <span className="flex items-center gap-2 font-medium">
-                                    <Zap size={14} /> Prioridad Express
-                                </span>
-                                <span className="font-bold">+{formatCurrency(details.serviceFee)}</span>
+                            <div className="flex justify-between items-center text-xs text-slate-500 mt-1">
+                                <span>IVA (16.00%)</span>
+                                <span>{formatCurrency(details.iva)}</span>
                             </div>
-                        )}
-
-                        {/* IVA */}
-                        <div className="flex justify-between items-center border-t border-slate-100 pt-2 mt-2">
-                            <span className="text-slate-500 flex items-center gap-2">
-                                <span>IVA (16%)</span>
-                            </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.iva)}</span>
                         </div>
                     </div>
 
                     <div className="mt-4 pt-4 border-t border-slate-200 flex justify-between items-end">
-                        <span className="text-slate-500 font-medium">Total Estimado</span>
-                        <span className="text-3xl font-bold text-slate-900 tracking-tight">{formatCurrency(totalPrice)}</span>
+                        <div className="flex flex-col">
+                            <span className="text-slate-400 text-[10px] uppercase font-bold tracking-tighter">Total a Pagar</span>
+                            <span className="text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(totalPrice)}</span>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase">Capacidad Ocupada</div>
+                            <div className={`text-sm font-bold ${details.capacityOccupiedPercent > 90 ? 'text-orange-500' : 'text-blue-500'}`}>
+                                {details.capacityOccupiedPercent.toFixed(1)}%
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div className="bg-slate-900 text-slate-300 p-5 rounded-xl text-[11px] font-mono border border-slate-800 space-y-3">
                     <h5 className="text-blue-400 font-bold uppercase tracking-widest flex items-center gap-2 mb-2">
-                        <Calculator size={14} /> Memoria de Cálculo
+                        <Calculator size={14} /> Memoria de Cálculo Simplificada
                     </h5>
 
                     <div className="space-y-2">
                         <p className="border-b border-white/5 pb-1">
-                            <span className="text-white block mb-1">1. Costo Operativo:</span>
-                            ({formatCurrency(details.operationalCost / distanceKm)}/km avg) × {distanceKm.toFixed(1)} km = <span className="text-blue-300">{formatCurrency(details.operationalCost)}</span>
+                            <span className="text-white block mb-1">1. Operación Directa:</span>
+                            Combustible + Casetas + Depreciación = <span className="text-blue-300">{formatCurrency(details.fuelCost + details.tolls + details.depreciation)}</span>
                         </p>
 
                         <p className="border-b border-white/5 pb-1">
-                            <span className="text-white block mb-1">2. Seguro de Carga:</span>
-                            Valor Declarado × Tasa Seguro = <span className="text-blue-300">{formatCurrency(details.insurance)}</span>
+                            <span className="text-white block mb-1">2. Factor Humano:</span>
+                            Sueldos + Comisiones + Viáticos = <span className="text-blue-300">{formatCurrency(details.driverSalary + details.assistantSalary + details.driverCommission + details.assistantCommission + details.food + details.lodging)}</span>
                         </p>
 
                         <p className="border-b border-white/5 pb-1">
-                            <span className="text-white block mb-1">3. Margen y Servicios:</span>
-                            (Base + Op + Dep) × Margen {details.serviceFee > 0 ? '+ Fee Express' : ''} = <span className="text-blue-300">{formatCurrency(totalPrice / 1.16 - details.iva)}</span>
+                            <span className="text-white block mb-1">3. Protección:</span>
+                            Seguro + Prevención de Imponderables = <span className="text-blue-300">{formatCurrency(details.insurance + details.unforeseen)}</span>
                         </p>
 
                         <p>
-                            <span className="text-white block mb-1">4. Impuestos:</span>
-                            Subtotal × 0.16 (IVA) = <span className="text-blue-300">{formatCurrency(details.iva)}</span>
+                            <span className="text-white block mb-1">4. Utilidad Bruta Estimada:</span>
+                            Ingreso - Costos - Impuestos = <span className="text-green-400 font-bold">{formatCurrency(details.utility)}</span>
                         </p>
                     </div>
                 </div>

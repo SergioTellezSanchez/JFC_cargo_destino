@@ -109,6 +109,29 @@ export default function QuotePage() {
     const isStep2Valid = isStep1Valid && isRouteValid;
     const isStep3Valid = isStep2Valid && isPackageDetailsValid;
 
+    // Fuel & Operation
+    const [fuelPrice, setFuelPrice] = useState<number>(25);
+    const [fuelEfficiency, setFuelEfficiency] = useState<number>(2);
+    const [tolls, setTolls] = useState<number>(0);
+    const [travelDays, setTravelDays] = useState<number>(1);
+
+    // Personnel
+    const [driverSalary, setDriverSalary] = useState<number>(0);
+    const [driverCommission, setDriverCommission] = useState<number>(0);
+    const [assistantSalary, setAssistantSalary] = useState<number>(0);
+    const [assistantCommission, setAssistantCommission] = useState<number>(0);
+
+    // Extras
+    const [food, setFood] = useState<number>(0);
+    const [lodging, setLodging] = useState<number>(0);
+    const [unforeseenPercent, setUnforeseenPercent] = useState<number>(5);
+    const [otherExpenses, setOtherExpenses] = useState<number>(0);
+
+    // Admin
+    const [seller, setSeller] = useState('');
+    const [clientName, setClientName] = useState('');
+    const [folio, setFolio] = useState('');
+
     // Real-time calculation effect
     useEffect(() => {
         if (isRouteValid && !!weight && Number(weight) > 0 && settings) {
@@ -120,7 +143,28 @@ export default function QuotePage() {
                 const vehicleToUse = selectedVehicle || { costPerKm: 18.5, value: 2500000, usefulLifeKm: 800000, suspensionType: 'Neumática' };
 
                 const results = calculateLogisticsCosts(
-                    { weight: Number(weight), declaredValue, distanceKm, loadType, packageType } as PackageType,
+                    {
+                        weight: Number(weight),
+                        declaredValue,
+                        distanceKm,
+                        loadType,
+                        packageType,
+                        fuelPrice,
+                        fuelEfficiency,
+                        tolls,
+                        driverSalary,
+                        driverCommission,
+                        assistantSalary,
+                        assistantCommission,
+                        food,
+                        lodging,
+                        travelDays,
+                        unforeseenPercent,
+                        otherExpenses,
+                        seller,
+                        clientName,
+                        folio
+                    } as PackageType,
                     vehicleToUse as Vehicle,
                     settings,
                     serviceLevel
@@ -130,7 +174,7 @@ export default function QuotePage() {
                 setCalculated(true);
             }
         }
-    }, [distanceKm, weight, dimensions, serviceLevel, isRouteValid, loadType, loadTypeDetails, settings, declaredValue, vehicles, packageType]);
+    }, [distanceKm, weight, dimensions, serviceLevel, isRouteValid, loadType, loadTypeDetails, settings, declaredValue, vehicles, packageType, fuelPrice, fuelEfficiency, tolls, driverSalary, driverCommission, assistantSalary, assistantCommission, food, lodging, travelDays, unforeseenPercent, otherExpenses]);
 
     const handleCreatePackage = async () => {
         if (!user) {
@@ -156,7 +200,24 @@ export default function QuotePage() {
                 loadType,
                 loadTypeDetails,
                 distanceKm,
-                declaredValue
+                declaredValue,
+                // Advanced Operational Fields
+                fuelPrice,
+                fuelEfficiency,
+                tolls,
+                travelDays,
+                driverSalary,
+                driverCommission,
+                assistantSalary,
+                assistantCommission,
+                food,
+                lodging,
+                unforeseenPercent,
+                otherExpenses,
+                seller,
+                clientName,
+                folio,
+                quoteDetails // Include the full breakdown for history
             };
 
             const res = await authenticatedFetch('/api/packages', {
@@ -238,18 +299,31 @@ export default function QuotePage() {
                 quoteDetails={quoteDetails}
                 quotePrice={quotePrice}
                 handleCreatePackage={handleCreatePackage}
+                onRequestQuote={handleRequestQuote}
                 showModal={showModal}
                 setShowModal={setShowModal}
                 recipientName={recipientName}
                 setRecipientName={setRecipientName}
                 recipientPhone={recipientPhone}
                 setRecipientPhone={setRecipientPhone}
-                loading={loading}
-                // New Props
                 declaredValue={declaredValue}
-                onDeclaredValueChange={setDeclaredValue}
-                onAddressSelect={handleAddressSelect}
-                onRequestQuote={handleRequestQuote}
+                setDeclaredValue={setDeclaredValue}
+                // Advanced State Props
+                fuelPrice={fuelPrice} setFuelPrice={setFuelPrice}
+                fuelEfficiency={fuelEfficiency} setFuelEfficiency={setFuelEfficiency}
+                tolls={tolls} setTolls={setTolls}
+                travelDays={travelDays} setTravelDays={setTravelDays}
+                driverSalary={driverSalary} setDriverSalary={setDriverSalary}
+                driverCommission={driverCommission} setDriverCommission={setDriverCommission}
+                assistantSalary={assistantSalary} setAssistantSalary={setAssistantSalary}
+                assistantCommission={assistantCommission} setAssistantCommission={setAssistantCommission}
+                food={food} setFood={setFood}
+                lodging={lodging} setLodging={setLodging}
+                unforeseenPercent={unforeseenPercent} setUnforeseenPercent={setUnforeseenPercent}
+                otherExpenses={otherExpenses} setOtherExpenses={setOtherExpenses}
+                seller={seller} setSeller={setSeller}
+                clientName={clientName} setClientName={setClientName}
+                folio={folio} setFolio={setFolio}
                 onOpenPinModal={(type: 'origin' | 'destination') => {
                     const loc = type === 'origin' ? origin : destination;
                     if (loc) {
@@ -613,7 +687,7 @@ function QuoteContent(props: any) {
                                                     <input
                                                         type="number"
                                                         value={props.declaredValue || ''}
-                                                        onChange={(e) => props.onDeclaredValueChange(Number(e.target.value))}
+                                                        onChange={(e) => props.setDeclaredValue(Number(e.target.value))}
                                                         placeholder="1000"
                                                         className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
                                                     />
@@ -686,25 +760,97 @@ function QuoteContent(props: any) {
                                                     </div>
                                                 )}
 
-                                                {props.packageType === 'Tarima' && (
-                                                    <div className="animate-in fade-in slide-in-from-top-2">
-                                                        <CustomSelect
-                                                            label="Tipo de Tarima (Opcional)"
-                                                            value={props.packageDetails}
-                                                            onChange={(val) => {
-                                                                props.setPackageDetails(val);
-                                                                if (val.includes('Americana')) props.setDimensions({ length: 120, width: 100, height: 15 });
-                                                                if (val.includes('Europea')) props.setDimensions({ length: 120, width: 80, height: 15 });
-                                                            }}
-                                                            placeholder="Especifica el tipo..."
-                                                            options={[
-                                                                { value: 'Estándar Americana', label: 'Estándar Americana (1.0x1.2m)' },
-                                                                { value: 'Europea', label: 'Europea (0.8x1.2m)' },
-                                                                { value: 'Plástico', label: 'Plástico' },
-                                                            ]}
-                                                        />
+                                                {/* Advanced Operational Details Section */}
+                                                <div className="md:col-span-2 space-y-8 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                                                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                                        <Info size={18} className="text-blue-500" /> Detalle Operativo (Avanzado)
+                                                    </h3>
+
+                                                    {/* Admin Info */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Folio</label>
+                                                            <input type="text" value={props.folio} onChange={(e) => props.setFolio(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="0000" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Cliente</label>
+                                                            <input type="text" value={props.clientName} onChange={(e) => props.setClientName(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="Nombre del cliente" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Vendedor</label>
+                                                            <input type="text" value={props.seller} onChange={(e) => props.setSeller(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="Nombre vendedor" />
+                                                        </div>
                                                     </div>
-                                                )}
+
+                                                    {/* Fuel & Efficiency */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                        <div className="bg-white p-4 rounded-xl border border-slate-200">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Precio Combustible</label>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-slate-400 text-sm">$</span>
+                                                                <input type="number" value={props.fuelPrice} onChange={(e) => props.setFuelPrice(Number(e.target.value))} className="w-full font-bold text-slate-700 outline-none" />
+                                                            </div>
+                                                        </div>
+                                                        <div className="bg-white p-4 rounded-xl border border-slate-200">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Rendimiento (km/L)</label>
+                                                            <input type="number" value={props.fuelEfficiency} onChange={(e) => props.setFuelEfficiency(Number(e.target.value))} className="w-full font-bold text-slate-700 outline-none" />
+                                                        </div>
+                                                        <div className="bg-white p-4 rounded-xl border border-slate-200">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Días de Viaje</label>
+                                                            <input type="number" value={props.travelDays} onChange={(e) => props.setTravelDays(Number(e.target.value))} className="w-full font-bold text-slate-700 outline-none" />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Personnel */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div className="space-y-4">
+                                                            <h4 className="text-xs font-bold text-slate-500 uppercase border-b pb-2">Chofer</h4>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <div>
+                                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Sueldo Diario</label>
+                                                                    <input type="number" value={props.driverSalary} onChange={(e) => props.setDriverSalary(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Comisión</label>
+                                                                    <input type="number" value={props.driverCommission} onChange={(e) => props.setDriverCommission(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-4">
+                                                            <h4 className="text-xs font-bold text-slate-500 uppercase border-b pb-2">Ayudante</h4>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <div>
+                                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Sueldo Diario</label>
+                                                                    <input type="number" value={props.assistantSalary} onChange={(e) => props.setAssistantSalary(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Comisión</label>
+                                                                    <input type="number" value={props.assistantCommission} onChange={(e) => props.setAssistantCommission(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Expenses */}
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        <div className="bg-white p-3 rounded-xl border border-slate-200">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Casetas</label>
+                                                            <input type="number" value={props.tolls} onChange={(e) => props.setTolls(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
+                                                        </div>
+                                                        <div className="bg-white p-3 rounded-xl border border-slate-200">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Comidas</label>
+                                                            <input type="number" value={props.food} onChange={(e) => props.setFood(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
+                                                        </div>
+                                                        <div className="bg-white p-3 rounded-xl border border-slate-200">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Hospedaje</label>
+                                                            <input type="number" value={props.lodging} onChange={(e) => props.setLodging(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
+                                                        </div>
+                                                        <div className="bg-white p-3 rounded-xl border border-slate-200">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Imponderables (%)</label>
+                                                            <input type="number" value={props.unforeseenPercent} onChange={(e) => props.setUnforeseenPercent(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -739,10 +885,10 @@ function QuoteContent(props: any) {
                                             <button
                                                 onClick={() => props.setServiceLevel('standard')}
                                                 className={`group relative p-6 rounded-3xl text-left border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
-                                                    ${props.serviceLevel === 'standard'
+                                                ${props.serviceLevel === 'standard'
                                                         ? 'border-blue-500 bg-blue-50/50 ring-4 ring-blue-100'
                                                         : 'border-slate-100 bg-white hover:border-blue-200'}
-                                                `}
+                                            `}
                                             >
                                                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                                                     <Truck size={100} className="text-blue-900" />
@@ -766,10 +912,10 @@ function QuoteContent(props: any) {
                                             <button
                                                 onClick={() => props.setServiceLevel('express')}
                                                 className={`group relative p-6 rounded-3xl text-left border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
-                                                    ${props.serviceLevel === 'express'
+                                                ${props.serviceLevel === 'express'
                                                         ? 'border-blue-600 bg-blue-50/50 ring-4 ring-blue-100'
                                                         : 'border-slate-100 bg-white hover:border-blue-200'}
-                                                `}
+                                            `}
                                             >
                                                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                                                     <Zap size={100} className="text-blue-600" />
@@ -867,8 +1013,8 @@ function QuoteContent(props: any) {
                                         )}
                                     </div>
                                 )}
-                            </div>
-                        </div>
+                            </div> {/* End of Cards Container */}
+                        </div> {/* End of Main Interaction Area */}
 
                         {/* Map Preview area */}
                         {props.currentStep !== 1 && (
@@ -880,7 +1026,7 @@ function QuoteContent(props: any) {
                                 />
                             </div>
                         )}
-                    </div>
+                    </div> {/* End of Main layout container */}
                 </div>
             </div>
 

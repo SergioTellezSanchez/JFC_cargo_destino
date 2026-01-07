@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clear-db": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/clear-db.ts",
+    "seed": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/seed.ts"
   },
   "dependencies": {
     "@vis.gl/react-google-maps": "^1.7.1",
