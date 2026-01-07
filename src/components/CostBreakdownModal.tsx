@@ -21,6 +21,7 @@ interface QuoteDetails {
     priceToClient: number;
     capacityOccupiedPercent: number;
     utility: number;
+    utilityPercent: number;
 }
 
 interface CostBreakdownModalProps {
@@ -168,7 +169,7 @@ export default function CostBreakdownModal({
 
                         <p>
                             <span className="text-white block mb-1">4. Utilidad Bruta Estimada:</span>
-                            Ingreso - Costos - Impuestos = <span className="text-green-400 font-bold">{formatCurrency(details.utility)}</span>
+                            Ingreso - Costos - Impuestos = <span className="text-green-400 font-bold">{formatCurrency(details.utility)} ({details.utilityPercent.toFixed(1)}%)</span>
                         </p>
                     </div>
                 </div>

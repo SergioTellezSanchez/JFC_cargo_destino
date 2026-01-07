@@ -135,6 +135,7 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle, settings
         priceBeforeTax: priceToClient,
         capacityOccupiedPercent,
         utility: priceToClient - costWithUnforeseen - insurance,
+        utilityPercent: ((priceToClient - costWithUnforeseen - insurance) / priceToClient) * 100,
         insuranceRate: insuranceRate * 100
     };
 }
