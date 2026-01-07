@@ -7,6 +7,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useUser } from '@/lib/UserContext';
 import { authenticatedFetch } from '@/lib/api';
 import Modal from '@/components/Modal';
+import { VEHICLE_CATEGORIES } from '@/lib/logistics';
 
 interface VehicleManagementProps {
     isAdminView?: boolean;
@@ -450,6 +451,20 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                         payload.usefulLifeKm = Number(payload.usefulLifeKm);
                         payload.costPerKm = Number(payload.costPerKm);
                         payload.value = Number(payload.value);
+                        payload.fuelEfficiency = Number(payload.fuelEfficiency);
+
+                        // Handle dimensions
+                        payload.dimensions = {
+                            l: Number(payload['dimensions.l']),
+                            w: Number(payload['dimensions.w']),
+                            h: Number(payload['dimensions.h'])
+                        };
+                        delete payload['dimensions.l'];
+                        delete payload['dimensions.w'];
+                        delete payload['dimensions.h'];
+
+                        // Handle uses
+                        payload.uses = payload.uses?.split(',').map((u: string) => u.trim()).filter(Boolean) || [];
 
                         try {
                             const endpoint = modalMode === 'create' ? '/api/vehicles' : `/api/vehicles/${currentItem.id}`;
@@ -499,6 +514,38 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Valor de la Unidad ($)</label>
                             <input name="value" type="number" className="input" defaultValue={currentItem?.value || 2500000} />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Categoría de Vehículo</label>
+                            <select name="category" className="input" defaultValue={currentItem?.category || VEHICLE_CATEGORIES.RIGIDOS}>
+                                {Object.entries(VEHICLE_CATEGORIES).map(([key, val]) => (
+                                    <option key={key} value={val}>{val}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Capacidad Volumétrica (m³)</label>
+                            <input name="volumetricCapacity" type="number" className="input" defaultValue={currentItem?.volumetricCapacity || 0} />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Rendimiento Combustible (km/L)</label>
+                            <input name="fuelEfficiency" type="number" step="0.1" className="input" defaultValue={currentItem?.fuelEfficiency || 2} />
+                        </div>
+                        <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Dimensiones (Largo x Ancho x Alto en metros)</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <input name="dimensions.l" type="number" step="0.1" className="input" placeholder="Largo" defaultValue={currentItem?.dimensions?.l} />
+                                <input name="dimensions.w" type="number" step="0.1" className="input" placeholder="Ancho" defaultValue={currentItem?.dimensions?.w} />
+                                <input name="dimensions.h" type="number" step="0.1" className="input" placeholder="Alto" defaultValue={currentItem?.dimensions?.h} />
+                            </div>
+                        </div>
+                        <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Usos / Etiquetas (Separados por coma)</label>
+                            <input name="uses" type="text" className="input" defaultValue={currentItem?.uses?.join(', ')} placeholder="Ej: Urbano, Refrigerado, Pesado..." />
+                        </div>
+                        <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Descripción</label>
+                            <textarea name="description" className="input" style={{ height: '80px', resize: 'none' }} defaultValue={currentItem?.description} placeholder="Descripción detallada de la unidad..." />
                         </div>
                         <div className="input-group" style={{ gridColumn: 'span 2' }}>
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Tipos de Suspensión</label>

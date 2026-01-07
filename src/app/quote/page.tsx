@@ -15,7 +15,7 @@ import PinSelectionModal from '@/components/PinSelectionModal';
 import CostBreakdownModal from '@/components/CostBreakdownModal';
 import CustomSelect from '@/components/CustomSelect';
 import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box, Repeat, Car, Info, Edit } from 'lucide-react';
-import { calculateLogisticsCosts, Vehicle, Package as PackageType } from '@/lib/logistics';
+import { calculateLogisticsCosts, Vehicle, Package as PackageType, VEHICLE_TYPES, VEHICLE_CATEGORIES, isVehicleSuitable } from '@/lib/logistics';
 
 
 interface LocationState {
@@ -30,13 +30,13 @@ export default function QuotePage() {
     const { language } = useLanguage();
     const t = useTranslation(language);
 
-    // Steps: 1 = LoadType, 2 = Route, 3 = Package, 4 = Service
+    // Steps: 1 = Package, 2 = Vehicle, 3 = Route, 4 = Service
     const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
-    // Load Type
-    const [loadType, setLoadType] = useState<'package' | 'full-truck' | 'van' | 'recurring' | ''>('');
+    // Load Type / Context
+    const [loadType, setLoadType] = useState('full-truck');
     const [loadTypeDetails, setLoadTypeDetails] = useState<any>({});
-    const [tempLoadType, setTempLoadType] = useState<string>(''); // For modal handling
+    const [tempLoadType, setTempLoadType] = useState<string>('');
     const [showLoadInfoModal, setShowLoadInfoModal] = useState(false);
 
     const [origin, setOrigin] = useState<LocationState | null>(null);
@@ -44,36 +44,37 @@ export default function QuotePage() {
 
     // Package Details
     const [weight, setWeight] = useState<number | ''>('');
-    const [dimensions, setDimensions] = useState({ length: 10, width: 10, height: 10 });
+    const [dimensions, setDimensions] = useState({ length: 1, width: 1, height: 1 });
     const [description, setDescription] = useState('');
     const [packageType, setPackageType] = useState('Caja de cartón');
-    const [packageDetails, setPackageDetails] = useState('');
+    const [declaredValue, setDeclaredValue] = useState<number>(1000);
 
     // Service Level
     const [serviceLevel, setServiceLevel] = useState<'standard' | 'express'>('standard');
 
-    // Calculation State
+    // Calculation & Selection State
+    const [selectedVehicleType, setSelectedVehicleType] = useState<string>('');
+    const [recipientName, setRecipientName] = useState('');
+    const [recipientPhone, setRecipientPhone] = useState('');
+    const [calculated, setCalculated] = useState(false);
+    const [showBreakdownModal, setShowBreakdownModal] = useState(false);
+    const [packageDetails, setPackageDetails] = useState<any>(null);
+
     const [distanceKm, setDistanceKm] = useState(0);
     const [quotePrice, setQuotePrice] = useState(0);
     const [quoteDetails, setQuoteDetails] = useState<any>(null);
-    const [calculated, setCalculated] = useState(false);
     const [loading, setLoading] = useState(false);
 
     // Modal State
     const [showModal, setShowModal] = useState(false); // Creating Package Modal
-    const [showBreakdownModal, setShowBreakdownModal] = useState(false); // Cost Breakdown Modal
 
     // Pin Selection State
     const [showPinModal, setShowPinModal] = useState(false);
     const [tempLocation, setTempLocation] = useState<{ address: string, lat: number, lng: number } | null>(null);
     const [pinModalType, setPinModalType] = useState<'origin' | 'destination'>('origin');
 
-    const [recipientName, setRecipientName] = useState('');
-    const [recipientPhone, setRecipientPhone] = useState('');
-
     const [settings, setSettings] = useState<any>(null);
     const [vehicles, setVehicles] = useState<any[]>([]);
-    const [declaredValue, setDeclaredValue] = useState<number>(1000);
 
     useEffect(() => {
         if (!user) return;
@@ -90,24 +91,17 @@ export default function QuotePage() {
         fetchConfig();
     }, [user]);
 
-    useEffect(() => {
-        if (loadType === 'full-truck' || loadType === 'van') {
-            setPackageType('Paletizado / Tarimas');
-        } else if (loadType === 'package') {
-            setPackageType('Caja de cartón');
-        }
-    }, [loadType]);
-
     const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
     // Step Validation Logic
-    const isLoadTypeValid = loadType !== '';
-    const isRouteValid = !!origin && !!destination;
     const isPackageDetailsValid = !!weight && Number(weight) > 0 && !!packageType;
+    const isVehicleSelectedValid = !!selectedVehicleType;
+    const isRouteValid = !!origin && !!destination;
 
-    const isStep1Valid = isLoadTypeValid;
-    const isStep2Valid = isStep1Valid && isRouteValid;
-    const isStep3Valid = isStep2Valid && isPackageDetailsValid;
+    const isStep1Valid = isPackageDetailsValid;
+    const isStep2Valid = isStep1Valid && isVehicleSelectedValid;
+    const isStep3Valid = isStep2Valid && isRouteValid;
+    const isStep4Valid = isStep3Valid;
 
     // Fuel & Operation
     const [fuelPrice, setFuelPrice] = useState<number>(25);
@@ -135,12 +129,18 @@ export default function QuotePage() {
     // Real-time calculation effect
     useEffect(() => {
         if (isRouteValid && !!weight && Number(weight) > 0 && settings) {
-            const vehicleType = loadTypeDetails?.vehicleType || '';
-            const selectedVehicle = vehicles.find(v => v.name === vehicleType) || vehicles[0];
+            // Priority: selected vehicle from the new list, then DB vehicles, then fallback
+            import('@/lib/logistics').then(({ VEHICLE_TYPES }) => {
+                const vehicleDef = VEHICLE_TYPES.find(v => v.id === selectedVehicleType);
+                const dbVehicle = vehicles.find(v => v.id === selectedVehicleType || v.name === selectedVehicleType);
 
-            if (selectedVehicle || vehicles.length === 0) {
-                // Fallback vehicle structure if none found to avoid calculation errors
-                const vehicleToUse = selectedVehicle || { costPerKm: 18.5, value: 2500000, usefulLifeKm: 800000, suspensionType: 'Neumática' };
+                const vehicleToUse = vehicleDef || dbVehicle || {
+                    costPerKm: 18.5,
+                    value: 2500000,
+                    usefulLifeKm: 800000,
+                    suspensionType: 'Neumática',
+                    capacity: 25000
+                };
 
                 const results = calculateLogisticsCosts(
                     {
@@ -172,9 +172,9 @@ export default function QuotePage() {
                 setQuoteDetails(results);
                 setQuotePrice(results.priceToClient);
                 setCalculated(true);
-            }
+            });
         }
-    }, [distanceKm, weight, dimensions, serviceLevel, isRouteValid, loadType, loadTypeDetails, settings, declaredValue, vehicles, packageType, fuelPrice, fuelEfficiency, tolls, driverSalary, driverCommission, assistantSalary, assistantCommission, food, lodging, travelDays, unforeseenPercent, otherExpenses]);
+    }, [distanceKm, weight, dimensions, serviceLevel, isRouteValid, selectedVehicleType, settings, declaredValue, vehicles, packageType, fuelPrice, fuelEfficiency, tolls, driverSalary, driverCommission, assistantSalary, assistantCommission, food, lodging, travelDays, unforeseenPercent, otherExpenses]);
 
     const handleCreatePackage = async () => {
         if (!user) {
@@ -279,6 +279,8 @@ export default function QuotePage() {
                 setPackageType={setPackageType}
                 packageDetails={packageDetails}
                 setPackageDetails={setPackageDetails}
+                onAddressSelect={handleAddressSelect}
+                vehicles={vehicles}
                 serviceLevel={serviceLevel}
                 setServiceLevel={setServiceLevel}
                 loadType={loadType}
@@ -294,6 +296,8 @@ export default function QuotePage() {
                 isStep1Valid={isStep1Valid}
                 isStep2Valid={isStep2Valid}
                 isStep3Valid={isStep3Valid}
+                selectedVehicleType={selectedVehicleType}
+                setSelectedVehicleType={setSelectedVehicleType}
                 distanceKm={distanceKm}
                 setDistanceKm={setDistanceKm}
                 quoteDetails={quoteDetails}
@@ -407,9 +411,9 @@ function QuoteContent(props: any) {
                             <div className="bg-white/80 backdrop-blur-xl p-2 rounded-2xl shadow-sm border border-slate-200/60 sticky top-4 z-50">
                                 <div className="flex relative">
                                     {[
-                                        { id: 1, label: 'Tipo', icon: Box },
-                                        { id: 2, label: 'Ruta', icon: Navigation },
-                                        { id: 3, label: 'Paquete', icon: Package },
+                                        { id: 1, label: 'Paquete', icon: Box },
+                                        { id: 2, label: 'Unidad', icon: Truck },
+                                        { id: 3, label: 'Ruta', icon: Navigation },
                                         { id: 4, label: 'Servicio', icon: Zap }
                                     ].map((step) => {
                                         const isActive = props.currentStep === step.id;
@@ -449,80 +453,189 @@ function QuoteContent(props: any) {
                             {/* Cards Container */}
                             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-visible relative min-h-[500px] transition-all duration-500">
 
-                                {/* Step 1: Load Type */}
+                                {/* Step 1: Package Details */}
                                 {props.currentStep === 1 && (
-                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-left-8 duration-500">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h2 className="text-2xl font-bold text-slate-800">¿Qué vas a transportar?</h2>
-                                                <p className="text-slate-500">Selecciona el tipo de servicio que mejor se adapte a tus necesidades.</p>
+                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-slate-800">¿Qué vas a enviar?</h2>
+                                            <p className="text-slate-500">Define las características de tu carga para proponerte las mejores unidades.</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Peso Estimado Carga</label>
+                                                <div className="flex items-baseline gap-2">
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={props.weight}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            props.setWeight(val === '' ? '' : Number(val));
+                                                        }}
+                                                        placeholder="0"
+                                                        className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
+                                                    />
+                                                    <span className="text-slate-400 font-medium">kg</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-green-500 focus-within:bg-white transition-all">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Valor Declarado (Seguro)</label>
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-slate-400 font-medium">$</span>
+                                                    <input
+                                                        type="number"
+                                                        value={props.declaredValue || ''}
+                                                        onChange={(e) => props.setDeclaredValue(Number(e.target.value))}
+                                                        placeholder="1000"
+                                                        className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
+                                                    />
+                                                    <span className="text-slate-400 font-medium">MXN</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2 space-y-4">
+                                                <div>
+                                                    <CustomSelect
+                                                        label="Naturaleza del Producto"
+                                                        value={props.packageType}
+                                                        onChange={(val) => props.setPackageType(val)}
+                                                        options={[
+                                                            { value: 'Paletizado / Tarimas', label: 'Paletizado / Tarimas' },
+                                                            { value: 'Granel', label: 'Granel (Bulk)' },
+                                                            { value: 'Maquinaria', label: 'Maquinaria' },
+                                                            { value: 'Productos Químicos', label: 'Productos Químicos' },
+                                                            { value: 'Perecederos', label: 'Perecederos / Refrigerados' },
+                                                            { value: 'Muebles / Mudanza', label: 'Muebles / Mudanza' },
+                                                            { value: 'Otro', label: 'Otro' }
+                                                        ]}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Descripción de la Mercancía</label>
+                                                <textarea
+                                                    value={props.description}
+                                                    onChange={(e) => props.setDescription(e.target.value)}
+                                                    className="w-full bg-transparent text-lg font-medium text-slate-800 outline-none resize-none h-24 placeholder:text-slate-300"
+                                                    placeholder="Ej. Tubería de acero, Grasa industrial, etc..."
+                                                ></textarea>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            {[
-                                                { id: 'package', label: 'Paquetería (Pausado)', icon: Package, desc: 'Cajas, sobres y mercancía pequeña.', disabled: true },
-                                                { id: 'full-truck', label: 'Camión Completo', icon: Truck, desc: 'Transporte dedicado de gran volumen.' },
-                                                { id: 'van', label: 'Camioneta', icon: Car, desc: 'Mudanzas pequeñas y volumen medio.' },
-                                                { id: 'recurring', label: 'Envíos Recurrentes', icon: Repeat, desc: 'Rutas programadas frecuentes.' }
-                                            ].map((type) => (
-                                                <button
-                                                    key={type.id}
-                                                    disabled={type.disabled}
-                                                    onClick={() => {
-                                                        if (type.disabled) return;
-                                                        if (type.id === 'package') {
-                                                            props.setLoadType('package');
-                                                            props.setLoadTypeDetails({});
-                                                        } else {
-                                                            props.setTempLoadType(type.id);
-                                                            props.setShowLoadInfoModal(true);
-                                                        }
-                                                    }}
-                                                    className={`group relative p-6 rounded-3xl text-left border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden
-                                                        ${type.disabled ? 'opacity-50 grayscale cursor-not-allowed' : ''}
-                                                        ${props.loadType === type.id
-                                                            ? 'border-blue-500 bg-blue-50/50 ring-4 ring-blue-100'
-                                                            : 'border-slate-100 bg-white hover:border-blue-200'}
-                                                    `}
-                                                >
-                                                    <div className="flex justify-between items-center mb-4">
-                                                        <div className={`p-3 rounded-2xl ${props.loadType === type.id ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500'} group-hover:scale-110 transition-transform duration-300`}>
-                                                            <type.icon size={24} />
-                                                        </div>
-                                                        {props.loadType === type.id && <CheckCircle className="text-blue-500 fill-blue-100" />}
-                                                    </div>
-                                                    <h3 className="text-xl font-bold text-slate-800 mb-1">{type.label}</h3>
-                                                    <p className="text-slate-500 text-sm">{type.desc}</p>
-                                                    {props.loadType === type.id && props.loadType !== 'package' && props.loadTypeDetails && (
-                                                        <div className="mt-3 py-1 px-3 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold inline-block">
-                                                            {props.loadTypeDetails.vehicleType || props.loadTypeDetails.frequency || 'Detalles configurados'}
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            ))}
+                                        <div className="flex justify-end pt-6">
+                                            <button
+                                                disabled={!props.isStep1Valid}
+                                                onClick={() => props.setCurrentStep(2)}
+                                                className={`group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3
+                                                    ${!props.isStep1Valid ? 'opacity-50 cursor-not-allowed grayscale' : ''}
+                                                `}
+                                            >
+                                                Seleccionar Unidad <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
+                                            </button>
                                         </div>
-
-                                        {props.isStep1Valid && (
-                                            <div className="flex justify-end pt-6">
-                                                <button
-                                                    onClick={() => props.setCurrentStep(2)}
-                                                    className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3"
-                                                >
-                                                    Continuar <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
-                                                </button>
-                                            </div>
-                                        )}
                                     </div>
                                 )}
 
-                                {/* Step 2: Route */}
+                                {/* Step 2: Vehicle Selection */}
                                 {props.currentStep === 2 && (
+                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-slate-800">Selecciona tu Unidad</h2>
+                                            <p className="text-slate-500">Unidades propuestas según el peso ({props.weight} kg) y tipo de carga.</p>
+                                        </div>
+
+                                        <div className="space-y-10">
+                                            {Object.values(VEHICLE_CATEGORIES).map((category) => {
+                                                const allVehicles = [...VEHICLE_TYPES, ...props.vehicles];
+                                                const categoryVehicles = allVehicles.filter(v => v.category === category);
+                                                return (
+                                                    <div key={category} className="space-y-4">
+                                                        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-3">
+                                                            <div className="h-px bg-slate-200 flex-1" />
+                                                            {category}
+                                                            <div className="h-px bg-slate-200 flex-1" />
+                                                        </h3>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                            {categoryVehicles.map((vehicle) => {
+                                                                const isSuitable = isVehicleSuitable(vehicle, { weight: Number(props.weight), packageType: props.packageType } as any);
+                                                                const isSelected = props.selectedVehicleType === vehicle.id;
+
+                                                                return (
+                                                                    <button
+                                                                        key={vehicle.id}
+                                                                        disabled={!isSuitable}
+                                                                        onClick={() => props.setSelectedVehicleType(vehicle.id)}
+                                                                        className={`relative p-5 rounded-2xl text-left border-2 transition-all duration-300 group
+                                                                            ${isSelected
+                                                                                ? 'border-blue-500 bg-blue-50/50 shadow-md ring-4 ring-blue-100'
+                                                                                : isSuitable
+                                                                                    ? 'border-slate-100 bg-white hover:border-blue-200 hover:shadow-lg'
+                                                                                    : 'border-slate-50 bg-slate-50/30 opacity-60 grayscale cursor-not-allowed'}
+                                                                        `}
+                                                                    >
+                                                                        <div className="flex justify-between items-start mb-3">
+                                                                            <div className={`p-2.5 rounded-xl transition-colors ${isSelected ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100'}`}>
+                                                                                <Truck size={20} />
+                                                                            </div>
+                                                                            {isSelected && <CheckCircle size={20} className="text-blue-500" />}
+                                                                            {!isSuitable && !isSelected && (
+                                                                                <div className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full">
+                                                                                    No recomendado
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <h4 className="font-bold text-slate-800 mb-1">{vehicle.name}</h4>
+                                                                        <p className="text-xs text-slate-500 leading-relaxed mb-3">{vehicle.description}</p>
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {vehicle.uses?.map((use: string) => (
+                                                                                <span key={use} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md font-medium">#{use}</span>
+                                                                            ))}
+                                                                        </div>
+                                                                        <div className="mt-3 pt-3 border-t border-slate-100/50 flex justify-between items-center">
+                                                                            <span className="text-[10px] font-bold text-blue-600">Capacidad: {(vehicle.capacity / 1000).toFixed(1)}T</span>
+                                                                            {vehicle.dimensions && (
+                                                                                <span className="text-[10px] text-slate-400">{vehicle.dimensions.l}x{vehicle.dimensions.w}m</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="flex justify-between pt-6">
+                                            <button
+                                                onClick={() => props.setCurrentStep(1)}
+                                                className="px-6 py-4 text-slate-500 font-bold hover:text-slate-800 transition-colors"
+                                            >
+                                                Atrás
+                                            </button>
+                                            <button
+                                                disabled={!props.isStep2Valid}
+                                                onClick={() => props.setCurrentStep(3)}
+                                                className={`group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3
+                                                    ${!props.isStep2Valid ? 'opacity-50 cursor-not-allowed grayscale' : ''}
+                                                `}
+                                            >
+                                                Continuar a Ruta <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Step 3: Route */}
+                                {props.currentStep === 3 && (
                                     <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-left-8 duration-500">
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <h2 className="text-2xl font-bold text-slate-800">¿A dónde vamos?</h2>
-                                                <p className="text-slate-500">Define los puntos de recolección y entrega.</p>
+                                                <p className="text-slate-500">Define los puntos de recolección y entrega para la unidad seleccionada.</p>
                                             </div>
                                         </div>
 
@@ -576,297 +689,113 @@ function QuoteContent(props: any) {
                                             </div>
                                         </div>
 
-                                        {props.isStep2Valid && (
-                                            <div className="flex justify-end pt-6">
-                                                <button
-                                                    onClick={() => props.setCurrentStep(3)}
-                                                    className="group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3"
-                                                >
-                                                    Continuar <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                        {/* Advanced Operational Details Section (Moved inside Step 3 for flow) */}
+                                        <div className="space-y-8 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                                <Info size={18} className="text-blue-500" /> Detalle Operativo (Avanzado)
+                                            </h3>
 
-                                {/* Step 3: Package */}
-                                {props.currentStep === 3 && (
-                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
-                                        <div>
-                                            <h2 className="text-2xl font-bold text-slate-800">¿Qué envías?</h2>
-                                            <p className="text-slate-500">Detalla tu paquete para calcular la tarifa exacta.</p>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-                                            {/* Vehicle Info for Non-Package types */}
-                                            {(props.loadType === 'full-truck' || props.loadType === 'van') && (
-                                                <div className="md:col-span-2 bg-blue-50 border border-blue-200 p-6 rounded-2xl flex items-center gap-4">
-                                                    <div className="p-3 bg-blue-500 text-white rounded-xl">
-                                                        {props.loadType === 'full-truck' ? <Truck size={24} /> : <Car size={24} />}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-bold text-blue-900">Vehículo Seleccionado</h4>
-                                                        <p className="text-blue-700">{props.loadTypeDetails?.vehicleType || 'Vehículo estándar'}</p>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
-                                                    {(props.loadType === 'full-truck' || props.loadType === 'van') ? 'Peso Estimado Carga' : 'Peso (Kg)'}
-                                                </label>
-                                                <div className="flex items-baseline gap-2">
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        value={props.weight}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            props.setWeight(val === '' ? '' : Number(val));
-                                                        }}
-                                                        placeholder="0"
-                                                        className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
-                                                    />
-                                                    <span className="text-slate-400 font-medium">kg</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Dimensions - Only for Package or Recurring */}
-                                            {(props.loadType === 'package' || props.loadType === 'recurring' || !props.loadType) && (
-                                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2 space-y-4">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Dimensiones (cm)</label>
-                                                    <div className="grid grid-cols-3 gap-4">
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Largo</label>
-                                                            <input
-                                                                type="number"
-                                                                value={props.dimensions?.length || ''}
-                                                                onChange={(e) => {
-                                                                    props.setDimensions((prev: any) => ({ ...prev, length: Number(e.target.value) }));
-                                                                    props.setPackageDetails(''); // Reset preset
-                                                                }}
-                                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
-                                                                placeholder="10"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Ancho</label>
-                                                            <input
-                                                                type="number"
-                                                                value={props.dimensions?.width || ''}
-                                                                onChange={(e) => {
-                                                                    props.setDimensions((prev: any) => ({ ...prev, width: Number(e.target.value) }));
-                                                                    props.setPackageDetails('');
-                                                                }}
-                                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
-                                                                placeholder="10"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Alto</label>
-                                                            <input
-                                                                type="number"
-                                                                value={props.dimensions?.height || ''}
-                                                                onChange={(e) => {
-                                                                    props.setDimensions((prev: any) => ({ ...prev, height: Number(e.target.value) }));
-                                                                    props.setPackageDetails('');
-                                                                }}
-                                                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 font-bold outline-none focus:border-blue-500 transition-all"
-                                                                placeholder="10"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-green-500 focus-within:bg-white transition-all">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Valor Declarado (Seguro)</label>
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="text-slate-400 font-medium">$</span>
-                                                    <input
-                                                        type="number"
-                                                        value={props.declaredValue || ''}
-                                                        onChange={(e) => props.setDeclaredValue(Number(e.target.value))}
-                                                        placeholder="1000"
-                                                        className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
-                                                    />
-                                                    <span className="text-slate-400 font-medium">MXN</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Descripción (Opcional)</label>
-                                                <textarea
-                                                    value={props.description}
-                                                    onChange={(e) => props.setDescription(e.target.value)}
-                                                    className="w-full bg-transparent text-lg font-medium text-slate-800 outline-none resize-none h-24 placeholder:text-slate-300"
-                                                    placeholder="Ej. Documentos importantes, Electrónicos..."
-                                                ></textarea>
-                                            </div>
-
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2 space-y-4">
+                                            {/* Admin Info */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                 <div>
-                                                    <CustomSelect
-                                                        label="Tipo de Carga/Paquete"
-                                                        value={props.packageType}
-                                                        onChange={(val) => {
-                                                            props.setPackageType(val);
-                                                            props.setPackageDetails(''); // Reset details on type change
-                                                        }}
-                                                        options={
-                                                            props.loadType === 'package' ? [
-                                                                { value: 'Caja de cartón', label: 'Caja de cartón' },
-                                                                { value: 'Sobre / Documentos', label: 'Sobre / Documentos' },
-                                                                { value: 'Tarima', label: 'Tarima' },
-                                                                { value: 'Bolsa', label: 'Bolsa' },
-                                                                { value: 'Muebles', label: 'Muebles' },
-                                                                { value: 'Otro', label: 'Otro' }
-                                                            ] : [
-                                                                { value: 'Paletizado / Tarimas', label: 'Paletizado / Tarimas' },
-                                                                { value: 'Granel', label: 'Granel (Bulk)' },
-                                                                { value: 'Maquinaria', label: 'Maquinaria' },
-                                                                { value: 'Productos Químicos', label: 'Productos Químicos' },
-                                                                { value: 'Perecederos', label: 'Perecederos / Refrigerados' },
-                                                                { value: 'Muebles / Mudanza', label: 'Muebles / Mudanza' },
-                                                                { value: 'Otro', label: 'Otro' }
-                                                            ]
-                                                        }
-                                                    />
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Folio</label>
+                                                    <input type="text" value={props.folio} onChange={(e) => props.setFolio(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="0000" />
                                                 </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Cliente</label>
+                                                    <input type="text" value={props.clientName} onChange={(e) => props.setClientName(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="Nombre del cliente" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Vendedor</label>
+                                                    <input type="text" value={props.seller} onChange={(e) => props.setSeller(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="Nombre vendedor" />
+                                                </div>
+                                            </div>
 
-                                                {/* Dynamic Sub-options based on type */}
-                                                {props.packageType === 'Caja de cartón' && (
-                                                    <div className="animate-in fade-in slide-in-from-top-2">
-                                                        <CustomSelect
-                                                            label="Tamaño de Caja (Opcional)"
-                                                            value={props.packageDetails}
-                                                            onChange={(val) => {
-                                                                props.setPackageDetails(val);
-                                                                // Set standard dimensions based on selection
-                                                                if (val.includes('Chica')) props.setDimensions({ length: 20, width: 20, height: 20 });
-                                                                if (val.includes('Mediana')) props.setDimensions({ length: 40, width: 30, height: 30 });
-                                                                if (val.includes('Grande')) props.setDimensions({ length: 50, width: 50, height: 50 });
-                                                                if (val.includes('Extra Grande')) props.setDimensions({ length: 70, width: 60, height: 50 });
-                                                            }}
-                                                            placeholder="Selecciona un tamaño estándar..."
-                                                            options={[
-                                                                { value: 'Chica (20x20x20)', label: 'Chica (20x20x20 cm)' },
-                                                                { value: 'Mediana (40x30x30)', label: 'Mediana (40x30x30 cm)' },
-                                                                { value: 'Grande (50x50x50)', label: 'Grande (50x50x50 cm)' },
-                                                                { value: 'Extra Grande (70x60x50)', label: 'Extra Grande (70x60x50 cm)' },
-                                                            ]}
-                                                        />
+                                            {/* Fuel & Efficiency */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                <div className="bg-white p-4 rounded-xl border border-slate-200">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Precio Combustible</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-slate-400 text-sm">$</span>
+                                                        <input type="number" value={props.fuelPrice} onChange={(e) => props.setFuelPrice(Number(e.target.value))} className="w-full font-bold text-slate-700 outline-none" />
                                                     </div>
-                                                )}
+                                                </div>
+                                                <div className="bg-white p-4 rounded-xl border border-slate-200">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Rendimiento (km/L)</label>
+                                                    <input type="number" value={props.fuelEfficiency} onChange={(e) => props.setFuelEfficiency(Number(e.target.value))} className="w-full font-bold text-slate-700 outline-none" />
+                                                </div>
+                                                <div className="bg-white p-4 rounded-xl border border-slate-200">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Días de Viaje</label>
+                                                    <input type="number" value={props.travelDays} onChange={(e) => props.setTravelDays(Number(e.target.value))} className="w-full font-bold text-slate-700 outline-none" />
+                                                </div>
+                                            </div>
 
-                                                {/* Advanced Operational Details Section */}
-                                                <div className="md:col-span-2 space-y-8 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
-                                                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                                        <Info size={18} className="text-blue-500" /> Detalle Operativo (Avanzado)
-                                                    </h3>
-
-                                                    {/* Admin Info */}
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            {/* Personnel */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-4">
+                                                    <h4 className="text-xs font-bold text-slate-500 uppercase border-b pb-2">Chofer</h4>
+                                                    <div className="grid grid-cols-2 gap-2">
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Folio</label>
-                                                            <input type="text" value={props.folio} onChange={(e) => props.setFolio(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="0000" />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Cliente</label>
-                                                            <input type="text" value={props.clientName} onChange={(e) => props.setClientName(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="Nombre del cliente" />
+                                                            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Sueldo Diario</label>
+                                                            <input type="number" value={props.driverSalary} onChange={(e) => props.setDriverSalary(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
                                                         </div>
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Vendedor</label>
-                                                            <input type="text" value={props.seller} onChange={(e) => props.setSeller(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="Nombre vendedor" />
+                                                            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Comisión</label>
+                                                            <input type="number" value={props.driverCommission} onChange={(e) => props.setDriverCommission(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
                                                         </div>
                                                     </div>
-
-                                                    {/* Fuel & Efficiency */}
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                        <div className="bg-white p-4 rounded-xl border border-slate-200">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Precio Combustible</label>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-slate-400 text-sm">$</span>
-                                                                <input type="number" value={props.fuelPrice} onChange={(e) => props.setFuelPrice(Number(e.target.value))} className="w-full font-bold text-slate-700 outline-none" />
-                                                            </div>
+                                                </div>
+                                                <div className="space-y-4">
+                                                    <h4 className="text-xs font-bold text-slate-500 uppercase border-b pb-2">Ayudante</h4>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Sueldo Diario</label>
+                                                            <input type="number" value={props.assistantSalary} onChange={(e) => props.setAssistantSalary(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
                                                         </div>
-                                                        <div className="bg-white p-4 rounded-xl border border-slate-200">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Rendimiento (km/L)</label>
-                                                            <input type="number" value={props.fuelEfficiency} onChange={(e) => props.setFuelEfficiency(Number(e.target.value))} className="w-full font-bold text-slate-700 outline-none" />
-                                                        </div>
-                                                        <div className="bg-white p-4 rounded-xl border border-slate-200">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Días de Viaje</label>
-                                                            <input type="number" value={props.travelDays} onChange={(e) => props.setTravelDays(Number(e.target.value))} className="w-full font-bold text-slate-700 outline-none" />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Personnel */}
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <div className="space-y-4">
-                                                            <h4 className="text-xs font-bold text-slate-500 uppercase border-b pb-2">Chofer</h4>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                <div>
-                                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Sueldo Diario</label>
-                                                                    <input type="number" value={props.driverSalary} onChange={(e) => props.setDriverSalary(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
-                                                                </div>
-                                                                <div>
-                                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Comisión</label>
-                                                                    <input type="number" value={props.driverCommission} onChange={(e) => props.setDriverCommission(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-4">
-                                                            <h4 className="text-xs font-bold text-slate-500 uppercase border-b pb-2">Ayudante</h4>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                <div>
-                                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Sueldo Diario</label>
-                                                                    <input type="number" value={props.assistantSalary} onChange={(e) => props.setAssistantSalary(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
-                                                                </div>
-                                                                <div>
-                                                                    <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Comisión</label>
-                                                                    <input type="number" value={props.assistantCommission} onChange={(e) => props.setAssistantCommission(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Expenses */}
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                        <div className="bg-white p-3 rounded-xl border border-slate-200">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Casetas</label>
-                                                            <input type="number" value={props.tolls} onChange={(e) => props.setTolls(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
-                                                        </div>
-                                                        <div className="bg-white p-3 rounded-xl border border-slate-200">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Comidas</label>
-                                                            <input type="number" value={props.food} onChange={(e) => props.setFood(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
-                                                        </div>
-                                                        <div className="bg-white p-3 rounded-xl border border-slate-200">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Hospedaje</label>
-                                                            <input type="number" value={props.lodging} onChange={(e) => props.setLodging(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
-                                                        </div>
-                                                        <div className="bg-white p-3 rounded-xl border border-slate-200">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Imponderables (%)</label>
-                                                            <input type="number" value={props.unforeseenPercent} onChange={(e) => props.setUnforeseenPercent(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
+                                                        <div>
+                                                            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Comisión</label>
+                                                            <input type="number" value={props.assistantCommission} onChange={(e) => props.setAssistantCommission(Number(e.target.value))} className="w-full bg-white border rounded p-1 text-sm outline-none" />
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            {/* Expenses */}
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                <div className="bg-white p-3 rounded-xl border border-slate-200">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Casetas</label>
+                                                    <input type="number" value={props.tolls} onChange={(e) => props.setTolls(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
+                                                </div>
+                                                <div className="bg-white p-3 rounded-xl border border-slate-200">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Comidas</label>
+                                                    <input type="number" value={props.food} onChange={(e) => props.setFood(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
+                                                </div>
+                                                <div className="bg-white p-3 rounded-xl border border-slate-200">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Hospedaje</label>
+                                                    <input type="number" value={props.lodging} onChange={(e) => props.setLodging(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
+                                                </div>
+                                                <div className="bg-white p-3 rounded-xl border border-slate-200">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Imponderables (%)</label>
+                                                    <input type="number" value={props.unforeseenPercent} onChange={(e) => props.setUnforeseenPercent(Number(e.target.value))} className="w-full text-sm font-bold outline-none" />
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <div className="flex justify-end pt-6">
+                                        <div className="flex justify-between pt-6">
                                             <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    if (props.isStep3Valid) props.setCurrentStep(4);
-                                                }}
+                                                onClick={() => props.setCurrentStep(2)}
+                                                className="px-6 py-4 text-slate-500 font-bold hover:text-slate-800 transition-colors"
+                                            >
+                                                Atrás
+                                            </button>
+                                            <button
                                                 disabled={!props.isStep3Valid}
-                                                className={`group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 active:scale-95
-                                                    ${!props.isStep3Valid ? 'opacity-50 cursor-not-allowed shadow-none hover:translate-y-0' : ''}
+                                                onClick={() => props.setCurrentStep(4)}
+                                                className={`group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3
+                                                    ${!props.isStep3Valid ? 'opacity-50 cursor-not-allowed grayscale' : ''}
                                                 `}
                                             >
-                                                Ver Precios <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
+                                                Ver Precios y Servicio <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
                                             </button>
                                         </div>
                                     </div>
