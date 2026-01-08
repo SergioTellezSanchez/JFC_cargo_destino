@@ -51,6 +51,7 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [suspensionOptions, setSuspensionOptions] = useState<string[]>(['Neumática', 'Mecánica', 'Hidráulica', 'Muelles', 'Bolsas de Aire']);
+    const [fuelPrices, setFuelPrices] = useState<any>({ diesel: 25.00, gasoline91: 26.50, gasoline87: 24.50 });
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -87,6 +88,9 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                 if (settings.suspensionTypes && settings.suspensionTypes.length > 0) {
                     setSuspensionOptions(settings.suspensionTypes);
                 }
+                if (settings.fuelPrices) {
+                    setFuelPrices(settings.fuelPrices);
+                }
             }
         } catch (error) {
             console.error('Error fetching vehicles:', error);
@@ -106,8 +110,27 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
     const handleOpenModal = (mode: 'create' | 'edit', item: any = null) => {
         setModalMode(mode);
         setCurrentItem(item);
+        setEditForm({
+            fuelType: item?.fuelType || 'diesel',
+            fuelEfficiency: item?.fuelEfficiency || 2,
+            costPerKm: item?.costPerKm || 12.5
+        });
         setIsModalOpen(true);
     };
+
+    const [editForm, setEditForm] = useState({
+        fuelType: 'diesel',
+        fuelEfficiency: 2,
+        costPerKm: 12.5
+    });
+
+    useEffect(() => {
+        if (isModalOpen) {
+            const price = fuelPrices[editForm.fuelType] || 25;
+            const calculated = price / (editForm.fuelEfficiency || 1);
+            setEditForm(prev => ({ ...prev, costPerKm: Number(calculated.toFixed(2)) }));
+        }
+    }, [editForm.fuelType, editForm.fuelEfficiency, fuelPrices, isModalOpen]);
 
     const handleOpenAssignModal = (vehicle: any) => {
         setAssignTarget(vehicle);
@@ -500,16 +523,54 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                             <input name="plate" type="text" className="input" defaultValue={currentItem?.plate} required placeholder="ABC-123" />
                         </div>
                         <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Tipo de Combustible</label>
+                            <select
+                                name="fuelType"
+                                className="input"
+                                value={editForm.fuelType}
+                                onChange={(e) => setEditForm({ ...editForm, fuelType: e.target.value as any })}
+                            >
+                                <option value="diesel">Diesel</option>
+                                <option value="gasoline87">Magna (87)</option>
+                                <option value="gasoline91">Premium (91)</option>
+                            </select>
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Rendimiento Combustible (km/L)</label>
+                            <input
+                                name="fuelEfficiency"
+                                type="number"
+                                step="0.1"
+                                className="input"
+                                value={editForm.fuelEfficiency}
+                                onChange={(e) => setEditForm({ ...editForm, fuelEfficiency: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--primary)' }}>Costo por Km (Auto-calculado)</label>
+                            <div style={{ position: 'relative' }}>
+                                <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary)', fontSize: '0.9rem' }}>$</span>
+                                <input
+                                    name="costPerKm"
+                                    type="number"
+                                    step="0.01"
+                                    className="input"
+                                    style={{ paddingLeft: '1.75rem', background: '#f8fafc', fontWeight: 'bold' }}
+                                    value={editForm.costPerKm}
+                                    readOnly
+                                />
+                            </div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>
+                                Basado en ${fuelPrices[editForm.fuelType]?.toFixed(2)}/L
+                            </p>
+                        </div>
+                        <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Capacidad de Carga (kg)</label>
                             <input name="capacity" type="number" className="input" defaultValue={currentItem?.capacity} required />
                         </div>
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Vida Útil (km)</label>
                             <input name="usefulLifeKm" type="number" className="input" defaultValue={currentItem?.usefulLifeKm || 800000} />
-                        </div>
-                        <div className="input-group">
-                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Costo por Km ($)</label>
-                            <input name="costPerKm" type="number" step="0.01" className="input" defaultValue={currentItem?.costPerKm || 18.50} />
                         </div>
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Valor de la Unidad ($)</label>

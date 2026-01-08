@@ -28,7 +28,12 @@ function AdminContent() {
         profitMargin: 1.4,
         suspensionTypes: ['Neumática', 'Muelles', 'Hidráulica'],
         usefulLifeKm: 500000,
-        basePrice: 1000
+        basePrice: 1000,
+        fuelPrices: {
+            diesel: 25.00,
+            gasoline91: 26.50,
+            gasoline87: 24.50
+        }
     });
     const [loading, setLoading] = useState(true);
 
@@ -170,7 +175,12 @@ function AdminContent() {
                                     profitMargin: Number(formData.get('profitMargin')),
                                     usefulLifeKm: Number(formData.get('usefulLifeKm')),
                                     basePrice: Number(formData.get('basePrice')),
-                                    suspensionTypes: formData.getAll('suspensionTypes')
+                                    suspensionTypes: formData.getAll('suspensionTypes'),
+                                    fuelPrices: {
+                                        diesel: Number(formData.get('fuel_diesel')),
+                                        gasoline91: Number(formData.get('fuel_gasoline91')),
+                                        gasoline87: Number(formData.get('fuel_gasoline87'))
+                                    }
                                 };
                                 try {
                                     const res = await authenticatedFetch('/api/settings', {
@@ -205,6 +215,25 @@ function AdminContent() {
                                                 <div style={{ cursor: 'help' }}><HelpCircle size={14} color="var(--secondary)" /></div>
                                             </div>
                                             <input name="basePrice" type="number" className="input" defaultValue={settings.basePrice} required />
+                                        </div>
+                                        <div className="input-group">
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                <label style={{ fontWeight: '600' }}>Precios de Combustible (MXN/L)</label>
+                                            </div>
+                                            <div style={{ padding: '1rem', background: 'var(--card-bg)', borderRadius: '0.5rem', border: '1px solid var(--border)', display: 'grid', gap: '1rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                    <span style={{ fontSize: '0.8rem', width: '80px', color: 'var(--secondary)' }}>Diesel:</span>
+                                                    <input name="fuel_diesel" type="number" step="0.01" className="input" style={{ margin: 0 }} defaultValue={settings.fuelPrices?.diesel} />
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                    <span style={{ fontSize: '0.8rem', width: '80px', color: 'var(--secondary)' }}>Magna (87):</span>
+                                                    <input name="fuel_gasoline87" type="number" step="0.01" className="input" style={{ margin: 0 }} defaultValue={settings.fuelPrices?.gasoline87} />
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                    <span style={{ fontSize: '0.8rem', width: '80px', color: 'var(--secondary)' }}>Premium (91):</span>
+                                                    <input name="fuel_gasoline91" type="number" step="0.01" className="input" style={{ margin: 0 }} defaultValue={settings.fuelPrices?.gasoline91} />
+                                                </div>
+                                            </div>
                                         </div>
                                         <div className="input-group">
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>

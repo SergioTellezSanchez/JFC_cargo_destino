@@ -93,7 +93,25 @@ export default function QuotePage() {
 
     const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-    // Step Validation Logic
+    useEffect(() => {
+        if (settings && selectedVehicleType) {
+            import('@/lib/logistics').then(({ VEHICLE_TYPES }) => {
+                const vehicleDef = VEHICLE_TYPES.find(v => v.id === selectedVehicleType);
+                const dbVehicle = vehicles.find(v => v.id === selectedVehicleType || v.name === selectedVehicleType);
+                const v = vehicleDef || dbVehicle;
+
+                if (v) {
+                    if (v.fuelEfficiency) setFuelEfficiency(v.fuelEfficiency);
+                    if (v.fuelType && settings.fuelPrices) {
+                        const price = (settings.fuelPrices as any)[v.fuelType];
+                        if (price) setFuelPrice(price);
+                    }
+                }
+            });
+        }
+    }, [selectedVehicleType, settings, vehicles]);
+
+    // Update validation logic
     const isPackageDetailsValid = !!weight && Number(weight) > 0 && !!packageType;
     const isVehicleSelectedValid = !!selectedVehicleType;
     const isRouteValid = !!origin && !!destination;
