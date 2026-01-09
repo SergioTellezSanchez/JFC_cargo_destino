@@ -51,6 +51,11 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [suspensionOptions, setSuspensionOptions] = useState<string[]>(['Neumática', 'Mecánica', 'Hidráulica', 'Muelles', 'Bolsas de Aire']);
+    const [useOptions] = useState<string[]>([
+        'Urbano', 'Regional', 'Intermunicipal', 'Internacional', 'Larga Distancia',
+        'Carga General', 'Perecederos', 'Refrigerado', 'Químicos', 'Maquinaria',
+        'Última milla', 'E-commerce', 'Paquetería', 'Pesado'
+    ]);
     const [fuelPrices, setFuelPrices] = useState<any>({ diesel: 25.00, gasoline91: 26.50, gasoline87: 24.50 });
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -475,7 +480,7 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                         delete payload['dimensions.h'];
 
                         // Handle uses
-                        payload.uses = payload.uses?.split(',').map((u: string) => u.trim()).filter(Boolean) || [];
+                        payload.uses = formData.getAll('uses') as string[];
 
                         try {
                             const endpoint = modalMode === 'create' ? '/api/vehicles' : `/api/vehicles/${currentItem.id}`;
@@ -568,8 +573,15 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                             </div>
                         </div>
                         <div className="input-group" style={{ gridColumn: 'span 2' }}>
-                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Usos / Etiquetas (Separados por coma)</label>
-                            <input name="uses" type="text" className="input" defaultValue={currentItem?.uses?.join(', ')} placeholder="Ej: Urbano, Refrigerado, Pesado..." />
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Usos / Etiquetas</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', marginTop: '0.5rem', padding: '0.75rem', background: 'var(--card-bg)', borderRadius: '0.6rem', border: '1px solid var(--border)' }}>
+                                {useOptions.map(use => (
+                                    <label key={use} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                                        <input type="checkbox" name="uses" value={use} defaultChecked={currentItem?.uses?.includes(use)} />
+                                        {use}
+                                    </label>
+                                ))}
+                            </div>
                         </div>
                         <div className="input-group" style={{ gridColumn: 'span 2' }}>
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Descripción</label>
