@@ -9,6 +9,7 @@ import { authenticatedFetch } from '@/lib/api';
 import { generateShippingGuide } from '@/lib/pdfGenerator';
 import { calculateLogisticsCosts, isVehicleSuitable, Vehicle, Package as PackageType } from '@/lib/logistics';
 import Modal from '@/components/Modal';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 
 interface PackageManagementProps {
     isAdminView?: boolean;
@@ -153,14 +154,6 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
         } catch (err) { console.error(err); }
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount);
-    };
 
     const toggleRow = (pkg: any) => {
         if (expandedRow === pkg.id) {

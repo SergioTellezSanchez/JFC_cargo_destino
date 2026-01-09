@@ -31,6 +31,26 @@ export interface Vehicle {
     description?: string;
     uses?: string[];
     dimensions?: { l: number; w: number; h: number };
+    // New fields
+    year?: number;
+    vehicleTypes?: string[]; // Refrigerada, Caja Seca, Plataforma, Cama Baja, Pirámide
+    depreciationPerKm?: number;
+    status?: 'active' | 'maintenance' | 'inactive';
+}
+
+export interface Driver {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    license?: string;
+    company?: string;
+    photoUrl?: string;
+    age?: number;
+    dailySalary?: number;
+    vehicleId?: string | string[];
+    status?: 'AVAILABLE' | 'BUSY' | 'OFF';
+    createdBy?: string;
 }
 
 export interface Package {
@@ -40,8 +60,17 @@ export interface Package {
     distanceKm: number;
     type?: string;
     packageType?: string;
-    loadType?: string;
-    // New detailed fields
+    loadType?: 'FTL' | 'PTL' | 'LTL';
+    cargoType?: 'heavy' | 'hazard' | 'packages';
+
+    // New Logistics options
+    requiresLoadingSupport?: boolean;
+    requiresUnloadingSupport?: boolean;
+    isStackable?: boolean;
+    requiresStretchWrap?: boolean;
+    insuranceSelection?: 'jfc' | 'own';
+
+    // New detailed fields for breakdown
     fuelPrice?: number;
     fuelEfficiency?: number;
     tolls?: number;
@@ -54,9 +83,13 @@ export interface Package {
     travelDays?: number;
     unforeseenPercent?: number;
     otherExpenses?: number;
+
+    // CRM/Folio data
     seller?: string;
     clientName?: string;
     folio?: string;
+    origin?: string;
+    destination?: string;
 }
 
 export const VEHICLE_CATEGORIES = {
@@ -138,7 +171,10 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle | Vehicle
 
     // Tolls and others
     const tolls = pkg.tolls || 0;
-    const otherExpenses = pkg.otherExpenses || 0;
+
+    // Dynamic Other Expenses: Default to 1.5 MXN/km if not provided as a lump sum
+    const otherExpensesPerKm = 1.65; // Proposed initial value
+    const otherExpenses = pkg.otherExpenses || (otherExpensesPerKm * distance);
 
     // Operational Cost (Sum of all direct costs)
     const totalOperationalCost =
@@ -168,12 +204,14 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle | Vehicle
     const priceBeforeInsurance = (costWithUnforeseen * margin * serviceMult);
 
     // Insurance
-    const insurance = (pkg.declaredValue || 0) * insuranceRate;
+    const insurance = pkg.insuranceSelection === 'own' ? 0 : (pkg.declaredValue || 0) * insuranceRate;
 
     // Total final
     const priceToClient = priceBeforeInsurance + insurance;
     const iva = priceToClient * 0.16;
     const finalPriceWithIva = priceToClient + iva;
+
+    const operationalCostPerKm = distance > 0 ? (costWithUnforeseen / distance) : 0;
 
     return {
         fuelCost,
@@ -187,7 +225,8 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle | Vehicle
         depreciation: totalDepreciation,
         otherExpenses,
         unforeseen: unforeseenAmount,
-        operationalCost: totalOperationalCost,
+        operationalCost: costWithUnforeseen,
+        operationalCostPerKm,
         insurance,
         subtotal: priceToClient,
         iva,

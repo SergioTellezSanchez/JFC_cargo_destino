@@ -8,6 +8,7 @@ import { useUser } from '@/lib/UserContext';
 import { authenticatedFetch } from '@/lib/api';
 import Modal from '@/components/Modal';
 import { VEHICLE_CATEGORIES } from '@/lib/logistics';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 
 interface VehicleManagementProps {
     isAdminView?: boolean;
@@ -57,6 +58,7 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
         'Última milla', 'E-commerce', 'Paquetería', 'Pesado'
     ]);
     const [fuelPrices, setFuelPrices] = useState<any>({ diesel: 25.00, gasoline91: 26.50, gasoline87: 24.50 });
+    const [vehicleTypeOptions] = useState<string[]>(['Refrigerada', 'Caja Seca', 'Plataforma', 'Cama Baja', 'Pirámide']);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -167,14 +169,6 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
         }
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount);
-    };
 
     const handleSelectAll = () => {
         if (selectedIds.length === filteredVehicles.length) {
@@ -341,7 +335,7 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                                                     </div>
                                                 </td>
                                                 <td><span className="badge badge-secondary">{v.plate || 'S/P'}</span></td>
-                                                <td style={{ fontWeight: '600', color: 'var(--primary)' }}>{weightCap.toLocaleString()} kg</td>
+                                                <td style={{ fontWeight: '600', color: 'var(--primary)' }}>{formatNumber(weightCap)} kg</td>
                                                 <td onClick={(e) => { e.stopPropagation(); handleOpenAssignModal(v); }}>
                                                     <button className="btn btn-secondary" style={{ fontSize: '0.85rem', padding: '0.4rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                         <Users size={14} />
@@ -362,9 +356,12 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                                                             <div className="card" style={{ padding: '1.25rem' }}>
                                                                 <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Ficha Técnica</h4>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
-                                                                    <div><strong>Vida Útil:</strong> {v.usefulLifeKm?.toLocaleString() || '800,000'} km</div>
+                                                                    <div><strong>Vida Útil:</strong> {v.usefulLifeKm ? formatNumber(v.usefulLifeKm) : '800,000'} km</div>
                                                                     <div><strong>Valor ($):</strong> {formatCurrency(Number(v.value) || 2500000)}</div>
+                                                                    <div><strong>Año:</strong> {v.year || 'N/A'}</div>
+                                                                    <div><strong>Tipos:</strong> {v.vehicleTypes?.join(', ') || 'General'}</div>
                                                                     <div><strong>Suspensión:</strong> {v.suspensionType || 'Mecánica'}</div>
+                                                                    <div><strong>Depreciación/km:</strong> {formatCurrency(v.depreciationPerKm || 0)}</div>
                                                                 </div>
                                                             </div>
                                                             <div className="card" style={{ padding: '1.25rem' }}>
@@ -481,6 +478,13 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
 
                         // Handle uses
                         payload.uses = formData.getAll('uses') as string[];
+                        payload.vehicleTypes = formData.getAll('vehicleTypes') as string[];
+                        payload.year = Number(payload.year);
+
+                        // Automatic depreciation calculation
+                        if (payload.value && payload.usefulLifeKm) {
+                            payload.depreciationPerKm = payload.value / payload.usefulLifeKm;
+                        }
 
                         try {
                             const endpoint = modalMode === 'create' ? '/api/vehicles' : `/api/vehicles/${currentItem.id}`;
@@ -514,6 +518,10 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Placa</label>
                             <input name="plate" type="text" className="input" defaultValue={currentItem?.plate} required placeholder="ABC-123" />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Año (Modelo)</label>
+                            <input name="year" type="number" className="input" defaultValue={currentItem?.year || new Date().getFullYear()} required />
                         </div>
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Tipo de Combustible</label>
@@ -587,6 +595,18 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Descripción</label>
                             <textarea name="description" className="input" style={{ height: '80px', resize: 'none' }} defaultValue={currentItem?.description} placeholder="Descripción detallada de la unidad..." />
                         </div>
+                        <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Tipos de Unidad</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', marginTop: '0.5rem', padding: '0.75rem', background: 'var(--card-bg)', borderRadius: '0.6rem', border: '1px solid var(--border)' }}>
+                                {vehicleTypeOptions.map(type => (
+                                    <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                                        <input type="checkbox" name="vehicleTypes" value={type} defaultChecked={currentItem?.vehicleTypes?.includes(type)} />
+                                        {type}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
                         <div className="input-group" style={{ gridColumn: 'span 2' }}>
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Tipos de Suspensión</label>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem', marginTop: '0.5rem', padding: '0.75rem', background: 'var(--card-bg)', borderRadius: '0.6rem', border: '1px solid var(--border)' }}>

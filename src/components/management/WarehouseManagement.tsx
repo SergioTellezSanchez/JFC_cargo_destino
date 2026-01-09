@@ -7,6 +7,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useUser } from '@/lib/UserContext';
 import { authenticatedFetch } from '@/lib/api';
 import Modal from '@/components/Modal';
+import { formatNumber } from '@/lib/utils';
 
 interface WarehouseManagementProps {
     isAdminView?: boolean;
@@ -148,8 +149,8 @@ export default function WarehouseManagement({ isAdminView = false }: WarehouseMa
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td style={{ fontWeight: '600' }}>{capacity.toLocaleString()} kg</td>
-                                                <td style={{ fontWeight: '600', color: 'var(--secondary)' }}>{volCapacity.toLocaleString()} m³</td>
+                                                <td style={{ fontWeight: '600' }}>{formatNumber(capacity)} kg</td>
+                                                <td style={{ fontWeight: '600', color: 'var(--secondary)' }}>{formatNumber(volCapacity)} m³</td>
                                                 <td>
                                                     <div style={{ width: '100px', height: '8px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden', marginTop: '4px' }}>
                                                         <div style={{ width: `${usagePercent}%`, height: '100%', background: usagePercent > 90 ? 'var(--error)' : 'var(--success)' }}></div>
@@ -179,9 +180,9 @@ export default function WarehouseManagement({ isAdminView = false }: WarehouseMa
                                                                 <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Capacidad Detallada</h4>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                        <Box size={14} className="text-secondary" /> {volCapacity.toLocaleString()} m³ de almacenamiento
+                                                                        <Box size={14} className="text-secondary" /> {formatNumber(volCapacity)} m³ de almacenamiento
                                                                     </div>
-                                                                    <div><strong>Carga Útil:</strong> {capacity.toLocaleString()} kg</div>
+                                                                    <div><strong>Carga Útil:</strong> {formatNumber(capacity)} kg</div>
                                                                 </div>
                                                             </div>
                                                             <div className="card" style={{ padding: '1rem' }}>

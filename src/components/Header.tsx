@@ -61,23 +61,28 @@ export default function Header() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
 
-                <button
-                    className="btn-ghost"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.5rem',
-                        borderRadius: '0.5rem',
-                        border: '1px solid var(--border)',
-                        background: 'transparent',
-                        cursor: 'pointer'
-                    }}
-                    onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
-                >
-                    <Globe size={18} />
-                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{language.toUpperCase()}</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem', borderRadius: '0.6rem', border: '1px solid var(--border)', background: 'var(--card-bg)' }}>
+                    <Globe size={18} color="var(--primary)" />
+                    <select
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value as any)}
+                        style={{
+                            border: 'none',
+                            background: 'transparent',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            padding: '0.1rem 0.3rem'
+                        }}
+                    >
+                        <option value="es">ES</option>
+                        <option value="en">EN</option>
+                        <option value="zh">ZH</option>
+                        <option value="de">DE</option>
+                        <option value="fr">FR</option>
+                    </select>
+                </div>
 
                 <button
                     className="btn btn-secondary"

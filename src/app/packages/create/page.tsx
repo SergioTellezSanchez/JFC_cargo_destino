@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authenticatedFetch } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
 
 export default function CreatePackagePage() {
     const router = useRouter();
@@ -219,7 +220,7 @@ export default function CreatePackagePage() {
                         {formData.insurance === 'true' && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                                 <span>Insurance Premium:</span>
-                                <span>${(Number(formData.declaredValue) * 0.01).toFixed(2)}</span>
+                                <span>{formatCurrency(Number(formData.declaredValue) * 0.01)}</span>
                             </div>
                         )}
                     </div>

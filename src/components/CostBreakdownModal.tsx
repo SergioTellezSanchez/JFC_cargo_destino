@@ -1,5 +1,5 @@
 import Modal from '@/components/Modal';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 import { Calculator, MapPin, Package, Zap, ArrowRight, Truck, ShieldCheck } from 'lucide-react';
 
 interface QuoteDetails {
@@ -22,6 +22,7 @@ interface QuoteDetails {
     capacityOccupiedPercent: number;
     utility: number;
     utilityPercent: number;
+    operationalCostPerKm?: number;
 }
 
 interface CostBreakdownModalProps {
@@ -67,7 +68,7 @@ export default function CostBreakdownModal({
 
                         <div className="flex justify-between items-center">
                             <span className="text-slate-500 flex items-center gap-2">
-                                <Zap size={14} className="text-blue-400" /> Combustible ({distanceKm.toFixed(1)} km)
+                                <Zap size={14} className="text-blue-400" /> Combustible ({formatNumber(distanceKm)} km)
                             </span>
                             <span className="font-medium text-slate-900">{formatCurrency(details.fuelCost)}</span>
                         </div>
@@ -136,6 +137,11 @@ export default function CostBreakdownModal({
                         <div className="flex flex-col">
                             <span className="text-slate-400 text-[10px] uppercase font-bold tracking-tighter">Total a Pagar</span>
                             <span className="text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(totalPrice)}</span>
+                            {details.operationalCostPerKm && (
+                                <span className="text-[10px] text-blue-600 font-bold mt-1">
+                                    Costo Op: {formatCurrency(details.operationalCostPerKm)}/km
+                                </span>
+                            )}
                         </div>
                         <div className="text-right">
                             <div className="text-[10px] font-bold text-slate-400 uppercase">Capacidad Ocupada</div>

@@ -7,6 +7,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useUser } from '@/lib/UserContext';
 import { authenticatedFetch } from '@/lib/api';
 import Modal from '@/components/Modal';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 
 interface DriverManagementProps {
     isAdminView?: boolean;
@@ -252,6 +253,7 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                                     <th>Nombre</th>
                                     <th>Empresa</th>
                                     <th>Teléfono</th>
+                                    <th>Edad</th>
                                     <th>Licencia</th>
                                     <th>Vehículo(s)</th>
                                     <th>Acciones</th>
@@ -307,6 +309,7 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                                                     </div>
                                                 </td>
                                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Phone size={14} /> {d.phone || 'No registrado'}</div></td>
+                                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}>{d.age ? `${d.age} años` : 'N/A'}</div></td>
                                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CreditCard size={14} /> {d.licenseNumber || d.license || 'Pendiente'}</div></td>
                                                 <td onClick={(e) => { e.stopPropagation(); handleOpenAssignModal(d); }}>
                                                     <button className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -330,6 +333,8 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
                                                                     <div><strong>Email:</strong> {d.email || 'N/A'}</div>
                                                                     <div><strong>Teléfono:</strong> {d.phone || 'N/A'}</div>
+                                                                    <div><strong>Edad:</strong> {d.age || 'N/A'} años</div>
+                                                                    <div><strong>Sueldo Diario:</strong> {d.dailySalary ? formatCurrency(d.dailySalary) : 'No definido'}</div>
                                                                     <div><strong>Empresa:</strong> {displayCompany}</div>
                                                                 </div>
                                                             </div>
@@ -469,6 +474,14 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Teléfono</label>
                             <input name="phone" type="text" className="input" defaultValue={currentItem?.phone} required placeholder="+52 55 ..." />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Edad</label>
+                            <input name="age" type="number" className="input" defaultValue={currentItem?.age} placeholder="Ej. 35" />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Sueldo Diario ($)</label>
+                            <input name="dailySalary" type="number" className="input" defaultValue={currentItem?.dailySalary} placeholder="Ej. 800" />
                         </div>
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Número de Licencia</label>
