@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const requesterDoc = await adminDb.collection('users').doc(auth.uid).get();
     const requesterRole = requesterDoc.data()?.role;
     const userEmail = auth.email?.toLowerCase();
-    const isHardcodedAdmin = userEmail === 'sergiotellezsanchez@gmail.com' || userEmail === 'contacto@jfccargodestino.com';
+    const isHardcodedAdmin = userEmail === 'sergiotellezsanchez@gmail.com' || userEmail === 'contacto@jfccargodestino.com' || userEmail === 'sergiotellezsanchez.us@gmail.com';
 
     if (requesterRole !== 'ADMIN_MASTER' && requesterRole !== 'ADMIN_JR' && !isHardcodedAdmin) {
         return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
@@ -40,7 +40,7 @@ export async function PUT(request: Request) {
     const requesterDoc = await adminDb.collection('users').doc(auth.uid).get();
     const requesterRole = requesterDoc.data()?.role;
     const userEmail = auth.email?.toLowerCase();
-    const isHardcodedAdmin = userEmail === 'sergiotellezsanchez@gmail.com' || userEmail === 'contacto@jfccargodestino.com';
+    const isHardcodedAdmin = userEmail === 'sergiotellezsanchez@gmail.com' || userEmail === 'contacto@jfccargodestino.com' || userEmail === 'sergiotellezsanchez.us@gmail.com';
 
     if (requesterRole !== 'ADMIN_MASTER' && !isHardcodedAdmin) {
         return NextResponse.json({ error: 'Only Admin Master can manage roles' }, { status: 403 });

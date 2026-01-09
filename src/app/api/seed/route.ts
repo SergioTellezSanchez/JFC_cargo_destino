@@ -87,7 +87,7 @@ export async function POST(request: Request) {
         });
 
         // 4. Ensure Admin User Roles (Search by email)
-        const admins = ['sergiotellezsanchez@gmail.com', 'contacto@jfccargodestino.com'];
+        const admins = ['sergiotellezsanchez@gmail.com', 'contacto@jfccargodestino.com', 'sergiotellezsanchez.us@gmail.com'];
         const usersRef = adminDb.collection('users');
 
         for (const email of admins) {

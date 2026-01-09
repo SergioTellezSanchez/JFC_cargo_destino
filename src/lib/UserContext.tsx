@@ -42,7 +42,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                     role = userSnap.data().role as UserRole;
                 } else {
                     // Check if admin email
-                    if (firebaseUser.email === 'sergiotellezsanchez@gmail.com' || firebaseUser.email === 'contacto@jfccargodestino.com') {
+                    if (firebaseUser.email === 'sergiotellezsanchez@gmail.com' ||
+                        firebaseUser.email === 'contacto@jfccargodestino.com' ||
+                        firebaseUser.email === 'sergiotellezsanchez.us@gmail.com') {
                         role = 'ADMIN_MASTER';
                     }
                     // Create user document
@@ -92,7 +94,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         'sergiotellezsanchez@gmail.com',
         'contacto@jfccargodestino.com',
         'jairblanco300@gmail.com',
-        'sergio.tellez@live.com'
+        'sergio.tellez@live.com',
+        'sergiotellezsanchez.us@gmail.com'
     ];
     const isAdmin = !!(user?.role === 'ADMIN_MASTER' || user?.role === 'ADMIN_JR' || (userEmail && adminEmails.includes(userEmail)));
 

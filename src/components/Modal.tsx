@@ -29,18 +29,21 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = '60
     return (
         <div style={{
             position: 'fixed',
-            top: 0,
-            left: 0,
+            top: '0 !important',
+            left: '0 !important',
             right: 0,
             bottom: 0,
+            inset: 0,
             width: '100vw',
             height: '100vh',
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
-            backdropFilter: 'blur(8px)'
+            zIndex: 99999,
+            backdropFilter: 'blur(10px)',
+            margin: 0,
+            padding: 0
         }} onClick={onClose}>
             <div
                 className="card"
