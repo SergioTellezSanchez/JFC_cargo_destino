@@ -180,7 +180,14 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
     const getRecommendation = (pkg: any) => {
         const suitableVehicles = vehicles.filter(v => isVehicleSuitable(v, pkg as PackageType));
         if (suitableVehicles.length === 0) return { message: 'No hay vehículos con capacidad suficiente.', status: 'error' };
-        const bestVehicle = suitableVehicles.sort((a, b) => (a.costPerKm || 0) - (b.costPerKm || 0))[0];
+
+        // Sort by calculated operational cost for this specific package
+        const bestVehicle = suitableVehicles.sort((a, b) => {
+            const costA = calculateLogisticsCosts(pkg as PackageType, a, settings).operationalCost;
+            const costB = calculateLogisticsCosts(pkg as PackageType, b, settings).operationalCost;
+            return costA - costB;
+        })[0];
+
         return { message: `Sugerencia: ${bestVehicle.name} (${bestVehicle.plate || 'S/P'})`, status: 'success', vehicle: bestVehicle };
     };
 

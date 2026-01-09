@@ -153,7 +153,6 @@ export default function QuotePage() {
                 const dbVehicle = vehicles.find(v => v.id === selectedVehicleType || v.name === selectedVehicleType);
 
                 const vehicleToUse = vehicleDef || dbVehicle || {
-                    costPerKm: 18.5,
                     value: 2500000,
                     usefulLifeKm: 800000,
                     suspensionType: 'Neumática',

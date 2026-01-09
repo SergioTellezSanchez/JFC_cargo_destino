@@ -112,25 +112,15 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
         setCurrentItem(item);
         setEditForm({
             fuelType: item?.fuelType || 'diesel',
-            fuelEfficiency: item?.fuelEfficiency || 2,
-            costPerKm: item?.costPerKm || 12.5
+            fuelEfficiency: item?.fuelEfficiency || 2
         });
         setIsModalOpen(true);
     };
 
     const [editForm, setEditForm] = useState({
         fuelType: 'diesel',
-        fuelEfficiency: 2,
-        costPerKm: 12.5
+        fuelEfficiency: 2
     });
-
-    useEffect(() => {
-        if (isModalOpen) {
-            const price = fuelPrices[editForm.fuelType] || 25;
-            const calculated = price / (editForm.fuelEfficiency || 1);
-            setEditForm(prev => ({ ...prev, costPerKm: Number(calculated.toFixed(2)) }));
-        }
-    }, [editForm.fuelType, editForm.fuelEfficiency, fuelPrices, isModalOpen]);
 
     const handleOpenAssignModal = (vehicle: any) => {
         setAssignTarget(vehicle);
@@ -368,8 +358,7 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                                                                 <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', marginBottom: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Ficha Técnica</h4>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
                                                                     <div><strong>Vida Útil:</strong> {v.usefulLifeKm?.toLocaleString() || '800,000'} km</div>
-                                                                    <div><strong>Costo/km:</strong> {formatCurrency(Number(v.costPerKm) || 18.50)}</div>
-                                                                    <div><strong>Valor:</strong> {formatCurrency(Number(v.value) || 2500000)}</div>
+                                                                    <div><strong>Valor ($):</strong> {formatCurrency(Number(v.value) || 2500000)}</div>
                                                                     <div><strong>Suspensión:</strong> {v.suspensionType || 'Mecánica'}</div>
                                                                 </div>
                                                             </div>
@@ -472,7 +461,6 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                         payload.capacity = Number(payload.capacity);
                         payload.volumetricCapacity = Number(payload.volumetricCapacity);
                         payload.usefulLifeKm = Number(payload.usefulLifeKm);
-                        payload.costPerKm = Number(payload.costPerKm);
                         payload.value = Number(payload.value);
                         payload.fuelEfficiency = Number(payload.fuelEfficiency);
 
@@ -544,25 +532,8 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                                 className="input"
                                 value={editForm.fuelEfficiency}
                                 onChange={(e) => setEditForm({ ...editForm, fuelEfficiency: Number(e.target.value) })}
+                                required
                             />
-                        </div>
-                        <div className="input-group">
-                            <label style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--primary)' }}>Costo por Km (Auto-calculado)</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary)', fontSize: '0.9rem' }}>$</span>
-                                <input
-                                    name="costPerKm"
-                                    type="number"
-                                    step="0.01"
-                                    className="input"
-                                    style={{ paddingLeft: '1.75rem', background: '#f8fafc', fontWeight: 'bold' }}
-                                    value={editForm.costPerKm}
-                                    readOnly
-                                />
-                            </div>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>
-                                Basado en ${fuelPrices[editForm.fuelType]?.toFixed(2)}/L
-                            </p>
                         </div>
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Capacidad de Carga (kg)</label>
@@ -587,10 +558,6 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Capacidad Volumétrica (m³)</label>
                             <input name="volumetricCapacity" type="number" className="input" defaultValue={currentItem?.volumetricCapacity || 0} />
-                        </div>
-                        <div className="input-group">
-                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Rendimiento Combustible (km/L)</label>
-                            <input name="fuelEfficiency" type="number" step="0.1" className="input" defaultValue={currentItem?.fuelEfficiency || 2} />
                         </div>
                         <div className="input-group" style={{ gridColumn: 'span 2' }}>
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Dimensiones (Largo x Ancho x Alto en metros)</label>
