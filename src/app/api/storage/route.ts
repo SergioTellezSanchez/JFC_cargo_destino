@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const auth = await verifyAuth(request);
     if (!auth) return unauthorized();
     try {
-        const snapshot = await adminDb.collection('storage_locations').get();
+        const snapshot = await adminDb.collection('warehouses').get();
         const locations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return NextResponse.json(locations);
     } catch (error) {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     if (!auth) return unauthorized();
     try {
         const body = await request.json();
-        const docRef = await adminDb.collection('storage_locations').add({
+        const docRef = await adminDb.collection('warehouses').add({
             ...body,
             createdAt: new Date().toISOString()
         });

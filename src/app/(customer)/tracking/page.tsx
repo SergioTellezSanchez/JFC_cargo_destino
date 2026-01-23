@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Package, MapPin, Warehouse, AlertCircle, CheckCircle, Clock, Truck, Box, FileText, Download } from 'lucide-react';
 import { APIProvider, Map, Marker } from '@vis.gl/react-google-maps';
 import { generateShippingGuide } from '@/lib/pdfGenerator';
@@ -14,16 +14,25 @@ export default function TrackingPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!trackingId) return;
+    // Auto-search from URL param
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const urlId = params.get('trackingId');
+        if (urlId) {
+            setTrackingId(urlId);
+            // Trigger search immediately if ID exists
+            // We need to move the fetch logic to a reusable function or trigger it here
+            fetchPackage(urlId);
+        }
+    }, []);
 
+    const fetchPackage = async (id: string) => {
         setLoading(true);
         setError('');
         setPackageData(null);
 
         try {
-            const response = await fetch(`/api/packages?trackingId=${trackingId}`);
+            const response = await fetch(`/api/packages?trackingId=${id}`);
             if (response.ok) {
                 const data = await response.json();
                 if (data && data.length > 0) {
@@ -39,6 +48,13 @@ export default function TrackingPage() {
         } finally {
             setLoading(false);
         }
+    };
+
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!trackingId) return;
+        fetchPackage(trackingId);
     };
 
     const requestStorage = async () => {

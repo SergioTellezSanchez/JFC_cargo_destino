@@ -50,16 +50,20 @@ export async function POST(request: Request) {
             createdBy: payload.createdBy || null
         };
 
+        console.log('Attempting to create driver with payload:', JSON.stringify(newDriver, null, 2));
         const docRef = await adminDb.collection('users').add(newDriver);
+        console.log('Driver created with ID:', docRef.id);
         const id = docRef.id;
 
         if (photoFile) {
+            console.log('Processing photo upload for driver:', id);
             const buffer = Buffer.from(await (photoFile as File).arrayBuffer());
             const fileRef = adminStorage.bucket().file(`drivers/${id}_${Date.now()}.jpg`);
             await fileRef.save(buffer, { contentType: 'image/jpeg' });
             const [url] = await fileRef.getSignedUrl({ action: 'read', expires: '03-01-2500' });
             await docRef.update({ photoUrl: url });
             newDriver.photoUrl = url;
+            console.log('Photo uploaded and URL updated:', url);
         }
 
         return NextResponse.json({ id, ...newDriver });

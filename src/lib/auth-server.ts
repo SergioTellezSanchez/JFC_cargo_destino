@@ -1,22 +1,32 @@
 import { adminAuth } from './firebaseAdmin';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 export async function verifyAuth(request: Request) {
     const authHeader = request.headers.get('Authorization');
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('__session')?.value;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return null;
+    let token = '';
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split('Bearer ')[1];
+        try {
+            return await adminAuth.verifyIdToken(token);
+        } catch (error) {
+            console.warn('Bearer token invalid, checking cookie...');
+        }
     }
 
-    const token = authHeader.split('Bearer ')[1];
-
-    try {
-        const decodedToken = await adminAuth.verifyIdToken(token);
-        return decodedToken;
-    } catch (error) {
-        console.error('Error verifying auth token:', error);
-        return null;
+    if (sessionCookie) {
+        try {
+            return await adminAuth.verifySessionCookie(sessionCookie, true);
+        } catch (error) {
+            console.error('Session cookie invalid', error);
+        }
     }
+
+    return null;
 }
 
 export function unauthorized() {

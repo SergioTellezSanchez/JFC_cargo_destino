@@ -2,10 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider, db } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-
-type UserRole = 'ADMIN_MASTER' | 'ADMIN_JR' | 'DRIVER' | 'USER';
+import { useRouter } from 'next/navigation';
+import { UserRole } from './firebase/schema';
 
 interface UserData {
     uid: string;
@@ -28,42 +28,42 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<UserData | null>(null);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
-                // Check if user exists in Firestore to get role
-                const userRef = doc(db, 'users', firebaseUser.uid);
-                const userSnap = await getDoc(userRef);
+                // We rely on the session cookie for server-side auth, 
+                // but we keep client-side state for UI responsiveness.
+                // Fetch basic role from Firestore to update UI immediately
+                try {
+                    const userRef = doc(db, 'users', firebaseUser.uid);
+                    const userSnap = await getDoc(userRef);
+                    let role = UserRole.CUSTOMER; // Default
 
-                let role: UserRole = 'USER';
-
-                if (userSnap.exists()) {
-                    role = userSnap.data().role as UserRole;
-                } else {
-                    // Check if admin email
-                    if (firebaseUser.email === 'sergiotellezsanchez@gmail.com' ||
-                        firebaseUser.email === 'contacto@jfccargodestino.com' ||
-                        firebaseUser.email === 'sergiotellezsanchez.us@gmail.com') {
-                        role = 'ADMIN_MASTER';
+                    if (userSnap.exists()) {
+                        role = userSnap.data().role as UserRole;
+                    } else {
+                        // Create user document if it doesn't exist
+                        await setDoc(userRef, {
+                            email: firebaseUser.email,
+                            name: firebaseUser.displayName,
+                            photoURL: firebaseUser.photoURL,
+                            role,
+                            createdAt: new Date()
+                        });
                     }
-                    // Create user document
-                    await setDoc(userRef, {
+
+                    setUser({
+                        uid: firebaseUser.uid,
                         email: firebaseUser.email,
                         name: firebaseUser.displayName,
                         photoURL: firebaseUser.photoURL,
-                        role,
-                        createdAt: new Date()
+                        role
                     });
+                } catch (error) {
+                    console.error("Error fetching user role:", error);
                 }
-
-                setUser({
-                    uid: firebaseUser.uid,
-                    email: firebaseUser.email,
-                    name: firebaseUser.displayName,
-                    photoURL: firebaseUser.photoURL,
-                    role
-                });
             } else {
                 setUser(null);
             }
@@ -75,7 +75,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const loginWithGoogle = async () => {
         try {
-            await signInWithPopup(auth, googleProvider);
+            const result = await signInWithPopup(auth, googleProvider);
+            const idToken = await result.user.getIdToken();
+
+            // Create Server Session
+            const res = await fetch('/api/auth/session', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${idToken}` }
+            });
+
+            if (res.ok) {
+                // Refresh to let Middleware/Server Components know about the cookie
+                router.refresh();
+            } else {
+                console.error("Failed to create session");
+            }
         } catch (error) {
             console.error("Error logging in with Google", error);
         }
@@ -83,21 +97,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const logout = async () => {
         try {
+            await fetch('/api/auth/logout', { method: 'POST' });
             await signOut(auth);
+            router.refresh();
         } catch (error) {
             console.error("Error logging out", error);
         }
     };
 
-    const userEmail = user?.email?.toLowerCase();
-    const adminEmails = [
-        'sergiotellezsanchez@gmail.com',
-        'contacto@jfccargodestino.com',
-        'jairblanco300@gmail.com',
-        'sergio.tellez@live.com',
-        'sergiotellezsanchez.us@gmail.com'
-    ];
-    const isAdmin = !!(user?.role === 'ADMIN_MASTER' || user?.role === 'ADMIN_JR' || (userEmail && adminEmails.includes(userEmail)));
+    const isAdmin = !!(user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.WAREHOUSE_MANAGER || user?.role === UserRole.CARRIER_ADMIN);
 
     return (
         <UserContext.Provider value={{ user, loading, loginWithGoogle, logout, isAdmin }}>

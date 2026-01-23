@@ -41,6 +41,34 @@ export async function PUT(
             updateData.photoUrl = url;
         }
 
+        // --- Bidirectional Assignment Sync ---
+        // If vehicleId is changing, update the related vehicles
+        if (updateData.vehicleId !== undefined) {
+            const driverDoc = await adminDb.collection('users').doc(id).get();
+            const currentDriverData = driverDoc.data();
+            const oldVehicleId = currentDriverData?.vehicleId;
+            const newVehicleId = updateData.vehicleId;
+
+            if (oldVehicleId !== newVehicleId) {
+                console.log(`Syncing vehicle assignment for driver ${id}: ${oldVehicleId} -> ${newVehicleId}`);
+
+                // 1. Remove driver from old vehicle
+                if (oldVehicleId && typeof oldVehicleId === 'string') {
+                    await adminDb.collection('vehicles').doc(oldVehicleId).update({
+                        currentDriverId: null
+                    });
+                }
+
+                // 2. Add driver to new vehicle
+                if (newVehicleId && typeof newVehicleId === 'string') {
+                    await adminDb.collection('vehicles').doc(newVehicleId).update({
+                        currentDriverId: id
+                    });
+                }
+            }
+        }
+        // -------------------------------------
+
         await adminDb.collection('users').doc(id).update({
             ...updateData,
             updatedAt: new Date().toISOString()

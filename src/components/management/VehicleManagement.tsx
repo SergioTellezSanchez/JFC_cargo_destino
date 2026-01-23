@@ -7,7 +7,8 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useUser } from '@/lib/UserContext';
 import { authenticatedFetch } from '@/lib/api';
 import Modal from '@/components/Modal';
-import { VEHICLE_CATEGORIES } from '@/lib/logistics';
+import Spinner from '@/components/Spinner';
+import { VEHICLE_CATEGORIES } from '@/lib/calculations';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 
 interface VehicleManagementProps {
@@ -67,6 +68,7 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [assignTarget, setAssignTarget] = useState<any>(null);
     const [tempDriverIds, setTempDriverIds] = useState<string[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const fetchData = async () => {
         if (!user) return;
@@ -456,37 +458,42 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                     key={currentItem?.id || 'new'}
                     onSubmit={async (e) => {
                         e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        const selectedSuspensions = formData.getAll('suspensionType');
-                        const payload: any = Object.fromEntries(formData.entries());
-                        payload.suspensionType = selectedSuspensions.join(', ');
-                        payload.capacity = Number(payload.capacity);
-                        payload.volumetricCapacity = Number(payload.volumetricCapacity);
-                        payload.usefulLifeKm = Number(payload.usefulLifeKm);
-                        payload.value = Number(payload.value);
-                        payload.fuelEfficiency = Number(payload.fuelEfficiency);
+                        if (isSubmitting) return; // Prevent double submission
 
-                        // Handle dimensions
-                        payload.dimensions = {
-                            l: Number(payload['dimensions.l']),
-                            w: Number(payload['dimensions.w']),
-                            h: Number(payload['dimensions.h'])
-                        };
-                        delete payload['dimensions.l'];
-                        delete payload['dimensions.w'];
-                        delete payload['dimensions.h'];
-
-                        // Handle uses
-                        payload.uses = formData.getAll('uses') as string[];
-                        payload.vehicleTypes = formData.getAll('vehicleTypes') as string[];
-                        payload.year = Number(payload.year);
-
-                        // Automatic depreciation calculation
-                        if (payload.value && payload.usefulLifeKm) {
-                            payload.depreciationPerKm = payload.value / payload.usefulLifeKm;
-                        }
-
+                        setIsSubmitting(true);
                         try {
+                            const formData = new FormData(e.currentTarget);
+                            const selectedSuspensions = formData.getAll('suspensionType');
+                            const payload: any = Object.fromEntries(formData.entries());
+                            payload.suspensionType = selectedSuspensions.join(', ');
+                            payload.capacity = Number(payload.capacity);
+                            payload.volumetricCapacity = Number(payload.volumetricCapacity);
+                            payload.palletCapacity = Number(payload.palletCapacity) || 0;
+                            payload.usefulLifeKm = Number(payload.usefulLifeKm);
+                            payload.value = Number(payload.value);
+                            payload.fuelEfficiency = Number(payload.fuelEfficiency);
+                            payload.costPerKm = Number(payload.costPerKm) || 0;
+
+                            // Handle dimensions
+                            payload.dimensions = {
+                                l: Number(payload['dimensions.l']),
+                                w: Number(payload['dimensions.w']),
+                                h: Number(payload['dimensions.h'])
+                            };
+                            delete payload['dimensions.l'];
+                            delete payload['dimensions.w'];
+                            delete payload['dimensions.h'];
+
+                            // Handle uses
+                            payload.uses = formData.getAll('uses') as string[];
+                            payload.vehicleTypes = formData.getAll('vehicleTypes') as string[];
+                            payload.year = Number(payload.year);
+
+                            // Automatic depreciation calculation
+                            if (payload.value && payload.usefulLifeKm) {
+                                payload.depreciationPerKm = payload.value / payload.usefulLifeKm;
+                            }
+
                             const endpoint = modalMode === 'create' ? '/api/vehicles' : `/api/vehicles/${currentItem.id}`;
                             const method = modalMode === 'create' ? 'POST' : 'PUT';
                             if (modalMode === 'create') payload.createdBy = user?.uid;
@@ -500,8 +507,16 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                             if (res.ok) {
                                 setIsModalOpen(false);
                                 fetchData();
+                            } else {
+                                const error = await res.json().catch(() => ({}));
+                                alert(`Error al guardar vehículo: ${error.message || 'Error desconocido'}`);
                             }
-                        } catch (error) { console.error(error); }
+                        } catch (error) {
+                            console.error(error);
+                            alert('Error al conectar con el servidor');
+                        } finally {
+                            setIsSubmitting(false);
+                        }
                     }}
                 >
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
@@ -516,12 +531,33 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                             </select>
                         </div>
                         <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Marca</label>
+                            <input name="make" type="text" className="input" defaultValue={currentItem?.make} required placeholder="Freightliner, Mercedes-Benz..." />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Modelo</label>
+                            <input name="model" type="text" className="input" defaultValue={currentItem?.model} required placeholder="Cascadia, Sprinter..." />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Tipo de Unidad</label>
+                            <select name="type" className="input" defaultValue={currentItem?.type || 'truck'}>
+                                <option value="pickup">Pickup</option>
+                                <option value="van">Van</option>
+                                <option value="truck">Camión</option>
+                                <option value="trailer">Tráiler</option>
+                            </select>
+                        </div>
+                        <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Placa</label>
-                            <input name="plate" type="text" className="input" defaultValue={currentItem?.plate} required placeholder="ABC-123" />
+                            <input name="plate" type="text" className="input" defaultValue={currentItem?.plate} required placeholder="ABC-123-XYZ" />
                         </div>
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Año (Modelo)</label>
                             <input name="year" type="number" className="input" defaultValue={currentItem?.year || new Date().getFullYear()} required />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>GPS Device ID (Opcional)</label>
+                            <input name="gpsDeviceId" type="text" className="input" defaultValue={currentItem?.gpsDeviceId} placeholder="GPS-12345" />
                         </div>
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Tipo de Combustible</label>
@@ -572,6 +608,10 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Capacidad Volumétrica (m³)</label>
                             <input name="volumetricCapacity" type="number" className="input" defaultValue={currentItem?.volumetricCapacity || 0} />
                         </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Capacidad Pallets</label>
+                            <input name="palletCapacity" type="number" className="input" defaultValue={currentItem?.palletCapacity || 0} placeholder="20" />
+                        </div>
                         <div className="input-group" style={{ gridColumn: 'span 2' }}>
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Dimensiones (Largo x Ancho x Alto en metros)</label>
                             <div className="grid grid-cols-3 gap-2">
@@ -621,7 +661,20 @@ export default function VehicleManagement({ isAdminView = false }: VehicleManage
                     </div>
                     <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
                         <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsModalOpen(false)}>Cancelar</button>
-                        <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Guardar</button>
+                        <button
+                            type="submit"
+                            className="btn btn-primary"
+                            disabled={isSubmitting}
+                            style={{ flex: 1 }}
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Spinner size="sm" /> Guardando...
+                                </>
+                            ) : (
+                                'Guardar'
+                            )}
+                        </button>
                     </div>
                 </form>
             </Modal>

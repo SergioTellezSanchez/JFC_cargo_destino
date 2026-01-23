@@ -15,7 +15,8 @@ import PinSelectionModal from '@/components/PinSelectionModal';
 import CostBreakdownModal from '@/components/CostBreakdownModal';
 import CustomSelect from '@/components/CustomSelect';
 import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box, Repeat, Car, Info, Edit } from 'lucide-react';
-import { calculateLogisticsCosts, Vehicle, Package as PackageType, VEHICLE_TYPES, VEHICLE_CATEGORIES, isVehicleSuitable } from '@/lib/logistics';
+import { calculateLogisticsCosts, VEHICLE_TYPES, VEHICLE_CATEGORIES, isVehicleSuitable, type Package as PackageType, type VehicleDefinition } from '@/lib/calculations';
+import type { Vehicle } from '@/lib/firebase/schema';
 
 
 interface LocationState {
@@ -30,8 +31,8 @@ export default function QuotePage() {
     const { language } = useLanguage();
     const t = useTranslation(language);
 
-    // Steps: 1 = Package, 2 = Vehicle, 3 = Route, 4 = Service
-    const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+    // Steps: 1 = Package, 2 = Route, 3 = Service
+    const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
     // Load Type / Context
     const [loadType, setLoadType] = useState('full-truck');
@@ -83,17 +84,20 @@ export default function QuotePage() {
 
     const [settings, setSettings] = useState<any>(null);
     const [vehicles, setVehicles] = useState<any[]>([]);
+    const [warehouses, setWarehouses] = useState<any[]>([]);
 
     useEffect(() => {
         if (!user) return;
         const fetchConfig = async () => {
             try {
-                const [sRes, vRes] = await Promise.all([
+                const [sRes, vRes, wRes] = await Promise.all([
                     authenticatedFetch('/api/settings'),
-                    authenticatedFetch('/api/vehicles')
+                    authenticatedFetch('/api/vehicles'),
+                    authenticatedFetch('/api/storage')
                 ]);
                 if (sRes.ok) setSettings(await sRes.json());
                 if (vRes.ok) setVehicles(await vRes.json());
+                if (wRes.ok) setWarehouses(await wRes.json());
             } catch (err) { console.error(err); }
         };
         fetchConfig();
@@ -125,15 +129,49 @@ export default function QuotePage() {
     const isRouteValid = !!origin && !!destination;
 
     const isStep1Valid = isPackageDetailsValid;
-    const isStep2Valid = isStep1Valid && isVehicleSelectedValid;
-    const isStep3Valid = isStep2Valid && isRouteValid;
-    const isStep4Valid = isStep3Valid;
+    const isStep2Valid = isStep1Valid && isRouteValid;
+    const isStep3Valid = isStep2Valid; // Service step
 
     // Fuel & Operation
     const [fuelPrice, setFuelPrice] = useState<number>(25);
     const [fuelEfficiency, setFuelEfficiency] = useState<number>(2);
     const [tolls, setTolls] = useState<number>(0);
     const [travelDays, setTravelDays] = useState<number>(1);
+
+    // Calculate tolls via Google Routes API
+    useEffect(() => {
+        if (origin && destination) {
+            const fetchTolls = async () => {
+                try {
+                    const res = await fetch('/api/tolls', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            origin: { lat: origin.lat, lng: origin.lng },
+                            destination: { lat: destination.lat, lng: destination.lng },
+                            vehicleType: selectedVehicleType || 'standard'
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setTolls(data.tolls || 0);
+                        // Optional: Sync distance if API returns it different
+                        // if (data.distanceMeters) setDistanceKm(data.distanceMeters / 1000);
+                    } else {
+                        console.warn('Failed to fetch tolls, falling back to heuristic');
+                        if (distanceKm > 0) setTolls(Math.round(distanceKm * 3.0));
+                    }
+                } catch (err) {
+                    console.error(err);
+                    // Fallback
+                    if (distanceKm > 0) setTolls(Math.round(distanceKm * 3.0));
+                }
+            };
+            // Debounce slightly or just call
+            const timer = setTimeout(fetchTolls, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [origin, destination, distanceKm]); // Re-run if route changes
 
     // Personnel
     const [driverSalary, setDriverSalary] = useState<number>(0);
@@ -156,16 +194,40 @@ export default function QuotePage() {
     useEffect(() => {
         if (isRouteValid && !!weight && Number(weight) > 0 && settings) {
             // Priority: selected vehicle from the new list, then DB vehicles, then fallback
-            import('@/lib/logistics').then(({ VEHICLE_TYPES }) => {
-                const vehicleDef = VEHICLE_TYPES.find(v => v.id === selectedVehicleType);
-                const dbVehicle = vehicles.find(v => v.id === selectedVehicleType || v.name === selectedVehicleType);
+            // Priority: selected vehicle from the new list, then DB vehicles, then fallback
+            import('@/lib/logistics').then(({ VEHICLE_TYPES, isVehicleSuitable }) => {
+                let vehicleToUse = null;
 
-                const vehicleToUse = vehicleDef || dbVehicle || {
-                    value: 2500000,
-                    usefulLifeKm: 800000,
-                    suspensionType: 'Neumática',
-                    capacity: 25000
-                };
+                // Auto-select best vehicle if none selected
+                if (!selectedVehicleType) {
+                    const allVehicles = [...VEHICLE_TYPES, ...vehicles];
+                    const suitable = allVehicles.filter(v => isVehicleSuitable(v, { weight: Number(weight), packageType } as any));
+                    // Sort by capacity (ascending) to find smallest suitable
+                    suitable.sort((a, b) => a.capacity - b.capacity);
+                    if (suitable.length > 0) {
+                        vehicleToUse = suitable[0];
+                        setSelectedVehicleType(vehicleToUse.id);
+                    }
+                } else {
+                    const vehicleDef = VEHICLE_TYPES.find(v => v.id === selectedVehicleType);
+                    const dbVehicle = vehicles.find(v => v.id === selectedVehicleType || v.name === selectedVehicleType);
+                    vehicleToUse = vehicleDef || dbVehicle;
+                }
+
+                if (!vehicleToUse) {
+                    vehicleToUse = {
+                        value: 2500000,
+                        usefulLifeKm: 800000,
+                        suspensionType: 'Neumática',
+                        capacity: 25000,
+                        id: 'generic',
+                        name: 'Generico',
+                        description: 'Generico',
+                        category: 'Heavy',
+                        fuelEfficiency: 2,
+                        fuelType: 'diesel'
+                    };
+                }
 
                 const results = calculateLogisticsCosts(
                     {
@@ -292,7 +354,7 @@ export default function QuotePage() {
     };
 
     const handleRequestQuote = () => {
-        if (!isStep3Valid) return;
+        if (!isStep2Valid) return; // Adjusted for new step count
         setShowBreakdownModal(true);
     };
 
@@ -308,6 +370,7 @@ export default function QuotePage() {
                 setDestination={setDestination}
                 origin={origin}
                 destination={destination}
+                warehouses={warehouses}
                 weight={weight}
                 setWeight={setWeight}
                 dimensions={dimensions}
@@ -466,9 +529,8 @@ function QuoteContent(props: any) {
                                 <div className="flex relative">
                                     {[
                                         { id: 1, label: 'Paquete', icon: Box },
-                                        { id: 2, label: 'Unidad', icon: Truck },
-                                        { id: 3, label: 'Ruta', icon: Navigation },
-                                        { id: 4, label: 'Servicio', icon: Zap }
+                                        { id: 2, label: 'Ruta', icon: Navigation },
+                                        { id: 3, label: 'Servicio', icon: Zap }
                                     ].map((step) => {
                                         const isActive = props.currentStep === step.id;
                                         const isCompleted = props.currentStep > step.id;
@@ -478,7 +540,6 @@ function QuoteContent(props: any) {
                                         if (step.id > props.currentStep) {
                                             if (step.id === 2 && !props.isStep1Valid) isDisabled = true;
                                             if (step.id === 3 && !props.isStep2Valid) isDisabled = true;
-                                            if (step.id === 4 && !props.isStep3Valid) isDisabled = true;
                                         }
 
                                         return (
@@ -652,105 +713,15 @@ function QuoteContent(props: any) {
                                                     ${!props.isStep1Valid ? 'opacity-50 cursor-not-allowed grayscale' : ''}
                                                 `}
                                             >
-                                                Seleccionar Unidad <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Step 2: Vehicle Selection */}
-                                {props.currentStep === 2 && (
-                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
-                                        <div>
-                                            <h2 className="text-2xl font-bold text-slate-800">Selecciona tu Unidad</h2>
-                                            <p className="text-slate-500">Unidades propuestas según el peso ({props.weight} kg) y tipo de carga.</p>
-                                        </div>
-
-                                        <div className="space-y-10">
-                                            {Object.values(VEHICLE_CATEGORIES).map((category) => {
-                                                const allVehicles = [...VEHICLE_TYPES, ...props.vehicles];
-                                                const categoryVehicles = allVehicles.filter(v => v.category === category);
-                                                return (
-                                                    <div key={category} className="space-y-4">
-                                                        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-3">
-                                                            <div className="h-px bg-slate-200 flex-1" />
-                                                            {category}
-                                                            <div className="h-px bg-slate-200 flex-1" />
-                                                        </h3>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                            {categoryVehicles.map((vehicle) => {
-                                                                const isSuitable = isVehicleSuitable(vehicle, { weight: Number(props.weight), packageType: props.packageType } as any);
-                                                                const isSelected = props.selectedVehicleType === vehicle.id;
-
-                                                                return (
-                                                                    <button
-                                                                        key={vehicle.id}
-                                                                        disabled={!isSuitable}
-                                                                        onClick={() => props.setSelectedVehicleType(vehicle.id)}
-                                                                        className={`relative p-5 rounded-2xl text-left border-2 transition-all duration-300 group
-                                                                            ${isSelected
-                                                                                ? 'border-blue-500 bg-blue-50/50 shadow-md ring-4 ring-blue-100'
-                                                                                : isSuitable
-                                                                                    ? 'border-slate-100 bg-white hover:border-blue-200 hover:shadow-lg'
-                                                                                    : 'border-slate-50 bg-slate-50/30 opacity-60 grayscale cursor-not-allowed'}
-                                                                        `}
-                                                                    >
-                                                                        <div className="flex justify-between items-start mb-3">
-                                                                            <div className={`p-2.5 rounded-xl transition-colors ${isSelected ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100'}`}>
-                                                                                <Truck size={20} />
-                                                                            </div>
-                                                                            {isSelected && <CheckCircle size={20} className="text-blue-500" />}
-                                                                            {!isSuitable && !isSelected && (
-                                                                                <div className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full">
-                                                                                    No recomendado
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                        <h4 className="font-bold text-slate-800 mb-1">{vehicle.name}</h4>
-                                                                        <p className="text-xs text-slate-500 leading-relaxed mb-3">{vehicle.description}</p>
-                                                                        <div className="flex flex-wrap gap-1">
-                                                                            {vehicle.uses?.map((use: string) => (
-                                                                                <span key={use} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md font-medium">#{use}</span>
-                                                                            ))}
-                                                                        </div>
-                                                                        <div className="mt-3 pt-3 border-t border-slate-100/50 flex justify-between items-center">
-                                                                            <span className="text-[10px] font-bold text-blue-600">Capacidad: {(vehicle.capacity / 1000).toFixed(1)}T</span>
-                                                                            {vehicle.dimensions && (
-                                                                                <span className="text-[10px] text-slate-400">{vehicle.dimensions.l}x{vehicle.dimensions.w}m</span>
-                                                                            )}
-                                                                        </div>
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        <div className="flex justify-between pt-6">
-                                            <button
-                                                onClick={() => props.setCurrentStep(1)}
-                                                className="px-6 py-4 text-slate-500 font-bold hover:text-slate-800 transition-colors"
-                                            >
-                                                Atrás
-                                            </button>
-                                            <button
-                                                disabled={!props.isStep2Valid}
-                                                onClick={() => props.setCurrentStep(3)}
-                                                className={`group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3
-                                                    ${!props.isStep2Valid ? 'opacity-50 cursor-not-allowed grayscale' : ''}
-                                                `}
-                                            >
                                                 Continuar a Ruta <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
                                             </button>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Step 3: Route */}
-                                {props.currentStep === 3 && (
-                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-left-8 duration-500">
+                                {/* Step 2: Route (Formerly Step 3) */}
+                                {props.currentStep === 2 && (
+                                    <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <h2 className="text-2xl font-bold text-slate-800">¿A dónde vamos?</h2>
@@ -766,12 +737,39 @@ function QuoteContent(props: any) {
                                                         <Navigation size={12} className="text-[#1f4a5e]" /> Origen
                                                     </label>
                                                     <div className="flex gap-4">
-                                                        <PlaceAutocomplete
-                                                            className="w-full bg-transparent border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
-                                                            placeholder="Dirección de recolección"
-                                                            onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'origin')}
-                                                            defaultValue={props.origin?.address}
-                                                        />
+                                                        <div className="flex flex-col gap-2 w-full">
+                                                            {props.warehouses && props.warehouses.length > 0 && (
+                                                                <select
+                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm text-slate-600 mb-2 focus:ring-2 focus:ring-[#1f4a5e]"
+                                                                    onChange={(e) => {
+                                                                        const w = props.warehouses.find((wh: any) => wh.id === e.target.value);
+                                                                        if (w) {
+                                                                            const addrStr = typeof w.address === 'object'
+                                                                                ? `${w.address.street || ''} ${w.address.city || ''}`
+                                                                                : w.address;
+                                                                            props.setOrigin({ address: addrStr, lat: w.lat || (w.location?.latitude || w.location?._lat), lng: w.lng || (w.location?.longitude || w.location?._long) });
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <option value="">-- Seleccionar Almacén JFC (Opcional) --</option>
+                                                                    {props.warehouses.map((w: any) => (
+                                                                        <option key={w.id} value={w.id}>
+                                                                            {w.name} - {
+                                                                                typeof w.address === 'object'
+                                                                                    ? `${w.address.street || ''} ${w.address.city || ''}`
+                                                                                    : w.address
+                                                                            }
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
+                                                            <PlaceAutocomplete
+                                                                className="w-full bg-transparent border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
+                                                                placeholder="Dirección de recolección"
+                                                                onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'origin')}
+                                                                defaultValue={props.origin?.address}
+                                                            />
+                                                        </div>
                                                         <button
                                                             onClick={() => props.onOpenPinModal('origin')}
                                                             className={`p-3 rounded-full transition-all bg-slate-100 text-slate-400 hover:bg-[#1f4a5e] hover:text-white`}
@@ -790,12 +788,39 @@ function QuoteContent(props: any) {
                                                         <MapPin size={12} className="text-[#d9bd82]" /> Destino
                                                     </label>
                                                     <div className="flex gap-4">
-                                                        <PlaceAutocomplete
-                                                            className="w-full bg-transparent border-b-2 border-slate-200 focus:border-indigo-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
-                                                            placeholder="Dirección de entrega"
-                                                            onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'destination')}
-                                                            defaultValue={props.destination?.address}
-                                                        />
+                                                        <div className="flex flex-col gap-2 w-full">
+                                                            {props.warehouses && props.warehouses.length > 0 && (
+                                                                <select
+                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm text-slate-600 mb-2 focus:ring-2 focus:ring-[#d9bd82]"
+                                                                    onChange={(e) => {
+                                                                        const w = props.warehouses.find((wh: any) => wh.id === e.target.value);
+                                                                        if (w) {
+                                                                            const addrStr = typeof w.address === 'object'
+                                                                                ? `${w.address.street || ''} ${w.address.city || ''}`
+                                                                                : w.address;
+                                                                            props.setDestination({ address: addrStr, lat: w.lat || (w.location?.latitude || w.location?._lat), lng: w.lng || (w.location?.longitude || w.location?._long) });
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <option value="">-- Seleccionar Almacén JFC (Opcional) --</option>
+                                                                    {props.warehouses.map((w: any) => (
+                                                                        <option key={w.id} value={w.id}>
+                                                                            {w.name} - {
+                                                                                typeof w.address === 'object'
+                                                                                    ? `${w.address.street || ''} ${w.address.city || ''}`
+                                                                                    : w.address
+                                                                            }
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
+                                                            <PlaceAutocomplete
+                                                                className="w-full bg-transparent border-b-2 border-slate-200 focus:border-indigo-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
+                                                                placeholder="Dirección de entrega"
+                                                                onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'destination')}
+                                                                defaultValue={props.destination?.address}
+                                                            />
+                                                        </div>
                                                         <button
                                                             onClick={() => props.onOpenPinModal('destination')}
                                                             className={`p-3 rounded-full transition-all bg-slate-100 text-slate-400 hover:bg-[#1f4a5e] hover:text-white`}
@@ -810,16 +835,16 @@ function QuoteContent(props: any) {
 
                                         <div className="flex justify-between pt-6">
                                             <button
-                                                onClick={() => props.setCurrentStep(2)}
+                                                onClick={() => props.setCurrentStep(1)}
                                                 className="px-6 py-4 text-slate-500 font-bold hover:text-slate-800 transition-colors"
                                             >
                                                 Atrás
                                             </button>
                                             <button
-                                                disabled={!props.isStep3Valid}
-                                                onClick={() => props.setCurrentStep(4)}
+                                                disabled={!props.isStep2Valid}
+                                                onClick={() => props.setCurrentStep(3)}
                                                 className={`group bg-slate-900 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3
-                                                    ${!props.isStep3Valid ? 'opacity-50 cursor-not-allowed grayscale' : ''}
+                                                    ${!props.isStep2Valid ? 'opacity-50 cursor-not-allowed grayscale' : ''}
                                                 `}
                                             >
                                                 Ver Precios y Servicio <ChevronRight size={20} className="text-slate-400 group-hover:text-white transition-colors" />
@@ -829,7 +854,7 @@ function QuoteContent(props: any) {
                                 )}
 
                                 {/* Step 4: Service */}
-                                {props.currentStep === 4 && (
+                                {props.currentStep === 3 && (
                                     <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                                         <div>
                                             <h2 className="text-2xl font-bold text-slate-800">Elige tu velocidad</h2>
@@ -938,14 +963,6 @@ function QuoteContent(props: any) {
                                                                         <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.tolls || 0)}</span>
                                                                     </div>
                                                                     <div className="flex justify-between border-b border-white/5 pb-1">
-                                                                        <span>Sueldos / Viáticos:</span>
-                                                                        <span className="font-bold text-white">{formatCurrency((props.quoteDetails?.driverSalary || 0) + (props.quoteDetails?.food || 0) + (props.quoteDetails?.lodging || 0))}</span>
-                                                                    </div>
-                                                                    <div className="flex justify-between border-b border-white/5 pb-1">
-                                                                        <span>Otros Gastos:</span>
-                                                                        <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.otherExpenses || 0)}</span>
-                                                                    </div>
-                                                                    <div className="flex justify-between border-b border-white/5 pb-1">
                                                                         <span>Utilidad Logística:</span>
                                                                         <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.utility || 0)}</span>
                                                                     </div>
@@ -980,7 +997,7 @@ function QuoteContent(props: any) {
                                                                 type="button"
                                                                 onClick={(e) => {
                                                                     e.preventDefault();
-                                                                    props.setCurrentStep(3);
+                                                                    props.setCurrentStep(2);
                                                                 }}
                                                                 className="text-blue-100 hover:text-white text-sm font-bold transition-colors py-2 flex items-center justify-center gap-2"
                                                             >
@@ -997,7 +1014,7 @@ function QuoteContent(props: any) {
                         </div> {/* End of Main Interaction Area */}
 
                         {/* Map Preview area */}
-                        {props.currentStep >= 3 && (
+                        {props.currentStep >= 2 && (
                             <div className="w-full lg:sticky lg:top-24 h-[400px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
                                 <DirectionsMap
                                     origin={props.origin ? { lat: props.origin.lat, lng: props.origin.lng } : null}

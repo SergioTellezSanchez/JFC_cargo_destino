@@ -87,23 +87,7 @@ export default function CostBreakdownModal({
                             <span className="font-medium text-slate-900">{formatCurrency(details.depreciation)}</span>
                         </div>
 
-                        {/* Personnel Section */}
-                        <div className="pt-2 mt-2 border-t border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">Personal y Viáticos</div>
 
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500">Sueldos (Chofer + Ayudante)</span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.driverSalary + details.assistantSalary)}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500">Comisiones</span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.driverCommission + details.assistantCommission)}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500">Alimentación y Hospedaje</span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.food + details.lodging)}</span>
-                        </div>
 
                         {/* Other Section */}
                         <div className="pt-2 mt-2 border-t border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">Administración y Riesgos</div>
@@ -163,10 +147,7 @@ export default function CostBreakdownModal({
                             Combustible + Casetas + Depreciación = <span className="text-blue-300">{formatCurrency(details.fuelCost + details.tolls + details.depreciation)}</span>
                         </p>
 
-                        <p className="border-b border-white/5 pb-1">
-                            <span className="text-white block mb-1">2. Factor Humano:</span>
-                            Sueldos + Comisiones + Viáticos = <span className="text-blue-300">{formatCurrency(details.driverSalary + details.assistantSalary + details.driverCommission + details.assistantCommission + details.food + details.lodging)}</span>
-                        </p>
+
 
                         <p className="border-b border-white/5 pb-1">
                             <span className="text-white block mb-1">3. Protección:</span>

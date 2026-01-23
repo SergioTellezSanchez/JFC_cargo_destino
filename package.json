@@ -1,5 +1,5 @@
 {
-  "name": "temp_app",
+  "name": "jfc-cargo-destino",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,10 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "init-firestore": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/init-firestore.ts",
     "clear-db": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/clear-db.ts",
-    "seed": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/seed.ts"
+    "seed": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/seed.ts",
+    "seed-tracking": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/seed-tracking-test.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.17",
+    "@tanstack/react-query-devtools": "^5.91.2",
     "@vis.gl/react-google-maps": "^1.7.1",
     "firebase": "^12.6.0",
     "firebase-admin": "^13.6.0",

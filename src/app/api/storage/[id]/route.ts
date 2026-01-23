@@ -9,7 +9,7 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        await adminDb.collection('storage_locations').doc(id).delete();
+        await adminDb.collection('warehouses').doc(id).delete();
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting warehouse:', error);
@@ -24,7 +24,7 @@ export async function PUT(
     try {
         const { id } = await params;
         const body = await request.json();
-        await adminDb.collection('storage_locations').doc(id).update(body);
+        await adminDb.collection('warehouses').doc(id).update(body);
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error updating warehouse:', error);

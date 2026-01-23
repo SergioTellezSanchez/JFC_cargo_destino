@@ -7,6 +7,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useUser } from '@/lib/UserContext';
 import { authenticatedFetch } from '@/lib/api';
 import Modal from '@/components/Modal';
+import Spinner from '@/components/Spinner';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 
 interface DriverManagementProps {
@@ -58,6 +59,7 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [assignTarget, setAssignTarget] = useState<any>(null);
     const [tempVehicleIds, setTempVehicleIds] = useState<string[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const fetchData = async () => {
         if (!user) return;
@@ -310,7 +312,7 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                                                 </td>
                                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Phone size={14} /> {d.phone || 'No registrado'}</div></td>
                                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}>{d.age ? `${d.age} años` : 'N/A'}</div></td>
-                                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CreditCard size={14} /> {d.licenseNumber || d.license || 'Pendiente'}</div></td>
+                                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CreditCard size={14} /> {d.license || d.licenseNumber || 'Pendiente'}</div></td>
                                                 <td onClick={(e) => { e.stopPropagation(); handleOpenAssignModal(d); }}>
                                                     <button className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                                         <Truck size={14} />
@@ -438,22 +440,68 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                     key={currentItem?.id || 'new'}
                     onSubmit={async (e) => {
                         e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        if (modalMode === 'create') formData.append('createdBy', user?.uid || '');
+                        if (isSubmitting) return; // Prevent double submission
 
+                        setIsSubmitting(true);
                         try {
+                            const formData = new FormData(e.currentTarget);
+                            const payload: any = {};
+
+                            // Basic fields
+                            payload.name = formData.get('name');
+                            payload.email = formData.get('email');
+                            payload.phone = formData.get('phone');
+                            payload.license = formData.get('license') || ''; // Ensure license is always included
+                            payload.company = formData.get('company');
+
+                            // Optional numeric fields
+                            const age = formData.get('age');
+                            if (age) payload.age = Number(age);
+
+                            const dailySalary = formData.get('dailySalary');
+                            if (dailySalary) payload.dailySalary = Number(dailySalary);
+
+                            // License expiry date
+                            const licenseExpiry = formData.get('licenseExpiry');
+                            if (licenseExpiry) {
+                                // Convert to Firestore Timestamp format
+                                payload.licenseExpiry = new Date(licenseExpiry as string).toISOString();
+                            }
+
+                            // Photo URL (if provided)
+                            const photoUrl = formData.get('photoUrl');
+                            if (photoUrl) payload.photoUrl = photoUrl;
+
+                            if (modalMode === 'create') {
+                                payload.createdBy = user?.uid;
+                                payload.status = 'available';
+                                payload.rating = 0;
+                                payload.totalTrips = 0;
+                                payload.earnings = 0;
+                            }
+
                             const endpoint = modalMode === 'create' ? '/api/drivers' : `/api/drivers/${currentItem.id}`;
                             const method = modalMode === 'create' ? 'POST' : 'PUT';
 
                             const res = await authenticatedFetch(endpoint, {
                                 method,
-                                body: formData,
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload),
                             });
+
                             if (res.ok) {
                                 setIsModalOpen(false);
                                 fetchData();
+                            } else {
+                                const error = await res.json().catch(() => ({}));
+                                alert(`Error al guardar conductor: ${error.message || 'Error desconocido'}`);
                             }
-                        } catch (error) { console.error(error); }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            alert('Error al conectar con el servidor');
+                        } finally {
+                            setIsSubmitting(false);
+                        }
                     }}
                 >
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
@@ -485,26 +533,56 @@ export default function DriverManagement({ isAdminView = false }: DriverManageme
                         </div>
                         <div className="input-group">
                             <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Número de Licencia</label>
-                            <input name="license" type="text" className="input" defaultValue={currentItem?.license || currentItem?.licenseNumber} placeholder="ABC-123456" />
+                            <input name="license" type="text" className="input" defaultValue={currentItem?.license || currentItem?.licenseNumber} required placeholder="ABC-123456" />
+                        </div>
+                        <div className="input-group">
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Vencimiento Licencia</label>
+                            <input
+                                name="licenseExpiry"
+                                type="date"
+                                className="input"
+                                defaultValue={currentItem?.licenseExpiry ? new Date(currentItem.licenseExpiry.toDate ? currentItem.licenseExpiry.toDate() : currentItem.licenseExpiry).toISOString().split('T')[0] : ''}
+                                required
+                            />
                         </div>
                         <div className="input-group" style={{ gridColumn: '1 / -1' }}>
-                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Foto del Conductor</label>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
-                                {currentItem?.photoUrl && (
+                            <label style={{ fontWeight: '600', fontSize: '0.9rem' }}>Foto del Conductor (URL)</label>
+                            <input
+                                name="photoUrl"
+                                type="url"
+                                className="input"
+                                defaultValue={currentItem?.photoUrl}
+                                placeholder="https://ejemplo.com/foto.jpg"
+                            />
+                            {currentItem?.photoUrl && (
+                                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <div style={{ width: '60px', height: '60px', borderRadius: '12px', overflow: 'hidden', border: '2px solid var(--border)' }}>
-                                        <img src={currentItem.photoUrl} alt="Vigente" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <img src={currentItem.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     </div>
-                                )}
-                                <div style={{ flex: 1 }}>
-                                    <input name="photo" type="file" accept="image/*" className="input" style={{ fontSize: '0.8rem' }} />
-                                    <p style={{ fontSize: '0.75rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>PNG, JPG o JPEG (Máx. 5MB)</p>
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>Vista previa de la foto actual</p>
                                 </div>
-                            </div>
+                            )}
+                            <p style={{ fontSize: '0.75rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>
+                                Ingresa la URL de la foto del conductor
+                            </p>
                         </div>
                     </div>
                     <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
                         <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsModalOpen(false)}>Cancelar</button>
-                        <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Guardar</button>
+                        <button
+                            type="submit"
+                            className="btn btn-primary"
+                            disabled={isSubmitting}
+                            style={{ flex: 1 }}
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Spinner size="sm" /> Guardando...
+                                </>
+                            ) : (
+                                'Guardar'
+                            )}
+                        </button>
                     </div>
                 </form>
             </Modal>

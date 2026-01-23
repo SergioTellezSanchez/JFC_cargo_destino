@@ -1,13 +1,15 @@
-import {
-    FuelPrices,
-    PricingSettings,
-    Vehicle,
-    Driver,
-    Package,
-    VehicleDefinition
-} from './types/logistics';
+/**
+ * Logistics Calculations Module
+ * 
+ * This module contains all calculation functions for pricing, costs, and vehicle suitability.
+ * It uses the unified schema from firebase/schema.ts
+ */
 
-export type { FuelPrices, PricingSettings, Vehicle, Driver, Package, VehicleDefinition };
+import type { Vehicle, PricingSettings, Pricing } from './firebase/schema';
+
+// ============================================================================
+// VEHICLE CATEGORIES
+// ============================================================================
 
 export const VEHICLE_CATEGORIES = {
     RIGIDOS: 'Camiones unitarios (Rígidos)',
@@ -15,6 +17,22 @@ export const VEHICLE_CATEGORIES = {
     ESPECIALIZADOS: 'Unidades especializadas',
     PLATAFORMAS: 'Plataformas abiertas'
 } as const;
+
+// ============================================================================
+// VEHICLE TYPE DEFINITIONS (for quoter)
+// ============================================================================
+
+export interface VehicleDefinition {
+    id: string;
+    name: string;
+    category: string;
+    capacity: number; // kg
+    description: string;
+    uses: string[];
+    dimensions?: { l: number; w: number; h: number };
+    fuelType?: 'diesel' | 'gasoline87' | 'gasoline91';
+    fuelEfficiency?: number;
+}
 
 export const VEHICLE_TYPES: VehicleDefinition[] = [
     // Rígidos
@@ -41,7 +59,87 @@ export const VEHICLE_TYPES: VehicleDefinition[] = [
     { id: 'plataforma_ext', name: 'Plataforma Extensible', category: VEHICLE_CATEGORIES.PLATAFORMAS, capacity: 25000, description: 'Para mercancía extremadamente larga.', uses: ['Tuberías', 'Postes'], fuelType: 'diesel', fuelEfficiency: 2.0 },
 ];
 
-export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle | VehicleDefinition, settings: PricingSettings, serviceLevel: 'standard' | 'express' = 'standard') {
+// ============================================================================
+// PACKAGE TYPE (for calculations)
+// ============================================================================
+
+export interface Package {
+    // Required fields
+    weight: number; // kg
+    distanceKm: number;
+
+    // Optional cargo fields
+    volume?: number; // m³
+    type?: 'general' | 'fragile' | 'dangerous';
+    packageType?: string;
+    description?: string;
+    value?: number; // for insurance
+    declaredValue?: number; // alias for value
+
+    // Logistics options
+    loadType?: string;
+    transportType?: 'FTL' | 'PTL' | 'LTL';
+    cargoType?: 'heavy' | 'hazard' | 'packages';
+    requiresLoadingSupport?: boolean;
+    requiresUnloadingSupport?: boolean;
+    isStackable?: boolean;
+    requiresStretchWrap?: boolean;
+    insuranceSelection?: 'jfc' | 'own';
+
+    // Detailed cost fields
+    fuelPrice?: number;
+    fuelEfficiency?: number;
+    tolls?: number;
+    driverSalary?: number;
+    driverCommission?: number;
+    assistantSalary?: number;
+    assistantCommission?: number;
+    food?: number;
+    lodging?: number;
+    travelDays?: number;
+    unforeseenPercent?: number;
+    otherExpenses?: number;
+
+    // CRM/Folio data
+    seller?: string;
+    clientName?: string;
+    folio?: string;
+    origin?: string;
+    destination?: string;
+}
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+
+export function calculateLogisticsCosts(
+    pkg: Package,
+    vehicle: Vehicle | VehicleDefinition,
+    settings: PricingSettings,
+    serviceLevel: 'standard' | 'express' = 'standard'
+): Pricing & {
+    fuelCost: number;
+    tolls: number;
+    driverSalary: number;
+    driverCommission: number;
+    assistantSalary: number;
+    assistantCommission: number;
+    food: number;
+    lodging: number;
+    depreciation: number;
+    otherExpenses: number;
+    unforeseen: number;
+    operationalCost: number;
+    operationalCostPerKm: number;
+    subtotal: number;
+    iva: number;
+    priceToClient: number;
+    priceBeforeTax: number;
+    capacityOccupiedPercent: number;
+    utility: number;
+    utilityPercent: number;
+    insuranceRate: number;
+} {
     const insuranceRate = (settings.insuranceRate || 1.5) / 100;
     const margin = settings.profitMargin || 1.4;
     const basePrice = settings.basePrice || 1000;
@@ -77,8 +175,8 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle | Vehicle
     // Tolls and others
     const tolls = pkg.tolls || 0;
 
-    // Dynamic Other Expenses: Default to 1.5 MXN/km if not provided as a lump sum
-    const otherExpensesPerKm = 1.65; // Proposed initial value
+    // Dynamic Other Expenses: Default to 1.65 MXN/km if not provided as a lump sum
+    const otherExpensesPerKm = 1.65;
     const otherExpenses = pkg.otherExpenses || (otherExpensesPerKm * distance);
 
     // Operational Cost (Sum of all direct costs)
@@ -95,7 +193,8 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle | Vehicle
         otherExpenses;
 
     // Capacity calculation
-    const capacityOccupiedPercent = (pkg.weight / (vehicle.capacity || 1)) * 100;
+    const vehicleCapacity = (vehicle as any).capacity || (vehicle as any).volumetricCapacity || 1;
+    const capacityOccupiedPercent = (pkg.weight / vehicleCapacity) * 100;
 
     // Unforeseen (Imponderables)
     const unforeseenPercent = pkg.unforeseenPercent || 0;
@@ -109,7 +208,8 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle | Vehicle
     const priceBeforeInsurance = (costWithUnforeseen * margin * serviceMult);
 
     // Insurance
-    const insurance = pkg.insuranceSelection === 'own' ? 0 : (pkg.declaredValue || 0) * insuranceRate;
+    const insuranceValue = pkg.value || pkg.declaredValue || 0;
+    const insurance = pkg.insuranceSelection === 'own' ? 0 : insuranceValue * insuranceRate;
 
     // Total final
     const priceToClient = priceBeforeInsurance + insurance;
@@ -119,6 +219,7 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle | Vehicle
     const operationalCostPerKm = distance > 0 ? (costWithUnforeseen / distance) : 0;
 
     return {
+        // Detailed breakdown
         fuelCost,
         tolls,
         driverSalary: driverSalaryTotal,
@@ -132,7 +233,15 @@ export function calculateLogisticsCosts(pkg: Package, vehicle: Vehicle | Vehicle
         unforeseen: unforeseenAmount,
         operationalCost: costWithUnforeseen,
         operationalCostPerKm,
+
+        // Pricing interface fields
+        basePrice: priceBeforeInsurance,
+        fuelSurcharge: fuelCost,
         insurance,
+        urgency: serviceLevel === 'express' ? (priceBeforeInsurance * 0.4) : 0,
+        total: finalPriceWithIva,
+
+        // Additional fields
         subtotal: priceToClient,
         iva,
         priceToClient: finalPriceWithIva,

@@ -25,20 +25,65 @@ export default function DriverApp() {
 
     useEffect(() => {
         fetchDrivers();
-
-        // Get driver's current location
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setDriverLocation({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    });
-                },
-                (error) => console.error('Error getting location:', error)
-            );
-        }
     }, []);
+
+    // Effect for periodic location updates
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout;
+
+        // Function to send location to server
+        const sendLocationUpdate = async (position: GeolocationPosition) => {
+            const { latitude, longitude } = position.coords;
+            setDriverLocation({ lat: latitude, lng: longitude });
+
+            // Find active deliveries to update their location
+            const activeDeliveries = deliveries.filter((d: any) =>
+                ['PICKED_UP', 'IN_TRANSIT'].includes(d.status)
+            );
+
+            if (activeDeliveries.length > 0) {
+                try {
+                    // Update location for all active packages
+                    await Promise.all(activeDeliveries.map((d: any) =>
+                        fetch('/api/packages/location', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                packageId: d.packageId,
+                                latitude,
+                                longitude
+                            })
+                        })
+                    ));
+                    console.log('Location updated for active deliveries');
+                } catch (err) {
+                    console.error('Failed to sync location:', err);
+                }
+            }
+        };
+
+        if (navigator.geolocation && currentDriverId) { // Only track if logged in
+            // Initial position
+            navigator.geolocation.getCurrentPosition(
+                (pos) => sendLocationUpdate(pos),
+                (err) => console.error('Error getting location:', err),
+                { enableHighAccuracy: true }
+            );
+
+            // Set up interval (e.g., every 30 seconds)
+            intervalId = setInterval(() => {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => sendLocationUpdate(pos),
+                    (err) => console.error('Error getting periodic location:', err),
+                    { enableHighAccuracy: true }
+                );
+            }, 30000);
+        }
+
+        return () => {
+            if (intervalId) clearInterval(intervalId);
+        };
+    }, [currentDriverId, deliveries]); // Re-run if driver or delivery list changes
 
     useEffect(() => {
         if (currentDriverId) {

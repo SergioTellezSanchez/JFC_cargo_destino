@@ -3,7 +3,7 @@
 import { History } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { useLanguage } from '@/lib/LanguageContext';
-import PackageManagement from '@/components/management/PackageManagement';
+import CustomerPackageList from '@/components/customer/CustomerPackageList';
 
 export default function MyServicesPage() {
     const { language } = useLanguage();
@@ -20,7 +20,7 @@ export default function MyServicesPage() {
                 </div>
             </div>
 
-            <PackageManagement isAdminView={false} />
+            <CustomerPackageList />
         </main>
     );
 }

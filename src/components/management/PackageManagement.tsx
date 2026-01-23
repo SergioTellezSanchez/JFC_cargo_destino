@@ -198,6 +198,8 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
         return (idMatch || nameMatch) && statusMatch && companyMatch;
     });
 
+    const canEditAssignment = isAdmin || isAdminView;
+
     return (
         <div className="space-y-6">
             <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
@@ -314,6 +316,7 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                             style={{ width: '100%', margin: 0, height: '42px' }}
                                                                             value={assignmentState.logisticsCompany}
                                                                             onChange={(e) => setAssignmentState({ ...assignmentState, logisticsCompany: e.target.value, vehicleId: '', driverId: '' })}
+                                                                            disabled={!canEditAssignment}
                                                                         >
                                                                             <option value="">Seleccionar Empresa</option>
                                                                             {LOGISTICS_COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -327,6 +330,7 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                             style={{ width: '100%', margin: 0, height: '42px' }}
                                                                             value={assignmentState.vehicleId}
                                                                             onChange={(e) => setAssignmentState({ ...assignmentState, vehicleId: e.target.value })}
+                                                                            disabled={!canEditAssignment}
                                                                         >
                                                                             <option value="">Seleccionar Vehículo</option>
                                                                             {vehicles
@@ -350,6 +354,7 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                             style={{ width: '100%', margin: 0, height: '42px' }}
                                                                             value={assignmentState.driverId}
                                                                             onChange={(e) => setAssignmentState({ ...assignmentState, driverId: e.target.value })}
+                                                                            disabled={!canEditAssignment}
                                                                         >
                                                                             <option value="">Seleccionar Conductor</option>
                                                                             {drivers
@@ -360,9 +365,11 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                         </select>
                                                                     </div>
 
-                                                                    <button className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', height: '45px', borderRadius: '0.75rem', boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)' }} onClick={() => handleAssignmentUpdate(pkg.id)}>
-                                                                        <Save size={18} /> Actualizar Asignación
-                                                                    </button>
+                                                                    {canEditAssignment && (
+                                                                        <button className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', height: '45px', borderRadius: '0.75rem', boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)' }} onClick={() => handleAssignmentUpdate(pkg.id)}>
+                                                                            <Save size={18} /> Actualizar Asignación
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </div>
 
@@ -470,7 +477,18 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                         <div className="input-group"><label>Valor Declarado ($)</label><input name="declaredValue" type="number" className="input" defaultValue={currentItem?.declaredValue} /></div>
                         <div className="input-group"><label>Precio al Cliente ($)</label><input name="price" type="number" className="input" defaultValue={currentItem?.price || currentItem?.cost} /></div>
 
-                        <div className="input-group" style={{ gridColumn: 'span 2' }}><label>Empresa Logística</label><select name="logisticsCompany" className="input" defaultValue={currentItem?.logisticsCompany}><option value="">Ninguna</option>{LOGISTICS_COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                        <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                            <label>Empresa Logística</label>
+                            <select
+                                name="logisticsCompany"
+                                className="input"
+                                defaultValue={currentItem?.logisticsCompany}
+                                disabled={!canEditAssignment}
+                            >
+                                <option value="">Ninguna</option>
+                                {LOGISTICS_COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
                         <div className="input-group" style={{ gridColumn: 'span 2' }}><label>Descripción / Instrucciones</label><textarea name="description" className="input" style={{ height: '80px' }} defaultValue={currentItem?.description || currentItem?.instructions}></textarea></div>
                     </div>
                     <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
