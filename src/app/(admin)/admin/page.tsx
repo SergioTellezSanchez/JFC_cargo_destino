@@ -469,7 +469,7 @@ function AdminContent() {
                                                     </span>
                                                     <div className="relative w-24">
                                                         <input type="number" step="0.05" className="input input-sm input-bordered w-full text-right pr-6"
-                                                            value={settings.transportRates?.[item.k as any] || 1}
+                                                            value={(settings.transportRates as Record<string, number>)?.[item.k] || 1}
                                                             onChange={(e) => updateSetting('transportRates', item.k, Number(e.target.value))} />
                                                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">x</span>
                                                     </div>
@@ -502,7 +502,7 @@ function AdminContent() {
                                                     </span>
                                                     <div className="relative">
                                                         <input type="number" step="0.1" className="input input-sm input-bordered w-full text-right pr-6"
-                                                            value={settings.cargoRates?.[item.k as any] || 1}
+                                                            value={(settings.cargoRates as Record<string, number>)?.[item.k] || 1}
                                                             onChange={(e) => updateSetting('cargoRates', item.k, Number(e.target.value))} />
                                                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">x</span>
                                                     </div>
