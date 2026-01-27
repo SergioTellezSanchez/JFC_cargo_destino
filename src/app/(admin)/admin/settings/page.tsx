@@ -16,12 +16,11 @@ export default function AdminSettingsPage() {
         insuranceRate: 1.5,
         profitMargin: 1.4,
         basePrice: 1000,
-        usefulLifeKm: 500000,
-        basePricePerKm: 25,
+        kilometerRate: 25,
         imponderablesRate: 3.0,
-        riskFactors: { chemical: 1.5, perishable: 1.3, fragile: 1.2, oversized: 1.4 },
+        cargoRates: { hazardous: 1.5, perishable: 1.3, fragile: 1.2, machinery: 1.4 },
         maneuverFees: { loading: 500, unloading: 500 },
-        packagingFees: { stretchWrap: 200, straps: 150 },
+        packagingFees: { stretchWrap: 200, stackable: 0 },
         serviceMultipliers: { express: 1.4, roundTrip: 1.8, weekend: 1.2 }
     } as any);
 
@@ -39,7 +38,7 @@ export default function AdminSettingsPage() {
                 ...prev,
                 ...data,
                 // Ensure nested objects exist
-                riskFactors: { ...prev.riskFactors, ...(data.riskFactors || {}) },
+                cargoRates: { ...prev.cargoRates, ...(data.cargoRates || {}) },
                 maneuverFees: { ...prev.maneuverFees, ...(data.maneuverFees || {}) },
                 packagingFees: { ...prev.packagingFees, ...(data.packagingFees || {}) },
                 serviceMultipliers: { ...prev.serviceMultipliers, ...(data.serviceMultipliers || {}) },
@@ -80,7 +79,7 @@ export default function AdminSettingsPage() {
             const parts = path.split('.');
             if (parts.length === 1) return { ...prev, [parts[0]]: value };
 
-            // Handle 2 levels for now (e.g. riskFactors.chemical)
+            // Handle 2 levels for now (e.g. cargoRates.hazardous)
             const [parent, child] = parts;
             return {
                 ...prev,
@@ -123,7 +122,7 @@ export default function AdminSettingsPage() {
                         Tarifas Base
                     </h3>
                     <div className="space-y-4">
-                        <InputNumber label="Precio Base por KM (MXN)" value={settings.basePricePerKm || 0} onChange={v => update('basePricePerKm', v)} prefix="$" />
+                        <InputNumber label="Precio Base por KM (MXN)" value={settings.kilometerRate || 0} onChange={v => update('kilometerRate', v)} prefix="$" />
                         <InputNumber label="Costo Mínimo de Viaje (Base)" value={settings.basePrice || 0} onChange={v => update('basePrice', v)} prefix="$" />
                         <div className="grid grid-cols-2 gap-4">
                             <InputNumber label="Margen Comercial" value={settings.profitMargin || 0} onChange={v => update('profitMargin', v)} step={0.1} />
@@ -140,10 +139,10 @@ export default function AdminSettingsPage() {
                         Multiplicadores por Riesgo
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
-                        <InputNumber label="Químicos" value={settings.riskFactors?.chemical || 0} onChange={v => update('riskFactors.chemical', v)} step={0.1} />
-                        <InputNumber label="Perecederos" value={settings.riskFactors?.perishable || 0} onChange={v => update('riskFactors.perishable', v)} step={0.1} />
-                        <InputNumber label="Frágil" value={settings.riskFactors?.fragile || 0} onChange={v => update('riskFactors.fragile', v)} step={0.1} />
-                        <InputNumber label="Sobredimensionado/Maquinaria" value={settings.riskFactors?.oversized || 0} onChange={v => update('riskFactors.oversized', v)} step={0.1} />
+                        <InputNumber label="Químicos / Peligroso" value={settings.cargoRates?.hazardous || 0} onChange={v => update('cargoRates.hazardous', v)} step={0.1} />
+                        <InputNumber label="Perecederos" value={settings.cargoRates?.perishable || 0} onChange={v => update('cargoRates.perishable', v)} step={0.1} />
+                        <InputNumber label="Frágil" value={settings.cargoRates?.fragile || 0} onChange={v => update('cargoRates.fragile', v)} step={0.1} />
+                        <InputNumber label="Maquinaria / Pesado" value={settings.cargoRates?.machinery || 0} onChange={v => update('cargoRates.machinery', v)} step={0.1} />
                     </div>
                     <p className="text-xs text-slate-400 mt-4 bg-slate-50 p-3 rounded">
                         * Estos factores multiplican la tarifa base. Ej: 1.5 significa +50% de costo.
@@ -163,7 +162,7 @@ export default function AdminSettingsPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <InputNumber label="Emplayado Total" value={settings.packagingFees?.stretchWrap || 0} onChange={v => update('packagingFees.stretchWrap', v)} prefix="$" />
-                            <InputNumber label="Cintas / Amarres" value={settings.packagingFees?.straps || 0} onChange={v => update('packagingFees.straps', v)} prefix="$" />
+                            <InputNumber label="Estibable (Descuento/Cargo)" value={settings.packagingFees?.stackable || 0} onChange={v => update('packagingFees.stackable', v)} prefix="$" />
                         </div>
                     </div>
                 </div>
