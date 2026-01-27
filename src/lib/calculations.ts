@@ -5,6 +5,8 @@
  * It uses the unified schema from firebase/schema.ts
  */
 
+import { formatNumber } from './utils';
+
 import type { Vehicle, PricingSettings, Pricing } from './firebase/schema';
 
 // ============================================================================
@@ -79,7 +81,7 @@ export interface Package {
     // Logistics options
     loadType?: string;
     transportType?: 'FTL' | 'PTL' | 'LTL';
-    cargoType?: 'heavy' | 'hazard' | 'packages';
+    cargoType?: 'hazardous' | 'perishable' | 'machinery' | 'furniture' | 'packages' | 'general';
     requiresLoadingSupport?: boolean;
     requiresUnloadingSupport?: boolean;
     isStackable?: boolean;
@@ -104,6 +106,7 @@ export interface Package {
     seller?: string;
     clientName?: string;
     folio?: string;
+    packageCount?: number;
     origin?: string;
     destination?: string;
 }
@@ -112,12 +115,17 @@ export interface Package {
 // CALCULATIONS
 // ============================================================================
 
+/**
+ * NEW SIMPLIFIED QUOTING LOGIC (Service-Based)
+ * Formula: Costo Base (Weights x TransportRate x CargoRate) + Extras + Surcharges
+ */
 export function calculateLogisticsCosts(
     pkg: Package,
     vehicle: Vehicle | VehicleDefinition,
     settings: PricingSettings,
     serviceLevel: 'standard' | 'express' = 'standard'
 ): Pricing & {
+    // Legacy fields kept for compatibility, but simplified or set to 0 where appropriate
     fuelCost: number;
     tolls: number;
     driverSalary: number;
@@ -139,117 +147,344 @@ export function calculateLogisticsCosts(
     utility: number;
     utilityPercent: number;
     insuranceRate: number;
+
+    // Billable Breakdown (For UI)
+    billableFreight: number;
+    billableFees: number;
+    billableTolls: number;
+    billableLineItems?: Array<{ label: string; value: number; type: string; price: number }>;
 } {
+    // 1. Core Variables
+    const distance = pkg.distanceKm || 0;
     const insuranceRate = (settings.insuranceRate || 1.5) / 100;
     const margin = settings.profitMargin || 1.4;
-    const basePrice = settings.basePrice || 1000;
-    const usefulLife = settings.usefulLifeKm || 500000;
 
-    const distance = pkg.distanceKm || 0;
-    const days = pkg.travelDays || 1;
+    // 2. Multipliers & Breakdown Setup
+    const breakdownDetails = [];
 
-    // Fuel calculation
-    let fuelPrice = pkg.fuelPrice || settings.defaultFuelPrice || 25;
-    const v = vehicle as any;
-    if (!pkg.fuelPrice && v.fuelType && settings.fuelPrices) {
-        fuelPrice = (settings.fuelPrices as any)[v.fuelType] || fuelPrice;
+    // --- 1. COSTO BASE (Formula: Peso * Transporte * Carga) ---
+    // "Peso Aproximado (Costo fijo)" * "Cost rate Tipo Transporte" * "Cost rate Tipo Carga"
+
+    const weightBaseCosts: Record<string, number> = settings.weightRates || {
+        '50': 500,     // < 50kg
+        '500': 1500,   // Light
+        '1500': 3500,  // Van
+        '3500': 6500,  // 3.5 Ton
+        '10000': 12000,// Rabon
+        '14000': 18000,// Torton
+        '24000': 25000 // Trailer
+    };
+
+    const transportRates: Record<string, number> = settings.transportRates || {
+        'FTL': 1.0,
+        'PTL': 0.8,
+        'LTL': 0.6
+    };
+
+    const cargoTypeRates: Record<string, number> = settings.cargoRates || {
+        'general': 1.0,
+        'packages': 1.0,
+        'hazardous': 1.5,
+        'perishable': 1.3,
+        'machinery': 1.4,
+        'furniture': 1.2,
+        'heavy': 1.2,
+        'fragile': 1.2 // [NEW] Supported in calculations
+    };
+
+    // Find closest or matching weight key
+    const weightKey = Object.keys(weightBaseCosts).reduce((prev, curr) =>
+        (Math.abs(Number(curr) - pkg.weight) < Math.abs(Number(prev) - pkg.weight) ? curr : prev)
+        , '500');
+
+    // Calculate Base Logic
+    const kmRate = settings.kilometerRate || 0;
+    const mileageCost = distance * kmRate;
+
+    // [NEW] Calculate Fuel Cost (Informational / Breakdown)
+    let fuelPrice = settings.defaultFuelPrice || 25;
+    const vFuelType = (vehicle as any).fuelType; // Now available in schema and definition
+    const vEfficiency = (vehicle as any).efficiency || (vehicle as any).fuelEfficiency || 3.5;
+
+    if (vFuelType && settings.fuelPrices) {
+        fuelPrice = (settings.fuelPrices as any)[vFuelType] || fuelPrice;
     }
-    const efficiency = pkg.fuelEfficiency || v.fuelEfficiency || 2;
-    const fuelCost = (distance / efficiency) * fuelPrice;
 
-    // Personnel costs (Total for the trip)
-    const driverSalaryTotal = (pkg.driverSalary || 0) * days;
-    const assistantSalaryTotal = (pkg.assistantSalary || 0) * days;
-    const driverCommission = pkg.driverCommission || 0;
-    const assistantCommission = pkg.assistantCommission || 0;
-    const food = pkg.food || 0;
-    const lodging = pkg.lodging || 0;
+    const calculatedFuelCost = (distance / vEfficiency) * fuelPrice;
 
-    // Depreciation
-    const assetValue = Number((vehicle as any).value) || 1000000;
-    const depreciationPerKm = assetValue / usefulLife;
-    const depreciationKmTotal = depreciationPerKm * distance;
-    const depreciationDayTotal = ((vehicle as any).depreciationPerDay || 0) * days;
-    const totalDepreciation = Math.max(depreciationKmTotal, depreciationDayTotal);
+    const rawWeightCost = weightBaseCosts[String(pkg.weight)] || weightBaseCosts[weightKey] || 1500;
 
-    // Tolls and others
-    const tolls = pkg.tolls || 0;
+    const transportRate = transportRates[pkg.transportType || 'FTL'] || 1.0;
+    const cargoType = pkg.cargoType || 'general';
+    const cargoRate = cargoTypeRates[cargoType] || 1.0;
 
-    // Dynamic Other Expenses: Default to 1.65 MXN/km if not provided as a lump sum
-    const otherExpensesPerKm = 1.65;
-    const otherExpenses = pkg.otherExpenses || (otherExpensesPerKm * distance);
+    // Base Freight = (Start Fee + Mileage) * Multipliers
+    const baseFreight = (rawWeightCost + mileageCost) * transportRate * cargoRate;
 
-    // Operational Cost (Sum of all direct costs)
-    const totalOperationalCost =
-        fuelCost +
-        tolls +
-        driverSalaryTotal +
-        driverCommission +
-        assistantSalaryTotal +
-        assistantCommission +
-        food +
-        lodging +
-        totalDepreciation +
-        otherExpenses;
+    // 1. Peso (Base Start Fee)
+    breakdownDetails.push({
+        label: `Banderazo / Peso: ${pkg.weight}kg`,
+        value: rawWeightCost,
+        type: 'base'
+    });
 
-    // Capacity calculation
-    const vehicleCapacity = (vehicle as any).capacity || (vehicle as any).volumetricCapacity || 1;
-    const capacityOccupiedPercent = (pkg.weight / vehicleCapacity) * 100;
+    // 1.1 Kilometraje
+    if (mileageCost > 0) {
+        breakdownDetails.push({
+            label: `Distancia: ${distance}km x $${kmRate}`,
+            value: mileageCost,
+            type: 'base'
+        });
+    }
 
-    // Unforeseen (Imponderables)
-    const unforeseenPercent = pkg.unforeseenPercent || 0;
-    const unforeseenAmount = totalOperationalCost * (unforeseenPercent / 100);
+    // 2. Transporte (Adjustment)
+    // We calculate the adjustment based on the combined base (Start + Mileage)
+    const combinedBase = rawWeightCost + mileageCost;
+    const transportAdjustment = (combinedBase * transportRate) - combinedBase;
 
-    // Subtotal before margin and insurance
-    const costWithUnforeseen = totalOperationalCost + unforeseenAmount;
+    if (transportRate !== 1.0) {
+        breakdownDetails.push({
+            label: `Transp: ${pkg.transportType || 'FTL'} (${transportRate > 1 ? '+' : ''}${Math.round((transportRate - 1) * 100)}%)`,
+            value: transportAdjustment,
+            type: 'base'
+        });
+    }
 
-    // Applying margin (Profit)
-    const serviceMult = serviceLevel === 'express' ? 1.4 : 1.0;
-    const priceBeforeInsurance = (costWithUnforeseen * margin * serviceMult);
+    // 3. Carga (Adjustment on top of Transp)
+    const intermediateBase = combinedBase * transportRate;
+    const cargoAdjustment = (intermediateBase * cargoRate) - intermediateBase;
 
+    if (cargoRate !== 1.0) {
+        breakdownDetails.push({
+            label: `Carga: ${pkg.cargoType || 'general'} (${cargoRate > 1 ? '+' : ''}${Math.round((cargoRate - 1) * 100)}%)`,
+            value: cargoAdjustment,
+            type: 'base'
+        });
+    }
+
+
+    // --- 2. COSTOS OPERATIVOS EXTRAS (Fixed Add-ons) ---
+    // "Servicios de Maniobra + Condiciones de Manejo"
+    const maneuverFees = settings.maneuverFees || { loading: 500, unloading: 500 };
+    const packagingFees = settings.packagingFees || { stackable: 0, stretchWrap: 200 };
+
+    let extraFees = 0;
+
+    if (pkg.requiresLoadingSupport) { extraFees += maneuverFees.loading; breakdownDetails.push({ label: 'Maniobra Carga (Personal)', value: maneuverFees.loading, type: 'fee' }); }
+    if (pkg.requiresUnloadingSupport) { extraFees += maneuverFees.unloading; breakdownDetails.push({ label: 'Maniobra Descarga (Personal)', value: maneuverFees.unloading, type: 'fee' }); }
+
+    if (pkg.isStackable && (packagingFees.stackable || 0) > 0) {
+        extraFees += packagingFees.stackable;
+        breakdownDetails.push({ label: 'Producto Estibable (Manejo)', value: packagingFees.stackable, type: 'fee' });
+    }
+
+    if (pkg.requiresStretchWrap) {
+        extraFees += packagingFees.stretchWrap;
+        breakdownDetails.push({ label: 'Material de Emplayado', value: packagingFees.stretchWrap, type: 'fee' });
+    }
+
+
+    // --- 3. RATE COST OPERATIVOS (Multipliers) ---
+    // "Presentación de Carga & Cantidad"
+
+    // A. Presentación de Carga (Rate Cost)
+    const presentationRates = settings.presentationRates || {
+        'Granel': 1.3,
+        'Maquinaria': 1.4,
+        'Paletizado / Tarimas': 1.1,
+        'General': 1.0
+    };
+    const presentation = pkg.packageType || 'General';
+    const presentationRate = presentationRates[presentation] || 1.0;
+
+    if (presentationRate > 1.0) {
+        const surcharge = baseFreight * (presentationRate - 1);
+        breakdownDetails.push({ label: `Presentación: ${presentation} (+${Math.round((presentationRate - 1) * 100)}%)`, value: surcharge, type: 'surcharge' });
+    }
+
+    // B. Cantidad (Rate Cost)
+    const qtyRate = settings.quantityRate || 0.05;
+    const qty = pkg.packageCount || 1;
+
+    if (qty > 1) {
+        const qtySurcharge = baseFreight * ((qty - 1) * qtyRate);
+        breakdownDetails.push({ label: `Cantidad: ${qty} (+${Math.round((qty - 1) * qtyRate * 100)}%)`, value: qtySurcharge, type: 'surcharge' });
+    }
+
+    // Accumulate for Total Operations Cost
+    let totalSurcharges = 0;
+    breakdownDetails.forEach(i => { if (i.type === 'surcharge') totalSurcharges += i.value; });
+    const totalOpsCost = baseFreight + totalSurcharges + extraFees;
+
+    // --- 4. OTROS (Pass-throughs + Imponderables) ---
     // Insurance
     const insuranceValue = pkg.value || pkg.declaredValue || 0;
     const insurance = pkg.insuranceSelection === 'own' ? 0 : insuranceValue * insuranceRate;
+    breakdownDetails.push({ label: 'Seguro de Carga', value: insurance, type: 'pass-through' });
 
-    // Total final
-    const priceToClient = priceBeforeInsurance + insurance;
-    const iva = priceToClient * 0.16;
-    const finalPriceWithIva = priceToClient + iva;
+    // Tolls (Casetas)
+    const tolls = pkg.tolls || 0;
+    if (tolls > 0) {
+        breakdownDetails.push({ label: 'Casetas y Peajes (Directo)', value: tolls, type: 'pass-through' });
+    }
 
-    const operationalCostPerKm = distance > 0 ? (costWithUnforeseen / distance) : 0;
+    // Imponderables
+    const imponderablesRate = settings.imponderablesRate !== undefined ? settings.imponderablesRate : 3;
+    const imponderables = totalOpsCost * (imponderablesRate / 100);
+
+    if (imponderables > 0) {
+        breakdownDetails.push({
+            label: `Imponderables (${imponderablesRate}%)`,
+            value: imponderables,
+            type: 'imponderables'
+        });
+    }
+
+    const costWithImponderables = totalOpsCost + imponderables;
+
+    // 5. MARGIN APPLICATION
+    // Price = (OpsCost + Imponderables) * Margin + PassThroughs
+    const priceForService = costWithImponderables * margin;
+
+    const totalPassThrough = insurance + tolls;
+    let adjustedPriceBeforeInsurance = priceForService + tolls;
+
+    // [NEW] Minimum Floor Logic
+    const minPrice = settings.basePrice || 0;
+    if (adjustedPriceBeforeInsurance < minPrice) {
+        adjustedPriceBeforeInsurance = minPrice;
+        // We adjust the basePrice field in return object to reflect this bump if needed, 
+        // but strictly speaking 'basePrice' in the return interface is usually just the transport cost.
+        // However, to ensure the total matches, we use this floor.
+    }
+
+    const priceToClient = adjustedPriceBeforeInsurance + insurance; // Insurance is usually separate or added after? 
+    // Logic above: priceToClient = priceForService + totalPassThrough (insurance + tolls)
+    // So if we floored 'adjustedPrice', we just add insurance on top if it wasn't part of the floor.
+    // Usually "Minimum Turn" includes everything except maybe taxes. 
+    // Let's assume settings.basePrice is the minimum SUB TOTAL before IVA.
+
+    // Re-calculating to be precise:
+    const calculatedSubtotal = priceForService + tolls + insurance;
+    const finalSubtotal = Math.max(calculatedSubtotal, minPrice);
+
+    // We update priceToClient to this new floor
+    const finalPriceToClient = finalSubtotal;
+    const iva = finalPriceToClient * 0.16;
+    const finalPriceWithIva = finalPriceToClient + iva;
+
+    // Revenue Ratio for Billable Items
+    const revenueRatio = costWithImponderables > 0 ? (priceForService / costWithImponderables) : margin;
+
+    // Convert to Billable Line Items
+    const billableLineItems = breakdownDetails.map(item => ({
+        ...item,
+        price: item.type === 'pass-through' ? item.value : item.value * revenueRatio
+    }));
+
+    // Backwards compatibility filling
+    const operationalCost = costWithImponderables;
+    const operationalCostPerKm = distance > 0 ? (operationalCost / distance) : 0;
+    const capacityOccupiedPercent = (vehicle as any).capacity ? (pkg.weight / (vehicle as any).capacity) * 100 : 0;
+    const billableFreight = baseFreight * revenueRatio;
+    const billableFees = extraFees * revenueRatio;
+    const billableTolls = tolls;
 
     return {
-        // Detailed breakdown
-        fuelCost,
-        tolls,
-        driverSalary: driverSalaryTotal,
-        driverCommission,
-        assistantSalary: assistantSalaryTotal,
-        assistantCommission,
-        food,
-        lodging,
-        depreciation: totalDepreciation,
-        otherExpenses,
-        unforeseen: unforeseenAmount,
-        operationalCost: costWithUnforeseen,
-        operationalCostPerKm,
-
-        // Pricing interface fields
-        basePrice: priceBeforeInsurance,
-        fuelSurcharge: fuelCost,
+        // Pricing Interface
+        basePrice: finalSubtotal - insurance - tolls, // Reverse engineered base
+        fuelSurcharge: 0,
         insurance,
-        urgency: serviceLevel === 'express' ? (priceBeforeInsurance * 0.4) : 0,
+        urgency: serviceLevel === 'express' ? (finalSubtotal * ((settings.serviceMultipliers?.express || 1.4) - 1)) : 0,
         total: finalPriceWithIva,
 
-        // Additional fields
-        subtotal: priceToClient,
+        // Detailed Breakdown (Simulated/Calculated)
+        fuelCost: calculatedFuelCost,
+        tolls,
+        driverSalary: 0,
+        driverCommission: 0,
+        assistantSalary: 0,
+        assistantCommission: 0,
+        food: 0,
+        lodging: 0,
+        depreciation: 0,
+        otherExpenses: extraFees, // Fees cost basis
+        unforeseen: imponderables,
+        operationalCost: costWithImponderables,
+        operationalCostPerKm,
+
+        // UI Display Helpers (Billable/Selling Prices)
+        billableFreight,
+        billableFees,
+        billableTolls,
+        billableLineItems, // New Detailed List
+
+        subtotal: finalPriceToClient,
         iva,
         priceToClient: finalPriceWithIva,
-        priceBeforeTax: priceToClient,
+        priceBeforeTax: finalPriceToClient,
         capacityOccupiedPercent,
-        utility: priceToClient - costWithUnforeseen - insurance,
-        utilityPercent: ((priceToClient - costWithUnforeseen - insurance) / priceToClient) * 100,
+        utility: priceToClient - costWithImponderables - insurance,
+        utilityPercent: ((priceToClient - costWithImponderables - insurance) / priceToClient) * 100,
         insuranceRate: insuranceRate * 100
+    };
+}
+
+/**
+ * ADMIN ANALYTICS: TRIP PROFITABILITY
+ * Calculates the REAL profit based on actual expenses and vehicle efficiency.
+ * Used in Admin Dashboard after trip completion or for detailed projections.
+ */
+export function calculateTripProfitability(
+    pkg: Package,
+    vehicle: Vehicle,
+    settings: PricingSettings,
+    actualValues?: {
+        realDistance?: number;
+        realFuelPrice?: number;
+        realTolls?: number;
+    }
+) {
+    const distance = actualValues?.realDistance || pkg.distanceKm || 0;
+    const usefulLife = settings.usefulLifeKm || 500000;
+    const days = pkg.travelDays || 1;
+
+    // 1. Real Fuel Cost
+    let fuelPrice = actualValues?.realFuelPrice || pkg.fuelPrice || settings.defaultFuelPrice || 25;
+    if (!pkg.fuelPrice && !actualValues?.realFuelPrice && vehicle.fuelType && settings.fuelPrices) {
+        fuelPrice = (settings.fuelPrices as any)[vehicle.fuelType] || fuelPrice;
+    }
+    const efficiency = vehicle.fuelEfficiency || 2; // Actual vehicle efficiency
+    const fuelCost = (distance / efficiency) * fuelPrice;
+
+    // 2. Real Personnel Costs
+    const driverSalaryTotal = (pkg.driverSalary || 0) * days;
+    const assistantSalaryTotal = (pkg.assistantSalary || 0) * days;
+    const food = pkg.food || 0;
+    const lodging = pkg.lodging || 0;
+
+    // 3. Real Vehicle Depreciation
+    const assetValue = vehicle.value || 1000000;
+    const depreciationPerKm = assetValue / usefulLife;
+    const totalDepreciation = depreciationPerKm * distance;
+
+    // 4. Real Tolls
+    const tolls = actualValues?.realTolls || pkg.tolls || 0;
+
+    // 5. Total Real Cost
+    const totalRealCost = fuelCost + driverSalaryTotal + assistantSalaryTotal + food + lodging + totalDepreciation + tolls + (pkg.otherExpenses || 0);
+
+    return {
+        revenue: 0, // To be filled with actual Quote Price
+        totalRealCost,
+        breakdown: {
+            fuelCost,
+            personnel: driverSalaryTotal + assistantSalaryTotal + food + lodging,
+            depreciation: totalDepreciation,
+            tolls,
+            others: pkg.otherExpenses || 0
+        },
+        profitPerKm: 0 // (Revenue - Cost) / Distance
     };
 }
 
@@ -264,20 +499,20 @@ export function isVehicleSuitable(v: Vehicle | VehicleDefinition, pkg: Package):
     const vehicleTypeName = (pkg as any).selectedVehicleType;
     if (vehicleTypeName && v.id !== vehicleTypeName) return false;
 
-    // 4. Special requirements for sensitive cargo
+    // 4. Special requirements
     const vehicleUses = (v as any).uses || [];
 
-    if (pkg.packageType === 'Perecederos') {
+    if (pkg.cargoType === 'perishable') {
         const isColdChain = v.id === 'refrigerado' || vehicleUses.includes('Perecederos') || vehicleUses.includes('Refrigerado');
         if (!isColdChain) return false;
     }
 
-    if (pkg.packageType === 'Maquinaria') {
+    if (pkg.cargoType === 'machinery' || pkg.packageType === 'Maquinaria') {
         const isHeavyDuty = v.id === 'lowboy' || v.category === VEHICLE_CATEGORIES.PLATAFORMAS || vehicleUses.includes('Maquinaria');
         if (!isHeavyDuty) return false;
     }
 
-    if (pkg.packageType === 'Productos Químicos') {
+    if (pkg.cargoType === 'hazardous') {
         const isChemical = v.id === 'pipa' || v.id === 'trailer' || vehicleUses.includes('Químicos');
         if (!isChemical) return false;
     }

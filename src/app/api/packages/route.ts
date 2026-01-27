@@ -74,6 +74,7 @@ export async function POST(request: Request) {
             senderPhone: body.senderPhone || null,
             receiverPhone: body.recipientPhone || body.receiverPhone || null,
             type: body.packageType || body.type || 'BOX',
+            packageCount: body.packageCount || 1,
             price: body.price || body.cost || 0,
             loadType: body.loadType || null,
             loadTypeDetails: body.loadTypeDetails || null,
@@ -81,6 +82,20 @@ export async function POST(request: Request) {
             dimensions: body.dimensions || null,
             declaredValue: body.declaredValue || 0,
             distanceKm: body.distanceKm || 0,
+            // Logistics Flags
+            requiresLoadingSupport: body.requiresLoadingSupport || false,
+            requiresUnloadingSupport: body.requiresUnloadingSupport || false,
+            isStackable: body.isStackable || false,
+            requiresStretchWrap: body.requiresStretchWrap || false,
+            requiresStraps: body.requiresStraps || false,
+            insuranceSelection: body.insuranceSelection || 'jfc',
+            // Detailed Types
+            transportType: body.transportType || 'FTL',
+            cargoType: body.cargoType || 'general',
+            // Nature Flags
+            isChemical: body.isChemical || false,
+            isPerishable: body.isPerishable || false,
+            isFurniture: body.isFurniture || false,
             // Operational & Personnel Details
             fuelPrice: body.fuelPrice || null,
             fuelEfficiency: body.fuelEfficiency || null,

@@ -24,12 +24,71 @@ export interface FuelPrices {
 }
 
 export interface PricingSettings {
-    insuranceRate: number;
-    profitMargin: number;
-    basePrice: number;
+    // Core
+    insuranceRate: number; // e.g. 1.5%
+    profitMargin: number; // e.g. 1.4
+    basePrice: number; // Minimum trip cost
     usefulLifeKm: number;
-    defaultFuelPrice?: number;
+    imponderablesRate?: number; // e.g. 3%
+
+    // Fuel Costs (Configurable)
     fuelPrices?: FuelPrices;
+
+    // 1. Base Cost Components (Configurable)
+    kilometerRate?: number; // Cost per km (e.g. $15/km)
+
+    // "Costo fijo asignado a cada Peso Aproximado"
+    weightRates?: Record<string, number>; // e.g. {'50': 500, '500': 1500...}
+
+    // "Cost rate asignado a cada Tipo de Transporte"
+    transportRates?: {
+        FTL: number; // e.g. 1.0 or Fixed Cost? User said "Cost rate... que asignamos"
+        PTL: number;
+        LTL: number;
+    };
+
+    // "Cost rate asignado a cada Tipo de Carga"
+    cargoRates?: {
+        general: number; // e.g. 1.0
+        hazardous: number; // e.g. 1.5
+        perishable: number;
+        machinery: number;
+        packages: number; // "Paquetería/Diversos"
+        fragile: number; // [NEW] "Muebles/Frágil"
+    };
+
+    // 2. Multipliers / Rate Cost Operativos
+    // "Presentación de Carga"
+    presentationRates?: Record<string, number>; // e.g. {'Granel': 1.3...}
+    quantityRate?: number; // [NEW] Factor for extra quantity
+
+    // [NEW] Vehicle Config (Dimensions & Efficiency)
+    vehicleDimensions?: Record<string, { length: number; width: number; height: number; efficiency?: number; volume?: number; fuelType?: 'diesel' | 'gasoline87' | 'gasoline91' }>; // Keyed by weight/id
+
+    // "Cantidad" - Multiplier based on quantity? Or simple cost per unit?
+    // User said: "Cost rate que asignamos a cada Naturaleza" (Typo for Quantity?)
+    // We will store a per-unit factor or fixed fee
+
+
+    // 3. Operational Extras (Fixed Costs)
+    maneuverFees?: {
+        loading: number;
+        unloading: number;
+    };
+
+    packagingFees?: {
+        stackable: number; // "Producto Estibable" fee? Or discount?
+        stretchWrap: number; // "Playo/Empaque"
+    };
+
+    // Legacy / Other
+    defaultFuelPrice?: number;
+
+    serviceMultipliers?: {
+        express: number; // e.g. 1.4
+        roundTrip: number; // e.g. 1.8
+        weekend: number;
+    };
 }
 
 // ============================================================================
@@ -198,12 +257,16 @@ export interface Quote {
     seller?: string;
     folio?: string;
     loadType?: 'FTL' | 'PTL' | 'LTL';
-    cargoType?: 'heavy' | 'hazard' | 'packages';
+    cargoType?: 'hazardous' | 'perishable' | 'machinery' | 'furniture' | 'packages' | 'general';
+
+    // Service Requirements
     requiresLoadingSupport?: boolean;
     requiresUnloadingSupport?: boolean;
     isStackable?: boolean;
     requiresStretchWrap?: boolean;
+    requiresStraps?: boolean;
     insuranceSelection?: 'jfc' | 'own';
+    packageCount?: number;
 
     createdAt: Timestamp;
     updatedAt: Timestamp;
@@ -232,7 +295,7 @@ export interface Order {
     clientName?: string;
     distanceKm?: number;
     loadType?: 'FTL' | 'PTL' | 'LTL';
-    cargoType?: 'heavy' | 'hazard' | 'packages';
+    cargoType?: 'hazardous' | 'perishable' | 'machinery' | 'furniture' | 'packages' | 'general';
 
     // Timing
     actualPickupTime?: Timestamp;
@@ -534,7 +597,7 @@ export interface Location {
 export interface Cargo {
     weight: number; // kg
     volume?: number; // m³
-    type: 'general' | 'fragile' | 'dangerous';
+    type: 'general' | 'fragile' | 'dangerous' | 'perishable' | 'machinery' | 'furniture';
     packageType?: string; // 'Perecederos', 'Maquinaria', 'Productos Químicos', etc.
     description?: string;
     value?: number; // for insurance (declaredValue)
@@ -565,6 +628,12 @@ export interface Pricing {
     iva?: number;
     utility?: number;
     utilityPercent?: number;
+
+    // Billable Breakdown (For UI & History)
+    billableFreight?: number;
+    billableFees?: number;
+    billableTolls?: number;
+    billableLineItems?: Array<{ label: string; value: number; type: string; price: number }>;
 }
 
 // ============================================================================

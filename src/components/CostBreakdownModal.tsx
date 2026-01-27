@@ -1,6 +1,6 @@
 import Modal from '@/components/Modal';
 import { formatCurrency, formatNumber } from '@/lib/utils';
-import { Calculator, MapPin, Package, Zap, ArrowRight, Truck, ShieldCheck } from 'lucide-react';
+import { Calculator, MapPin, Package, Zap, ArrowRight, Truck, ShieldCheck, Info } from 'lucide-react';
 
 interface QuoteDetails {
     fuelCost: number;
@@ -23,6 +23,12 @@ interface QuoteDetails {
     utility: number;
     utilityPercent: number;
     operationalCostPerKm?: number;
+
+    // Billable Fields
+    billableFreight?: number;
+    billableFees?: number;
+    billableTolls?: number;
+    billableLineItems?: Array<{ label: string; value: number; type: string; price: number }>;
 }
 
 interface CostBreakdownModalProps {
@@ -49,7 +55,7 @@ export default function CostBreakdownModal({
     if (!details) return null;
 
     return (
-        <Modal isOpen={isOpen} title="Desglose del Precio" onClose={onClose}>
+        <Modal isOpen={isOpen} title="Desglose Detallado de Costos" onClose={onClose}>
             <div className="space-y-6">
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 max-h-[60vh] overflow-y-auto custom-scrollbar">
                     <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-200">
@@ -63,51 +69,70 @@ export default function CostBreakdownModal({
                     </div>
 
                     <div className="space-y-3 text-sm">
-                        {/* Direct Costs Section */}
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Costos Directos</div>
 
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500 flex items-center gap-2">
-                                <Zap size={14} className="text-blue-400" /> Combustible ({formatNumber(distanceKm)} km)
-                            </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.fuelCost)}</span>
+                        {/* 1. COSTO BASE */}
+                        <div className="mb-4">
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-1">Costo Base</div>
+                            {details.billableLineItems?.filter(i => i.type === 'base').map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-center px-3 py-1.5 hover:bg-slate-50 rounded-lg">
+                                    <span className="flex items-center gap-2 font-bold text-slate-700">
+                                        <Truck size={14} className="text-blue-500" /> {item.label}
+                                    </span>
+                                    <span className="font-medium text-slate-900">{formatCurrency(item.price)}</span>
+                                </div>
+                            ))}
                         </div>
 
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500 flex items-center gap-2">
-                                <MapPin size={14} className="text-slate-400" /> Casetas y Peajes
-                            </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.tolls)}</span>
-                        </div>
+                        {/* 2. COSTOS OPERATIVOS EXTRAS (Fees) */}
+                        {details.billableLineItems?.some(i => i.type === 'fee') && (
+                            <div className="mb-4">
+                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-1">Costos Operativos Extras</div>
+                                {details.billableLineItems?.filter(i => i.type === 'fee').map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center px-3 py-1.5 hover:bg-slate-50 rounded-lg">
+                                        <span className="flex items-center gap-2 text-xs text-slate-600">
+                                            <Package size={14} className="text-orange-400" /> {item.label}
+                                        </span>
+                                        <span className="font-medium text-slate-600">{formatCurrency(item.price)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500 flex items-center gap-2">
-                                <Truck size={14} className="text-slate-400" /> Depreciación de Unidad
-                            </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.depreciation)}</span>
-                        </div>
+                        {/* 3. RATE COST OPERATIVOS (Multipliers) */}
+                        {details.billableLineItems?.some(i => i.type === 'surcharge') && (
+                            <div className="mb-4">
+                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-1">Rate Cost Operativos</div>
+                                {details.billableLineItems?.filter(i => i.type === 'surcharge').map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center px-3 py-1.5 hover:bg-slate-50 rounded-lg">
+                                        <span className="flex items-center gap-2 text-xs text-slate-600">
+                                            <Zap size={14} className="text-yellow-500" /> {item.label}
+                                        </span>
+                                        <span className="font-medium text-slate-600">{formatCurrency(item.price)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
-
-
-                        {/* Other Section */}
-                        <div className="pt-2 mt-2 border-t border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">Administración y Riesgos</div>
-
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500">Imponderables (Prevención)</span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.unforeseen)}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                            <span className="text-slate-500 flex items-center gap-2">
-                                <ShieldCheck size={14} className="text-green-500" /> Seguro de Carga
-                            </span>
-                            <span className="font-medium text-slate-900">{formatCurrency(details.insurance)}</span>
-                        </div>
+                        {/* 4. OTROS (Pass-through & Imponderables) */}
+                        {details.billableLineItems?.some(i => i.type === 'pass-through' || i.type === 'imponderables') && (
+                            <div className="mb-4">
+                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-1">Otros</div>
+                                {details.billableLineItems?.filter(i => i.type === 'pass-through' || i.type === 'imponderables').map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center px-3 py-1.5 hover:bg-slate-50 rounded-lg">
+                                        <span className="flex items-center gap-2 text-xs text-slate-500 italic">
+                                            {item.type === 'imponderables' ? <Info size={14} className="text-slate-400" /> : <ShieldCheck size={14} className="text-green-500" />}
+                                            {item.label}
+                                        </span>
+                                        <span className="font-medium text-slate-500">{formatCurrency(item.price)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Summary Section */}
                         <div className="pt-4 mt-2 border-t-2 border-slate-200">
                             <div className="flex justify-between items-center font-bold text-slate-900">
-                                <span>Subtotal Servicio</span>
+                                <span>Subtotal</span>
                                 <span>{formatCurrency(details.subtotal)}</span>
                             </div>
                             <div className="flex justify-between items-center text-xs text-slate-500 mt-1">
@@ -121,54 +146,18 @@ export default function CostBreakdownModal({
                         <div className="flex flex-col">
                             <span className="text-slate-400 text-[10px] uppercase font-bold tracking-tighter">Total a Pagar</span>
                             <span className="text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(totalPrice)}</span>
+                        </div>
+                        <div className="text-right">
                             {details.operationalCostPerKm && (
-                                <span className="text-[10px] text-blue-600 font-bold mt-1">
-                                    Costo Op: {formatCurrency(details.operationalCostPerKm)}/km
+                                <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded">
+                                    {formatCurrency(details.operationalCostPerKm)}/km
                                 </span>
                             )}
                         </div>
-                        <div className="text-right">
-                            <div className="text-[10px] font-bold text-slate-400 uppercase">Capacidad Ocupada</div>
-                            <div className={`text-sm font-bold ${details.capacityOccupiedPercent > 90 ? 'text-orange-500' : 'text-blue-500'}`}>
-                                {details.capacityOccupiedPercent.toFixed(1)}%
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                <div className="bg-slate-900 text-slate-300 p-5 rounded-xl text-[11px] font-mono border border-slate-800 space-y-3">
-                    <h5 className="text-blue-400 font-bold uppercase tracking-widest flex items-center gap-2 mb-2">
-                        <Calculator size={14} /> Memoria de Cálculo Simplificada
-                    </h5>
 
-                    <div className="space-y-2">
-                        <p className="border-b border-white/5 pb-1">
-                            <span className="text-white block mb-1">1. Operación Directa:</span>
-                            Combustible + Casetas + Depreciación = <span className="text-blue-300">{formatCurrency(details.fuelCost + details.tolls + details.depreciation)}</span>
-                        </p>
-
-
-
-                        <p className="border-b border-white/5 pb-1">
-                            <span className="text-white block mb-1">3. Protección:</span>
-                            Seguro + Prevención de Imponderables = <span className="text-blue-300">{formatCurrency(details.insurance + details.unforeseen)}</span>
-                        </p>
-
-                        <p>
-                            <span className="text-white block mb-1">4. Utilidad Bruta Estimada:</span>
-                            Ingreso - Costos - Impuestos = <span className="text-green-400 font-bold">{formatCurrency(details.utility)} ({details.utilityPercent.toFixed(1)}%)</span>
-                        </p>
-                    </div>
-                </div>
-
-                <div className="bg-blue-50 p-4 rounded-xl text-sm text-blue-800 flex items-start gap-3">
-                    <div className="bg-blue-100 p-1 rounded-full shrink-0">
-                        <Calculator size={14} className="text-blue-600" />
-                    </div>
-                    <p>
-                        Este desglose técnico detalla la formación del precio final basado en parámetros de flota y mercado vigentes.
-                    </p>
-                </div>
 
                 <div className="flex gap-3 pt-2">
                     <button

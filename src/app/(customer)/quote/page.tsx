@@ -14,6 +14,7 @@ import Modal from '@/components/Modal';
 import PinSelectionModal from '@/components/PinSelectionModal';
 import CostBreakdownModal from '@/components/CostBreakdownModal';
 import CustomSelect from '@/components/CustomSelect';
+import EditableNumberSelect from '@/components/EditableNumberSelect';
 import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box, Repeat, Car, Info, Edit } from 'lucide-react';
 import { calculateLogisticsCosts, VEHICLE_TYPES, VEHICLE_CATEGORIES, isVehicleSuitable, type Package as PackageType, type VehicleDefinition } from '@/lib/calculations';
 import type { Vehicle } from '@/lib/firebase/schema';
@@ -42,13 +43,25 @@ export default function QuotePage() {
 
     const [origin, setOrigin] = useState<LocationState | null>(null);
     const [destination, setDestination] = useState<LocationState | null>(null);
+    const [distanceKm, setDistanceKm] = useState(0);
+    const [duration, setDuration] = useState('');
 
     // Package Details
     const [weight, setWeight] = useState<number | ''>('');
     const [dimensions, setDimensions] = useState({ length: 1, width: 1, height: 1 });
+    const [packageCount, setPackageCount] = useState<number | ''>('');
     const [description, setDescription] = useState('');
-    const [packageType, setPackageType] = useState('Caja de cartón');
+    const [packageType, setPackageType] = useState('Paletizado / Tarimas'); // Default standard
+    // Special Nature Flags
+    const [isChemical, setIsChemical] = useState(false);
+    const [isPerishable, setIsPerishable] = useState(false);
+    const [isFurniture, setIsFurniture] = useState(false);
+
     const [declaredValue, setDeclaredValue] = useState<number>(1000);
+
+    // Route Selection Modes
+    const [originMode, setOriginMode] = useState<'warehouse' | 'manual'>('manual');
+    const [destinationMode, setDestinationMode] = useState<'warehouse' | 'manual'>('manual');
 
     // Service Level
     const [serviceLevel, setServiceLevel] = useState<'standard' | 'express'>('standard');
@@ -69,7 +82,6 @@ export default function QuotePage() {
     const [requiresStretchWrap, setRequiresStretchWrap] = useState(false);
     const [insuranceSelection, setInsuranceSelection] = useState<'jfc' | 'own'>('jfc');
 
-    const [distanceKm, setDistanceKm] = useState(0);
     const [quotePrice, setQuotePrice] = useState(0);
     const [quoteDetails, setQuoteDetails] = useState<any>(null);
     const [loading, setLoading] = useState(false);
@@ -107,19 +119,17 @@ export default function QuotePage() {
 
     useEffect(() => {
         if (settings && selectedVehicleType) {
-            import('@/lib/logistics').then(({ VEHICLE_TYPES }) => {
-                const vehicleDef = VEHICLE_TYPES.find(v => v.id === selectedVehicleType);
-                const dbVehicle = vehicles.find(v => v.id === selectedVehicleType || v.name === selectedVehicleType);
-                const v = vehicleDef || dbVehicle;
+            const vehicleDef = VEHICLE_TYPES.find(v => v.id === selectedVehicleType);
+            const dbVehicle = vehicles.find(v => v.id === selectedVehicleType || v.name === selectedVehicleType);
+            const v = vehicleDef || dbVehicle;
 
-                if (v) {
-                    if (v.fuelEfficiency) setFuelEfficiency(v.fuelEfficiency);
-                    if (v.fuelType && settings.fuelPrices) {
-                        const price = (settings.fuelPrices as any)[v.fuelType];
-                        if (price) setFuelPrice(price);
-                    }
+            if (v) {
+                if (v.fuelEfficiency) setFuelEfficiency(v.fuelEfficiency);
+                if (v.fuelType && settings.fuelPrices) {
+                    const price = (settings.fuelPrices as any)[v.fuelType];
+                    if (price) setFuelPrice(price);
                 }
-            });
+            }
         }
     }, [selectedVehicleType, settings, vehicles]);
 
@@ -137,6 +147,49 @@ export default function QuotePage() {
     const [fuelEfficiency, setFuelEfficiency] = useState<number>(2);
     const [tolls, setTolls] = useState<number>(0);
     const [travelDays, setTravelDays] = useState<number>(1);
+
+    // Fetch Real Tolls from Google Routes API
+    useEffect(() => {
+        if (!origin || !destination) {
+            setTolls(0);
+            return;
+        }
+
+        const fetchTolls = async () => {
+            // Don't fetch if still typing or selecting
+            if (!origin.lat || !destination.lat) return;
+
+            try {
+                const res = await authenticatedFetch('/api/tolls', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        origin: { lat: origin.lat, lng: origin.lng },
+                        destination: { lat: destination.lat, lng: destination.lng },
+                        vehicleType: selectedVehicleType || 'Trailer' // Default to Trailer for high estimate if not selected
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (typeof data.tolls === 'number') {
+                        setTolls(data.tolls);
+                    }
+                    // Optionally update duration or distance from server if we wanted to be super precise, 
+                    // but client-side map is usually fine for these.
+                }
+            } catch (error) {
+                console.error('Error fetching tolls:', error);
+                // Fallback? No, user explicitly requested NO APPROXIMATION. 
+                // So we leave it as 0 or last known good value.
+            }
+        };
+
+        // Debounce slightly to avoid spamming API while dragging pins (if implemented)
+        const timeoutId = setTimeout(fetchTolls, 1000);
+        return () => clearTimeout(timeoutId);
+
+    }, [origin, destination, selectedVehicleType]);
 
     // Calculate tolls via Google Routes API
     useEffect(() => {
@@ -192,81 +245,91 @@ export default function QuotePage() {
 
     // Real-time calculation effect
     useEffect(() => {
-        if (isRouteValid && !!weight && Number(weight) > 0 && settings) {
+        if (isRouteValid && !!weight && Number(weight) > 0) {
             // Priority: selected vehicle from the new list, then DB vehicles, then fallback
-            // Priority: selected vehicle from the new list, then DB vehicles, then fallback
-            import('@/lib/logistics').then(({ VEHICLE_TYPES, isVehicleSuitable }) => {
-                let vehicleToUse = null;
+            let vehicleToUse = null;
 
-                // Auto-select best vehicle if none selected
-                if (!selectedVehicleType) {
-                    const allVehicles = [...VEHICLE_TYPES, ...vehicles];
-                    const suitable = allVehicles.filter(v => isVehicleSuitable(v, { weight: Number(weight), packageType } as any));
-                    // Sort by capacity (ascending) to find smallest suitable
-                    suitable.sort((a, b) => a.capacity - b.capacity);
-                    if (suitable.length > 0) {
-                        vehicleToUse = suitable[0];
-                        setSelectedVehicleType(vehicleToUse.id);
-                    }
-                } else {
-                    const vehicleDef = VEHICLE_TYPES.find(v => v.id === selectedVehicleType);
-                    const dbVehicle = vehicles.find(v => v.id === selectedVehicleType || v.name === selectedVehicleType);
-                    vehicleToUse = vehicleDef || dbVehicle;
+            // Auto-select best vehicle if none selected
+            if (!selectedVehicleType) {
+                const allVehicles = [...VEHICLE_TYPES, ...vehicles];
+                const suitable = allVehicles.filter(v => isVehicleSuitable(v, { weight: Number(weight), packageType } as any));
+                // Sort by capacity (ascending) to find smallest suitable
+                suitable.sort((a, b) => a.capacity - b.capacity);
+                if (suitable.length > 0) {
+                    vehicleToUse = suitable[0];
+                    setSelectedVehicleType(vehicleToUse.id);
                 }
+            } else {
+                const vehicleDef = VEHICLE_TYPES.find(v => v.id === selectedVehicleType);
+                const dbVehicle = vehicles.find(v => v.id === selectedVehicleType || v.name === selectedVehicleType);
+                vehicleToUse = vehicleDef || dbVehicle;
+            }
 
-                if (!vehicleToUse) {
-                    vehicleToUse = {
-                        value: 2500000,
-                        usefulLifeKm: 800000,
-                        suspensionType: 'Neumática',
-                        capacity: 25000,
-                        id: 'generic',
-                        name: 'Generico',
-                        description: 'Generico',
-                        category: 'Heavy',
-                        fuelEfficiency: 2,
-                        fuelType: 'diesel'
-                    };
-                }
+            if (!vehicleToUse) {
+                vehicleToUse = {
+                    value: 2500000,
+                    usefulLifeKm: 800000,
+                    suspensionType: 'Neumática',
+                    capacity: 25000,
+                    id: 'generic',
+                    name: 'Generico',
+                    description: 'Generico',
+                    category: 'Heavy',
+                    fuelEfficiency: 2,
+                    fuelType: 'diesel'
+                };
+            }
 
-                const results = calculateLogisticsCosts(
-                    {
-                        weight: Number(weight),
-                        declaredValue,
-                        distanceKm,
-                        loadType,
-                        transportType,
-                        cargoType,
-                        requiresLoadingSupport,
-                        requiresUnloadingSupport,
-                        isStackable,
-                        requiresStretchWrap,
-                        insuranceSelection,
-                        packageType,
-                        fuelPrice,
-                        fuelEfficiency,
-                        tolls,
-                        driverSalary,
-                        driverCommission,
-                        assistantSalary,
-                        assistantCommission,
-                        food,
-                        lodging,
-                        travelDays,
-                        unforeseenPercent,
-                        otherExpenses,
-                        seller,
-                        clientName,
-                        folio
-                    } as PackageType,
-                    vehicleToUse as Vehicle,
-                    settings,
-                    serviceLevel
-                );
-                setQuoteDetails(results);
-                setQuotePrice(results.priceToClient);
-                setCalculated(true);
-            });
+            // Ensure settings are available or use defaults to prevent crash
+            const safeSettings = settings || {
+                basePricePerKm: 25,
+                basePrice: 1000,
+                insuranceRate: 1.5,
+                profitMargin: 1.4,
+                imponderablesRate: 3.0
+            };
+
+            const results = calculateLogisticsCosts(
+                {
+                    weight: Number(weight),
+                    declaredValue,
+                    distanceKm,
+                    loadType,
+                    transportType,
+                    cargoType,
+                    requiresLoadingSupport,
+                    requiresUnloadingSupport,
+                    isStackable,
+                    requiresStretchWrap,
+                    insuranceSelection,
+                    packageType,
+                    fuelPrice,
+                    fuelEfficiency,
+                    tolls,
+                    driverSalary,
+                    driverCommission,
+                    assistantSalary,
+                    assistantCommission,
+                    food,
+                    lodging,
+                    travelDays,
+                    unforeseenPercent,
+                    otherExpenses,
+                    seller,
+                    clientName,
+                    folio
+                } as PackageType,
+                vehicleToUse as Vehicle,
+                safeSettings,
+                serviceLevel
+            );
+
+            // Console log for debugging (will show in browser console)
+            console.log('Calculation Results:', results);
+
+            setQuoteDetails(results);
+            setQuotePrice(results.priceToClient);
+            setCalculated(true);
         }
     }, [distanceKm, weight, dimensions, serviceLevel, isRouteValid, selectedVehicleType, settings, declaredValue, vehicles, packageType, fuelPrice, fuelEfficiency, tolls, driverSalary, driverCommission, assistantSalary, assistantCommission, food, lodging, travelDays, unforeseenPercent, otherExpenses, transportType, cargoType, requiresLoadingSupport, requiresUnloadingSupport, isStackable, requiresStretchWrap, insuranceSelection]);
 
@@ -283,6 +346,7 @@ export default function QuotePage() {
                 destination: destination?.address,
                 weight,
                 dimensions: `${dimensions.length}x${dimensions.width}x${dimensions.height}`,
+                packageCount: packageCount || 1,
                 price: quotePrice,
                 description,
                 status: 'PENDING',
@@ -299,6 +363,11 @@ export default function QuotePage() {
                 isStackable,
                 requiresStretchWrap,
                 insuranceSelection,
+                // Nature Flags
+                isChemical,
+                isPerishable,
+                isFurniture,
+
                 loadTypeDetails,
                 distanceKm,
                 declaredValue,
@@ -375,10 +444,17 @@ export default function QuotePage() {
                 setWeight={setWeight}
                 dimensions={dimensions}
                 setDimensions={setDimensions}
+                packageCount={packageCount}
+                setPackageCount={setPackageCount}
                 description={description}
                 setDescription={setDescription}
                 packageType={packageType}
                 setPackageType={setPackageType}
+                // Special Nature
+                isChemical={isChemical} setIsChemical={setIsChemical}
+                isPerishable={isPerishable} setIsPerishable={setIsPerishable}
+                isFurniture={isFurniture} setIsFurniture={setIsFurniture}
+
                 packageDetails={packageDetails}
                 setPackageDetails={setPackageDetails}
                 onAddressSelect={handleAddressSelect}
@@ -416,6 +492,9 @@ export default function QuotePage() {
                 setSelectedVehicleType={setSelectedVehicleType}
                 distanceKm={distanceKm}
                 setDistanceKm={setDistanceKm}
+                duration={duration}
+                setDuration={setDuration}
+                tolls={tolls}
                 quoteDetails={quoteDetails}
                 quotePrice={quotePrice}
                 handleCreatePackage={handleCreatePackage}
@@ -423,6 +502,10 @@ export default function QuotePage() {
                 showModal={showModal}
                 setShowModal={setShowModal}
                 recipientName={recipientName}
+                originMode={originMode}
+                setOriginMode={setOriginMode}
+                destinationMode={destinationMode}
+                setDestinationMode={setDestinationMode}
                 setRecipientName={setRecipientName}
                 recipientPhone={recipientPhone}
                 setRecipientPhone={setRecipientPhone}
@@ -573,136 +656,220 @@ function QuoteContent(props: any) {
                                     <div className="p-8 lg:p-10 space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                                         <div>
                                             <h2 className="text-2xl font-bold text-slate-800">¿Qué vas a enviar?</h2>
-                                            <p className="text-slate-500">Define las características de tu carga para proponerte las mejores unidades.</p>
+                                            <p className="text-slate-500">Cuéntanos sobre tu carga para asignarte la unidad perfecta.</p>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                            {/* Transport & Cargo Type */}
-                                            <div className="space-y-6 md:col-span-2">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <CustomSelect
-                                                        label="Tipo de Transporte"
-                                                        value={props.transportType}
-                                                        onChange={(val) => props.setTransportType(val as any)}
-                                                        options={[
-                                                            { value: 'FTL', label: 'FTL (Full Truck Load)' },
-                                                            { value: 'PTL', label: 'PTL (Partial Truck Load)' },
-                                                            { value: 'LTL', label: 'LTL (Less than Truck Load)' }
-                                                        ]}
-                                                    />
-                                                    <CustomSelect
-                                                        label="Tipo de Carga"
-                                                        value={props.cargoType}
-                                                        onChange={(val) => props.setCargoType(val as any)}
-                                                        options={[
-                                                            { value: 'heavy', label: 'Carga Pesada' },
-                                                            { value: 'hazard', label: 'Carga Peligrosa (Hazmat)' },
-                                                            { value: 'packages', label: 'Paquetería / Diversos' }
-                                                        ]}
-                                                    />
+                                        {/* Section 1: Main Product Details */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {/* 1. Transport Type */}
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Tipo de Transporte</label>
+                                                <select
+                                                    value={props.transportType}
+                                                    onChange={(e) => props.setTransportType(e.target.value as any)}
+                                                    className="w-full bg-transparent font-bold text-slate-700 outline-none p-1 border-none focus:ring-0 text-lg"
+                                                >
+                                                    <option value="FTL">FTL (Full Truck Load)</option>
+                                                    <option value="PTL">PTL (Partial Truck Load)</option>
+                                                    <option value="LTL">LTL (Less than Truck Load)</option>
+                                                </select>
+                                            </div>
+
+                                            {/* 2. Weight Range */}
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Peso Aproximado</label>
+                                                <select
+                                                    value={props.weight || ''}
+                                                    onChange={(e) => props.setWeight(Number(e.target.value))}
+                                                    className="w-full bg-transparent font-bold text-slate-700 outline-none p-1 border-none focus:ring-0 text-lg"
+                                                >
+                                                    <option value="" disabled>-- Selecciona --</option>
+                                                    <option value="50">Menos de 50 kg</option>
+                                                    <option value="500">50 - 500 kg (Light)</option>
+                                                    <option value="1500">500 kg - 1.5 Ton (Van)</option>
+                                                    <option value="3500">1.5 - 3.5 Ton (3.5)</option>
+                                                    <option value="10000">3.5 - 10 Ton (Rabon)</option>
+                                                    <option value="14000">14 Ton (Torton)</option>
+                                                    <option value="24000">24 Ton (Trailer)</option>
+                                                </select>
+                                            </div>
+
+                                            {/* 3. Cargo Type (Merged with Nature) */}
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all md:col-span-2">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Tipo de Carga</label>
+                                                <select
+                                                    value={props.cargoType}
+                                                    onChange={(e) => props.setCargoType(e.target.value as any)}
+                                                    className="w-full bg-transparent font-bold text-slate-700 outline-none p-1 border-none focus:ring-0 text-lg"
+                                                >
+                                                    <option value="packages">Paquetería / Diversos (Carga General)</option>
+                                                    <option value="hazardous">Químicos / Hazmat</option>
+                                                    <option value="perishable">Perecederos / Refrig.</option>
+                                                    <option value="furniture">Muebles / Mudanza</option>
+                                                    <option value="machinery">Maquinaria</option>
+                                                    <option value="heavy">Carga Pesada / Otros</option>
+                                                </select>
+                                            </div>
+
+                                            {/* 4. Presentation */}
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Presentación de Carga</label>
+                                                <select
+                                                    value={props.packageType}
+                                                    onChange={(e) => props.setPackageType(e.target.value)}
+                                                    className="w-full bg-transparent font-bold text-slate-700 outline-none p-1 border-none focus:ring-0 text-lg"
+                                                >
+                                                    <option value="General">Carga General (Cajas/Bultos)</option>
+                                                    <option value="Paletizado / Tarimas">Paletizado / Tarimas</option>
+                                                    <option value="Granel">Granel (Bulk)</option>
+                                                    <option value="Maquinaria">Maquinaria</option>
+                                                </select>
+                                            </div>
+
+                                            {/* 5. Quantity (Count) */}
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Cantidad (Bultos/Tarimas)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={props.packageCount || ''}
+                                                    onChange={(e) => props.setPackageCount(Number(e.target.value))}
+                                                    placeholder="1"
+                                                    className="w-full bg-transparent font-bold text-slate-700 outline-none p-1 border-none focus:ring-0 text-lg placeholder:font-normal"
+                                                />
+                                            </div>
+
+                                            {/* 6. Dimensions */}
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all md:col-span-2">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Dimensiones Máximas (Metros)</label>
+                                                <div className="grid grid-cols-3 gap-4">
+                                                    {/* Length */}
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Largo</label>
+                                                        <EditableNumberSelect
+                                                            value={props.dimensions.length}
+                                                            onChange={(val) => props.setDimensions({ ...props.dimensions, length: val })}
+                                                            options={[0.3, ...Array.from({ length: 20 }, (_, i) => i + 1)]}
+                                                            max={20}
+                                                        />
+                                                    </div>
+                                                    {/* Width */}
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Ancho</label>
+                                                        <EditableNumberSelect
+                                                            value={props.dimensions.width}
+                                                            onChange={(val) => props.setDimensions({ ...props.dimensions, width: val })}
+                                                            options={[0.3, ...Array.from({ length: 5 }, (_, i) => i + 1)]}
+                                                            max={5}
+                                                        />
+                                                    </div>
+                                                    {/* Height */}
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Alto</label>
+                                                        <EditableNumberSelect
+                                                            value={props.dimensions.height}
+                                                            onChange={(val) => props.setDimensions({ ...props.dimensions, height: val })}
+                                                            options={[0.3, ...Array.from({ length: 5 }, (_, i) => i + 1)]}
+                                                            max={5}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Section 2: Handling & Additional Services */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-slate-100">
+                                            {/* Apoyo Carga/Descarga */}
+                                            <div>
+                                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Servicios de Maniobra</h3>
+                                                <div className="space-y-3">
+                                                    <label className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-blue-400 transition-all shadow-sm">
+                                                        <input type="checkbox" checked={props.requiresLoadingSupport} onChange={(e) => props.setRequiresLoadingSupport(e.target.checked)} className="w-5 h-5 rounded text-blue-600" />
+                                                        <div>
+                                                            <span className="font-bold text-slate-700 block">Apoyo en Carga</span>
+                                                            <span className="text-xs text-slate-400">Personal para subir mercancía</span>
+                                                        </div>
+                                                    </label>
+                                                    <label className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-blue-400 transition-all shadow-sm">
+                                                        <input type="checkbox" checked={props.requiresUnloadingSupport} onChange={(e) => props.setRequiresUnloadingSupport(e.target.checked)} className="w-5 h-5 rounded text-blue-600" />
+                                                        <div>
+                                                            <span className="font-bold text-slate-700 block">Apoyo en Descarga</span>
+                                                            <span className="text-xs text-slate-400">Personal para bajar mercancía</span>
+                                                        </div>
+                                                    </label>
                                                 </div>
                                             </div>
 
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Peso Estimado Carga</label>
-                                                <div className="flex items-baseline gap-2">
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        value={props.weight}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            props.setWeight(val === '' ? '' : Number(val));
-                                                        }}
-                                                        placeholder="0"
-                                                        className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
-                                                    />
-                                                    <span className="text-slate-400 font-medium">kg</span>
+                                            {/* Condiciones de Manejo */}
+                                            <div>
+                                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Condiciones de Manejo</h3>
+                                                <div className="space-y-3">
+                                                    <label className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-blue-400 transition-all shadow-sm">
+                                                        <input type="checkbox" checked={props.isStackable} onChange={(e) => props.setIsStackable(e.target.checked)} className="w-5 h-5 rounded text-blue-600" />
+                                                        <div>
+                                                            <span className="font-bold text-slate-700 block">Producto Estibable</span>
+                                                            <span className="text-xs text-slate-400">Se puede apilar</span>
+                                                        </div>
+                                                    </label>
+                                                    <label className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-blue-400 transition-all shadow-sm">
+                                                        <input type="checkbox" checked={props.requiresStretchWrap} onChange={(e) => props.setRequiresStretchWrap(e.target.checked)} className="w-5 h-5 rounded text-blue-600" />
+                                                        <div>
+                                                            <span className="font-bold text-slate-700 block">Playo / Empaque</span>
+                                                            <span className="text-xs text-slate-400">Requiere protección extra</span>
+                                                        </div>
+                                                    </label>
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-green-500 focus-within:bg-white transition-all">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Valor Declarado (Seguro)</label>
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="text-slate-400 font-medium">$</span>
-                                                    <input
-                                                        type="number"
-                                                        value={props.declaredValue || ''}
-                                                        onChange={(e) => props.setDeclaredValue(Number(e.target.value))}
-                                                        placeholder="1000"
-                                                        className="w-full bg-transparent text-3xl font-bold text-slate-800 outline-none"
-                                                    />
-                                                    <span className="text-slate-400 font-medium">MXN</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Insurance Choice */}
-                                            <div className="md:col-span-2 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
-                                                <label className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 block">Seguro de Carga</label>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <button
-                                                        onClick={() => props.setInsuranceSelection('jfc')}
-                                                        className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${props.insuranceSelection === 'jfc' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200'}`}
-                                                    >
-                                                        Seguro JFC (Coaseguro)
-                                                    </button>
-                                                    <button
-                                                        onClick={() => props.setInsuranceSelection('own')}
-                                                        className={`p-3 rounded-xl border-2 transition-all font-bold text-sm ${props.insuranceSelection === 'own' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200'}`}
-                                                    >
-                                                        Seguro Propio (Ceros)
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* Logistics Options */}
-                                            <div className="md:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                                <label className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-white transition-all">
-                                                    <input type="checkbox" checked={props.requiresLoadingSupport} onChange={(e) => props.setRequiresLoadingSupport(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                                                    <span className="text-xs font-bold text-slate-600">Apoyo Carga</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-white transition-all">
-                                                    <input type="checkbox" checked={props.requiresUnloadingSupport} onChange={(e) => props.setRequiresUnloadingSupport(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                                                    <span className="text-xs font-bold text-slate-600">Apoyo Descarga</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-white transition-all">
-                                                    <input type="checkbox" checked={props.isStackable} onChange={(e) => props.setIsStackable(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                                                    <span className="text-xs font-bold text-slate-600">Estibable</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-white transition-all">
-                                                    <input type="checkbox" checked={props.requiresStretchWrap} onChange={(e) => props.setRequiresStretchWrap(e.target.checked)} className="w-4 h-4 rounded text-blue-600" />
-                                                    <span className="text-xs font-bold text-slate-600">Playo / Empaque</span>
-                                                </label>
-                                            </div>
-
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2 space-y-4">
+                                        {/* Section 3: Value Protection (Insurance) */}
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Protección de Valor</h3>
+                                            <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                                                 <div>
-                                                    <CustomSelect
-                                                        label="Naturaleza del Producto"
-                                                        value={props.packageType}
-                                                        onChange={(val) => props.setPackageType(val)}
-                                                        options={[
-                                                            { value: 'Paletizado / Tarimas', label: 'Paletizado / Tarimas' },
-                                                            { value: 'Granel', label: 'Granel (Bulk)' },
-                                                            { value: 'Maquinaria', label: 'Maquinaria' },
-                                                            { value: 'Productos Químicos', label: 'Productos Químicos' },
-                                                            { value: 'Perecederos', label: 'Perecederos / Refrigerados' },
-                                                            { value: 'Muebles / Mudanza', label: 'Muebles / Mudanza' },
-                                                            { value: 'Otro', label: 'Otro' }
-                                                        ]}
-                                                    />
+                                                    <label className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 block">Tipo de Seguro</label>
+                                                    <div className="flex bg-white rounded-xl p-1 border border-blue-100 shadow-sm">
+                                                        <button
+                                                            onClick={() => props.setInsuranceSelection('jfc')}
+                                                            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${props.insuranceSelection === 'jfc' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
+                                                        >
+                                                            Seguro JFC
+                                                        </button>
+                                                        <button
+                                                            onClick={() => props.setInsuranceSelection('own')}
+                                                            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${props.insuranceSelection === 'own' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
+                                                        >
+                                                            Seguro Propio
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Valor Declarado de Mercancía</label>
+                                                    <div className="flex items-baseline gap-2 bg-white p-3 rounded-xl border border-blue-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all shadow-sm">
+                                                        <span className="text-slate-400 font-medium">$</span>
+                                                        <input
+                                                            type="number"
+                                                            value={props.declaredValue || ''}
+                                                            onChange={(e) => props.setDeclaredValue(Number(e.target.value))}
+                                                            placeholder="0.00"
+                                                            className="w-full bg-transparent text-xl font-bold text-slate-800 outline-none"
+                                                        />
+                                                        <span className="text-slate-400 font-medium">MXN</span>
+                                                    </div>
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all md:col-span-2">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Descripción de la Mercancía</label>
-                                                <textarea
-                                                    value={props.description}
-                                                    onChange={(e) => props.setDescription(e.target.value)}
-                                                    className="w-full bg-transparent text-lg font-medium text-slate-800 outline-none resize-none h-24 placeholder:text-slate-300"
-                                                    placeholder="Ej. Tubería de acero, Grasa industrial, etc..."
-                                                ></textarea>
-                                            </div>
+                                        {/* Description */}
+                                        <div className="pt-4">
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Descripción Detallada</label>
+                                            <textarea
+                                                value={props.description}
+                                                onChange={(e) => props.setDescription(e.target.value)}
+                                                className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none resize-none h-24 placeholder:text-slate-300 transition-all font-medium text-slate-700"
+                                                placeholder="Ej. Tubería de acero al carbón, estibada en tarimas, requiere cuidado especial..."
+                                            ></textarea>
                                         </div>
 
                                         <div className="flex justify-end pt-6">
@@ -729,18 +896,78 @@ function QuoteContent(props: any) {
                                             </div>
                                         </div>
 
-                                        <div className="space-y-6">
-                                            {/* Origin Input */}
-                                            <div className={`group relative p-1 rounded-2xl transition-all duration-300 bg-transparent`}>
-                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 group-hover:border-[#1f4a5e] transition-all shadow-sm group-hover:shadow-lg">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-2">
-                                                        <Navigation size={12} className="text-[#1f4a5e]" /> Origen
-                                                    </label>
-                                                    <div className="flex gap-4">
-                                                        <div className="flex flex-col gap-2 w-full">
-                                                            {props.warehouses && props.warehouses.length > 0 && (
+                                        <div className="space-y-8">
+                                            {/* Origin Section */}
+                                            <div className="group relative p-1 rounded-2xl transition-all duration-300 bg-transparent">
+                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 hover:border-[#1f4a5e] transition-all shadow-sm hover:shadow-lg">
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-2">
+                                                            <Navigation size={12} className="text-[#1f4a5e]" /> Origen (Carga)
+                                                        </label>
+                                                        {/* Tabs */}
+                                                        <div className="flex bg-slate-200/50 p-1 rounded-lg">
+                                                            <button
+                                                                onClick={() => {
+                                                                    props.setOriginMode('warehouse');
+                                                                    props.setOrigin(null); // Reset when switching
+                                                                }}
+                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${props.originMode === 'warehouse' ? 'bg-white text-[#1f4a5e] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                            >
+                                                                Mis Almacenes
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    props.setOriginMode('manual');
+                                                                    props.setOrigin(null);
+                                                                }}
+                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${props.originMode === 'manual' ? 'bg-white text-[#1f4a5e] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                            >
+                                                                Nueva Dirección
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Content based on Mode */}
+                                                    {props.origin ? (
+                                                        // Selected State (Common for both)
+                                                        <div className="flex items-center justify-between bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="p-3 bg-[#1f4a5e] text-white rounded-full shadow-md">
+                                                                    <MapPin size={24} />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-slate-800 text-lg leading-tight">{props.origin.address.split(',')[0]}</p>
+                                                                    <p className="text-sm text-slate-500">{props.origin.address}</p>
+                                                                    <div className="flex gap-2 mt-1">
+                                                                        <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                                                            {props.origin.lat.toFixed(4)}, {props.origin.lng.toFixed(4)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => props.onOpenPinModal('origin')}
+                                                                    className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-[#1f4a5e] transition-colors"
+                                                                    title="Ajustar Pin"
+                                                                >
+                                                                    <MapPin size={20} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => props.setOrigin(null)}
+                                                                    className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-red-500 transition-colors"
+                                                                    title="Cambiar ubicación"
+                                                                >
+                                                                    <Edit size={18} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        // Input State
+                                                        <div className="flex gap-2 items-center w-full">
+                                                            {props.originMode === 'warehouse' ? (
                                                                 <select
-                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm text-slate-600 mb-2 focus:ring-2 focus:ring-[#1f4a5e]"
+                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-600 focus:ring-2 focus:ring-[#1f4a5e] outline-none"
                                                                     onChange={(e) => {
                                                                         const w = props.warehouses.find((wh: any) => wh.id === e.target.value);
                                                                         if (w) {
@@ -751,8 +978,8 @@ function QuoteContent(props: any) {
                                                                         }
                                                                     }}
                                                                 >
-                                                                    <option value="">-- Seleccionar Almacén JFC (Opcional) --</option>
-                                                                    {props.warehouses.map((w: any) => (
+                                                                    <option value="">-- Seleccionar de mis almacenes --</option>
+                                                                    {props.warehouses && props.warehouses.map((w: any) => (
                                                                         <option key={w.id} value={w.id}>
                                                                             {w.name} - {
                                                                                 typeof w.address === 'object'
@@ -762,36 +989,99 @@ function QuoteContent(props: any) {
                                                                         </option>
                                                                     ))}
                                                                 </select>
+                                                            ) : (
+                                                                <div className="w-full">
+                                                                    <PlaceAutocomplete
+                                                                        className="w-full bg-transparent border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
+                                                                        placeholder="Escribe una dirección..."
+                                                                        onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'origin')}
+                                                                    />
+                                                                </div>
                                                             )}
-                                                            <PlaceAutocomplete
-                                                                className="w-full bg-transparent border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
-                                                                placeholder="Dirección de recolección"
-                                                                onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'origin')}
-                                                                defaultValue={props.origin?.address}
-                                                            />
+                                                            {/* Pin Button always visible in input mode for manual adjustments if needed, though mostly useful after selection */}
+                                                            <button
+                                                                onClick={() => props.onOpenPinModal('origin')}
+                                                                className="p-3 rounded-full transition-all bg-slate-100 text-slate-400 hover:bg-[#1f4a5e] hover:text-white shrink-0"
+                                                                title="Usar mapa directamente"
+                                                            >
+                                                                <MapPin size={20} />
+                                                            </button>
                                                         </div>
-                                                        <button
-                                                            onClick={() => props.onOpenPinModal('origin')}
-                                                            className={`p-3 rounded-full transition-all bg-slate-100 text-slate-400 hover:bg-[#1f4a5e] hover:text-white`}
-                                                            title="Ajustar ubicación en el mapa"
-                                                        >
-                                                            <MapPin size={20} />
-                                                        </button>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </div>
 
-                                            {/* Destination Input */}
-                                            <div className={`group relative p-1 rounded-2xl transition-all duration-300 bg-transparent`}>
-                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 group-hover:border-[#d9bd82] transition-all shadow-sm group-hover:shadow-lg">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block flex items-center gap-2">
-                                                        <MapPin size={12} className="text-[#d9bd82]" /> Destino
-                                                    </label>
-                                                    <div className="flex gap-4">
-                                                        <div className="flex flex-col gap-2 w-full">
-                                                            {props.warehouses && props.warehouses.length > 0 && (
+                                            {/* Destination Section */}
+                                            <div className="group relative p-1 rounded-2xl transition-all duration-300 bg-transparent">
+                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 hover:border-[#d9bd82] transition-all shadow-sm hover:shadow-lg">
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-2">
+                                                            <MapPin size={12} className="text-[#d9bd82]" /> Destino (Entrega)
+                                                        </label>
+                                                        {/* Tabs */}
+                                                        <div className="flex bg-slate-200/50 p-1 rounded-lg">
+                                                            <button
+                                                                onClick={() => {
+                                                                    props.setDestinationMode('warehouse');
+                                                                    props.setDestination(null);
+                                                                }}
+                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${props.destinationMode === 'warehouse' ? 'bg-white text-[#d9bd82] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                            >
+                                                                Mis Almacenes
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    props.setDestinationMode('manual');
+                                                                    props.setDestination(null);
+                                                                }}
+                                                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${props.destinationMode === 'manual' ? 'bg-white text-[#d9bd82] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                            >
+                                                                Nueva Dirección
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Content based on Mode */}
+                                                    {props.destination ? (
+                                                        // Selected State
+                                                        <div className="flex items-center justify-between bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="p-3 bg-[#d9bd82] text-white rounded-full shadow-md">
+                                                                    <MapPin size={24} />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-slate-800 text-lg leading-tight">{props.destination.address.split(',')[0]}</p>
+                                                                    <p className="text-sm text-slate-500">{props.destination.address}</p>
+                                                                    <div className="flex gap-2 mt-1">
+                                                                        <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                                                                            {props.destination.lat.toFixed(4)}, {props.destination.lng.toFixed(4)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => props.onOpenPinModal('destination')}
+                                                                    className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-[#d9bd82] transition-colors"
+                                                                    title="Ajustar Pin"
+                                                                >
+                                                                    <MapPin size={20} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => props.setDestination(null)}
+                                                                    className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-red-500 transition-colors"
+                                                                    title="Cambiar ubicación"
+                                                                >
+                                                                    <Edit size={18} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        // Input State
+                                                        <div className="flex gap-2 items-center w-full">
+                                                            {props.destinationMode === 'warehouse' ? (
                                                                 <select
-                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm text-slate-600 mb-2 focus:ring-2 focus:ring-[#d9bd82]"
+                                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-600 focus:ring-2 focus:ring-[#d9bd82] outline-none"
                                                                     onChange={(e) => {
                                                                         const w = props.warehouses.find((wh: any) => wh.id === e.target.value);
                                                                         if (w) {
@@ -802,8 +1092,8 @@ function QuoteContent(props: any) {
                                                                         }
                                                                     }}
                                                                 >
-                                                                    <option value="">-- Seleccionar Almacén JFC (Opcional) --</option>
-                                                                    {props.warehouses.map((w: any) => (
+                                                                    <option value="">-- Seleccionar de mis almacenes --</option>
+                                                                    {props.warehouses && props.warehouses.map((w: any) => (
                                                                         <option key={w.id} value={w.id}>
                                                                             {w.name} - {
                                                                                 typeof w.address === 'object'
@@ -813,22 +1103,24 @@ function QuoteContent(props: any) {
                                                                         </option>
                                                                     ))}
                                                                 </select>
+                                                            ) : (
+                                                                <div className="w-full">
+                                                                    <PlaceAutocomplete
+                                                                        className="w-full bg-transparent border-b-2 border-slate-200 focus:border-indigo-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
+                                                                        placeholder="Escribe una dirección..."
+                                                                        onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'destination')}
+                                                                    />
+                                                                </div>
                                                             )}
-                                                            <PlaceAutocomplete
-                                                                className="w-full bg-transparent border-b-2 border-slate-200 focus:border-indigo-500 outline-none py-2 text-lg font-medium text-slate-800 placeholder:text-slate-300 transition-colors"
-                                                                placeholder="Dirección de entrega"
-                                                                onPlaceSelect={(loc: any) => props.onAddressSelect(loc, 'destination')}
-                                                                defaultValue={props.destination?.address}
-                                                            />
+                                                            <button
+                                                                onClick={() => props.onOpenPinModal('destination')}
+                                                                className="p-3 rounded-full transition-all bg-slate-100 text-slate-400 hover:bg-[#1f4a5e] hover:text-white shrink-0"
+                                                                title="Usar mapa directamente"
+                                                            >
+                                                                <MapPin size={20} />
+                                                            </button>
                                                         </div>
-                                                        <button
-                                                            onClick={() => props.onOpenPinModal('destination')}
-                                                            className={`p-3 rounded-full transition-all bg-slate-100 text-slate-400 hover:bg-[#1f4a5e] hover:text-white`}
-                                                            title="Ajustar ubicación en el mapa"
-                                                        >
-                                                            <MapPin size={20} />
-                                                        </button>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -955,17 +1247,21 @@ function QuoteContent(props: any) {
                                                                 </h4>
                                                                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] text-blue-100/70">
                                                                     <div className="flex justify-between border-b border-white/5 pb-1">
-                                                                        <span>Combustible:</span>
-                                                                        <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.fuelCost || 0)}</span>
+                                                                        <span>Flete Base:</span>
+                                                                        <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.billableFreight || 0)}</span>
                                                                     </div>
-                                                                    <div className="flex justify-between border-b border-white/5 pb-1">
-                                                                        <span>Casetas:</span>
-                                                                        <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.tolls || 0)}</span>
-                                                                    </div>
-                                                                    <div className="flex justify-between border-b border-white/5 pb-1">
-                                                                        <span>Utilidad Logística:</span>
-                                                                        <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.utility || 0)}</span>
-                                                                    </div>
+                                                                    {props.quoteDetails?.billableFees > 0 && (
+                                                                        <div className="flex justify-between border-b border-white/5 pb-1">
+                                                                            <span>Maniobras / Servicios:</span>
+                                                                            <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.billableFees || 0)}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {props.quoteDetails?.billableTolls > 0 && (
+                                                                        <div className="flex justify-between border-b border-white/5 pb-1">
+                                                                            <span>Casetas:</span>
+                                                                            <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.billableTolls || 0)}</span>
+                                                                        </div>
+                                                                    )}
                                                                     <div className="flex justify-between border-b border-white/5 pb-1">
                                                                         <span>Seguro ({props.quoteDetails?.insuranceRate?.toFixed(1)}%):</span>
                                                                         <span className="font-bold text-white">{formatCurrency(props.quoteDetails?.insurance || 0)}</span>
@@ -1015,12 +1311,51 @@ function QuoteContent(props: any) {
 
                         {/* Map Preview area */}
                         {props.currentStep >= 2 && (
-                            <div className="w-full lg:sticky lg:top-24 h-[400px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
+                            <div className="w-full lg:sticky lg:top-24 h-[400px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white relative">
                                 <DirectionsMap
                                     origin={props.origin ? { lat: props.origin.lat, lng: props.origin.lng } : null}
                                     destination={props.destination ? { lat: props.destination.lat, lng: props.destination.lng } : null}
                                     onDistanceChange={props.setDistanceKm}
+                                    onDurationChange={props.setDuration}
+                                    showTraffic={true}
                                 />
+
+                                {/* Data Overlay - Top Right */}
+                                {(props.distanceKm > 0 || props.tolls > 0) && (
+                                    <div className="absolute top-4 right-4 md:w-auto md:min-w-[340px] bg-white/95 backdrop-blur-md p-5 rounded-2xl shadow-xl border border-slate-100 z-10 animate-in slide-in-from-top-4 duration-700">
+                                        <div className="flex justify-between items-center gap-6">
+                                            {/* Distance */}
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Distancia aprox.</p>
+                                                <p className="text-xl md:text-2xl font-black text-slate-800 flex items-baseline gap-1">
+                                                    {formatNumber(Math.round(props.distanceKm))}
+                                                    <span className="text-sm font-bold text-slate-400">km</span>
+                                                </p>
+                                            </div>
+
+                                            {/* Time (Duration) */}
+                                            {props.duration && (
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tiempo est.</p>
+                                                    <p className="text-xl md:text-2xl font-black text-slate-800 flex items-baseline gap-1">
+                                                        {props.duration.replace('hours', 'h').replace('mins', 'm').replace('min', 'm')}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <div className="h-10 w-px bg-slate-200"></div>
+
+                                            {/* Tolls */}
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Casetas aprox.</p>
+                                                <p className="text-xl md:text-2xl font-black text-slate-800 flex items-baseline gap-1 justify-end">
+                                                    <span>$</span>{Math.round(props.tolls).toLocaleString('es-MX')}
+                                                    <span className="text-sm font-bold text-slate-400">MXN</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div> {/* End of Main layout container */}

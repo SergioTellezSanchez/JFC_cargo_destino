@@ -7,7 +7,8 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useUser } from '@/lib/UserContext';
 import { authenticatedFetch } from '@/lib/api';
 import { generateShippingGuide } from '@/lib/pdfGenerator';
-import { calculateLogisticsCosts, isVehicleSuitable, Vehicle, Package as PackageType } from '@/lib/logistics';
+import { calculateLogisticsCosts, isVehicleSuitable, type Package as PackageType } from '@/lib/calculations';
+import type { Vehicle } from '@/lib/firebase/schema';
 import Modal from '@/components/Modal';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 
@@ -181,7 +182,7 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
             return costA - costB;
         })[0];
 
-        return { message: `Sugerencia: ${bestVehicle.name} (${bestVehicle.plate || 'S/P'})`, status: 'success', vehicle: bestVehicle };
+        return { message: `Sugerencia: ${bestVehicle.name} (${bestVehicle.plates || 'S/P'})`, status: 'success', vehicle: bestVehicle };
     };
 
     const filteredPackages = packages.filter(p => {
@@ -337,7 +338,7 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                                 .filter(v => !assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany)
                                                                                 .filter(v => isVehicleSuitable(v, pkg as PackageType))
                                                                                 .map(v => (
-                                                                                    <option key={v.id} value={v.id}>{v.name || 'Vehículo'} ({v.plate || 'S/P'})</option>
+                                                                                    <option key={v.id} value={v.id}>{v.name || 'Vehículo'} ({v.plates || 'S/P'})</option>
                                                                                 ))}
                                                                         </select>
                                                                         {vehicles.filter(v => (!assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany) && isVehicleSuitable(v, pkg as PackageType)).length === 0 && (

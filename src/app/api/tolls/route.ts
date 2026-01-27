@@ -66,22 +66,13 @@ export async function POST(request: Request) {
             }
         }
 
-        // Apply Vehicle Multiplier
-        const { vehicleType } = body;
-        let multiplier = 1.0;
-        if (vehicleType) {
-            const v = vehicleType.toLowerCase();
-            if (v.includes('trailer') || v.includes('full') || v.includes('tren')) multiplier = 2.5;
-            else if (v.includes('torton') || v.includes('rabon')) multiplier = 1.8;
-            else if (v.includes('plataforma') || v.includes('lowboy')) multiplier = 2.2;
-        }
-        totalTolls = Math.round(totalTolls * multiplier);
+        // Return raw Google Tolls (usually for standard vehicles)
+        // User requested to remove manual multipliers
 
         return NextResponse.json({
             tolls: totalTolls,
             distanceMeters: route?.distanceMeters,
             duration: route?.duration,
-            multiplierUsed: multiplier,
             raw: route // Optional: for debugging
         });
 
