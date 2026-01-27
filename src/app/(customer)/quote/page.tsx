@@ -494,7 +494,7 @@ export default function QuotePage() {
                 setDistanceKm={setDistanceKm}
                 duration={duration}
                 setDuration={setDuration}
-                tolls={tolls}
+
                 quoteDetails={quoteDetails}
                 quotePrice={quotePrice}
                 handleCreatePackage={handleCreatePackage}
