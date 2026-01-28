@@ -202,9 +202,12 @@ export function calculateLogisticsCosts(
     const mileageCost = distance * kmRate;
 
     // [NEW] Calculate Fuel Cost (Informational / Breakdown)
+    // Dynamic Vehicle Lookup from Settings (Updates in real-time)
+    const dynamicVehicle = (settings.vehicleDimensions as any)?.[weightKey];
+
     let fuelPrice = settings.defaultFuelPrice || 25;
-    const vFuelType = (vehicle as any).fuelType; // Now available in schema and definition
-    const vEfficiency = (vehicle as any).efficiency || (vehicle as any).fuelEfficiency || 3.5;
+    const vFuelType = dynamicVehicle?.fuelType || (vehicle as any).fuelType || 'diesel';
+    const vEfficiency = dynamicVehicle?.efficiency || (vehicle as any).efficiency || (vehicle as any).fuelEfficiency || 3.5;
 
     if (vFuelType && settings.fuelPrices) {
         fuelPrice = (settings.fuelPrices as any)[vFuelType] || fuelPrice;
