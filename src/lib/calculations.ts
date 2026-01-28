@@ -166,7 +166,6 @@ export function calculateLogisticsCosts(
     // "Peso Aproximado (Costo fijo)" * "Cost rate Tipo Transporte" * "Cost rate Tipo Carga"
 
     const weightBaseCosts: Record<string, number> = settings.weightRates || {
-        '50': 500,     // < 50kg
         '500': 1500,   // Light
         '1500': 3500,  // Van
         '3500': 6500,  // 3.5 Ton
@@ -198,19 +197,39 @@ export function calculateLogisticsCosts(
         , '500');
 
     // Calculate Base Logic
-    const kmRate = settings.kilometerRate || 0;
-    const mileageCost = distance * kmRate;
+    // [MODIFIED] Use Vehicle Specific Price Per Km if available, otherwise Global
+    const dynamicVehicleForRate = (settings.vehicleDimensions as any)?.[weightKey];
+    const vehicleKmRate = dynamicVehicleForRate?.pricePerKm || settings.kilometerRate || 0;
+
+    const mileageCost = distance * vehicleKmRate;
 
     // [NEW] Calculate Fuel Cost (Informational / Breakdown)
     // Dynamic Vehicle Lookup from Settings (Updates in real-time)
     const dynamicVehicle = (settings.vehicleDimensions as any)?.[weightKey];
 
+    // Find active fuel config
+    let vEfficiency = 3.5;
     let fuelPrice = settings.defaultFuelPrice || 25;
-    const vFuelType = dynamicVehicle?.fuelType || (vehicle as any).fuelType || 'diesel';
-    const vEfficiency = dynamicVehicle?.efficiency || (vehicle as any).efficiency || (vehicle as any).fuelEfficiency || 3.5;
 
-    if (vFuelType && settings.fuelPrices) {
-        fuelPrice = (settings.fuelPrices as any)[vFuelType] || fuelPrice;
+    // Check new 'fuelConfig' structure
+    if (dynamicVehicle?.fuelConfig) {
+        // Try to find the best fuel (prioritize selected if we had a selector, otherwise first enabled)
+        const fuels = ['diesel', 'gasoline87', 'gasoline91'];
+        const activeFuel = fuels.find(f => dynamicVehicle.fuelConfig[f]?.enabled);
+
+        if (activeFuel) {
+            vEfficiency = dynamicVehicle.fuelConfig[activeFuel].efficiency || vEfficiency;
+            if (settings.fuelPrices) {
+                fuelPrice = (settings.fuelPrices as any)[activeFuel] || fuelPrice;
+            }
+        }
+    } else {
+        // Fallback to legacy structure
+        const vFuelType = dynamicVehicle?.fuelType || (vehicle as any).fuelType || 'diesel';
+        vEfficiency = dynamicVehicle?.efficiency || (vehicle as any).efficiency || (vehicle as any).fuelEfficiency || 3.5;
+        if (vFuelType && settings.fuelPrices) {
+            fuelPrice = (settings.fuelPrices as any)[vFuelType] || fuelPrice;
+        }
     }
 
     const calculatedFuelCost = (distance / vEfficiency) * fuelPrice;
@@ -232,26 +251,27 @@ export function calculateLogisticsCosts(
     // Base Freight = (Start Fee + Mileage + TonKm) * Multipliers
     const baseFreight = (rawWeightCost + mileageCost + tonKmCost) * transportRate * cargoRate;
 
-    // 1. Peso (Base Start Fee)
+    // 1. Base Cost Components Split
+    // A. Banderazo
     breakdownDetails.push({
-        label: `Banderazo / Peso: ${pkg.weight}kg`,
+        label: `Banderazo / Salida`,
         value: rawWeightCost,
         type: 'base'
     });
 
-    // 1.1 Kilometraje
+    // B. Costo Kilométrico
     if (mileageCost > 0) {
         breakdownDetails.push({
-            label: `Distancia: ${distance}km x $${kmRate}`,
+            label: `Costo Kilométrico (${distance}km * $${vehicleKmRate})`,
             value: mileageCost,
             type: 'base'
         });
     }
 
-    // [NEW] 1.2 Breakdown Push
+    // C. Tonelada/Km
     if (tonKmCost > 0) {
         breakdownDetails.push({
-            label: `Ton/Km: ${(pkg.weight / 1000).toFixed(2)}t x ${distance}km x $${tonKmRate}`,
+            label: `Factor Carga/Distancia ($/Ton/Km)`,
             value: tonKmCost,
             type: 'base'
         });
@@ -397,10 +417,23 @@ export function calculateLogisticsCosts(
     const revenueRatio = costWithImponderables > 0 ? (priceForService / costWithImponderables) : margin;
 
     // Convert to Billable Line Items
+    // [MODIFIED] Now we separate the Margin as its own line item rather than hiding it in the ratio
+    const marginAmount = priceForService - costWithImponderables;
+
     const billableLineItems = breakdownDetails.map(item => ({
         ...item,
-        price: item.type === 'pass-through' ? item.value : item.value * revenueRatio
+        price: item.value // We show the direct calculated cost/value without margin distribution
     }));
+
+    // Add Margin Line Item
+    if (marginAmount > 0) {
+        billableLineItems.push({
+            label: `Margen Operativo / Utilidad`,
+            value: marginAmount,
+            type: 'margin',
+            price: marginAmount
+        });
+    }
 
     // Backwards compatibility filling
     const operationalCost = costWithImponderables;

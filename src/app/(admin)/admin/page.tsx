@@ -6,7 +6,7 @@ import { Truck, Save, DollarSign, Package as PackageIcon, Users, Warehouse, Plus
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
 import { useUser } from '@/lib/UserContext';
-import { UserRole, PricingSettings } from '@/lib/firebase/schema';
+import { UserRole, PricingSettings, FuelPrices } from '@/lib/firebase/schema';
 import WorldClock from '@/components/WorldClock';
 import { authenticatedFetch } from '@/lib/api';
 import { calculateLogisticsCosts, VEHICLE_TYPES } from '@/lib/calculations';
@@ -272,7 +272,7 @@ function AdminContent() {
                                 if (res.ok) alert('Configuración guardada correctamente');
                             } catch (err) { alert('Error al guardar configuración'); }
                         }}>
-                            <div className="space-y-8">
+                            <div className="space-y-12 pb-10">
                                 {/* 1. Global & Margins */}
                                 {/* 1. Global Parameters (Merged & Compact) */}
                                 <div className="card bg-white border border-slate-200 shadow-sm overflow-visible">
@@ -287,22 +287,45 @@ function AdminContent() {
                                             <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
                                                 <DollarSign size={14} className="text-[var(--primary)]" /> Tarifas Base
                                             </div>
-                                            <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-3 gap-2">
                                                 <div className="form-control w-full">
-                                                    <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold text-slate-500">Margen</span></label>
-                                                    <input type="number" step="0.05" className="input input-xs input-bordered w-full text-right font-mono"
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[9px] font-bold text-slate-500">Margen</span></label>
+                                                    <input type="number" step="0.05" className="input input-xs input-bordered w-full text-right font-mono px-1"
                                                         value={settings.profitMargin || 0}
-                                                        onChange={(e) => updateSetting('profitMargin', null, Number(e.target.value))} />
+                                                        onChange={(e) => {
+                                                            const newMargin = Number(e.target.value);
+                                                            setSettings(prev => {
+                                                                if (!prev) return null;
+                                                                const updated = { ...prev, profitMargin: newMargin };
+                                                                if (updated.vehicleDimensions) {
+                                                                    Object.keys(updated.vehicleDimensions).forEach(key => {
+                                                                        const v = updated.vehicleDimensions![key];
+                                                                        if (v.fuelConfig) {
+                                                                            const activeFuelId = Object.keys(v.fuelConfig).find(fid => v.fuelConfig![fid].enabled);
+                                                                            if (activeFuelId) {
+                                                                                const fuelPrice = updated.fuelPrices?.[activeFuelId as keyof FuelPrices] || 0;
+                                                                                const efficiency = v.fuelConfig[activeFuelId].efficiency;
+                                                                                if (efficiency > 0 && fuelPrice > 0) {
+                                                                                    const costPerKm = fuelPrice / efficiency;
+                                                                                    v.pricePerKm = Number((costPerKm * newMargin).toFixed(2));
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                }
+                                                                return updated;
+                                                            });
+                                                        }} />
                                                 </div>
                                                 <div className="form-control w-full">
-                                                    <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold text-slate-500">$/Km</span></label>
-                                                    <input type="number" step="1" className="input input-xs input-bordered w-full text-right font-mono"
-                                                        value={settings.kilometerRate || 0}
-                                                        onChange={(e) => updateSetting('kilometerRate', null, Number(e.target.value))} />
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[9px] font-bold text-slate-500">Imponderables (%)</span></label>
+                                                    <input type="number" step="1" className="input input-xs input-bordered w-full text-right font-mono px-1"
+                                                        value={settings.imponderablesRate || 0}
+                                                        onChange={(e) => updateSetting('imponderablesRate', null, Number(e.target.value))} />
                                                 </div>
-                                                <div className="form-control w-full col-span-2">
-                                                    <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold text-slate-500">$/Ton/Km</span></label>
-                                                    <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
+                                                <div className="form-control w-full">
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[9px] font-bold text-slate-500">$/Ton/Km</span></label>
+                                                    <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono px-1"
                                                         value={settings.tonKmRate || 0}
                                                         onChange={(e) => updateSetting('tonKmRate', null, Number(e.target.value))} />
                                                 </div>
@@ -356,89 +379,153 @@ function AdminContent() {
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Row 2: Service, Risk, Presentation (3 Cols) */}
+                                    <div className="pt-4 border-t border-slate-100 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                                        {/* Col 1: Tipo de Servicio */}
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                                                <Warehouse size={14} className="text-blue-500" /> Tipo de Servicio
+                                            </div>
+                                            <div className="space-y-1">
+                                                {[
+                                                    { k: 'FTL', l: 'FTL (Completo)', desc: 'Servicio exclusivo (Full Truck Load). Se cobra el 100% de la tarifa base.' },
+                                                    { k: 'PTL', l: 'PTL (Parcial)', desc: 'Servicio parcial (Partial Truck Load). Factor de ajuste para cargas que no llenan la unidad completa.' },
+                                                    { k: 'LTL', l: 'LTL (Consolidado)', desc: 'Carga consolidada (Less than Truck Load). Factor para cargas pequeñas compartidas.' }
+                                                ].map((item) => (
+                                                    <div key={item.k} className="flex items-center justify-between" title={item.desc}>
+                                                        <span className="text-[9px] font-bold text-slate-500 cursor-help decoration-dotted underline decoration-slate-300 underline-offset-2 whitespace-nowrap">{item.l}</span>
+                                                        <div className="relative w-20">
+                                                            <input type="number" step="0.05" className="input input-xs input-bordered w-full text-right px-1 font-mono h-5 text-[10px]"
+                                                                value={(settings.transportRates as Record<string, number>)?.[item.k] || 1}
+                                                                onChange={(e) => updateSetting('transportRates', item.k, Number(e.target.value))} />
+                                                            <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-slate-400">x</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Col 2: Riesgo Carga */}
+                                        <div className="lg:border-l lg:border-slate-100 lg:pl-6">
+                                            <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                                                <AlertCircle size={14} className="text-orange-500" /> Riesgo Carga
+                                            </div>
+                                            <div className="space-y-1">
+                                                {[
+                                                    { k: 'hazardous', l: 'Peligroso', desc: 'Materiales Peligrosos (HazMat). Incremento por riesgo de manejo.' },
+                                                    { k: 'perishable', l: 'Perecederos', desc: 'Perecederos / Cadena de frío. Incremento por requerimientos especiales (Reefer).' },
+                                                    { k: 'machinery', l: 'Maquinaria', desc: 'Maquinaria Pesada / Sobredimensionada. Incremento por maniobras especiales.' },
+                                                    { k: 'fragile', l: 'Frágil', desc: 'Carga Frágil / Delicada (Vidrio, Electrónica). Incremento por seguro y manejo.' }
+                                                ].map((item) => (
+                                                    <div key={item.k} className="flex items-center justify-between" title={item.desc}>
+                                                        <span className="text-[9px] font-bold text-slate-500 cursor-help decoration-dotted underline decoration-slate-300 underline-offset-2 whitespace-nowrap">{item.l}</span>
+                                                        <div className="relative w-20">
+                                                            <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right px-1 font-mono h-5 text-[10px]"
+                                                                value={(settings.cargoRates as Record<string, number>)?.[item.k] || 1}
+                                                                onChange={(e) => updateSetting('cargoRates', item.k, Number(e.target.value))} />
+                                                            <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-slate-400">x</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Col 3: Presentación */}
+                                        <div className="lg:border-l lg:border-slate-100 lg:pl-6">
+                                            <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                                                <PackageIcon size={14} className="text-emerald-500" /> Presentación
+                                            </div>
+                                            <div className="space-y-1">
+                                                {[
+                                                    { k: 'Granel', l: 'Granel', desc: 'Carga a granel (sin empaque). Factor de ajuste por manejo.' },
+                                                    { k: 'Paletizado', l: 'Paletizado', desc: 'Carga en tarimas (Pallets). Factor estándar.' },
+                                                    { k: 'General', l: 'General', desc: 'Carga suelta o cajas. Factor base.' }
+                                                ].map((item) => (
+                                                    <div key={item.k} className="flex items-center justify-between" title={item.desc}>
+                                                        <span className="text-[9px] font-bold text-slate-500 cursor-help decoration-dotted underline decoration-slate-300 underline-offset-2 whitespace-nowrap">{item.l}</span>
+                                                        <div className="relative w-20">
+                                                            <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right px-1 font-mono h-5 text-[10px]"
+                                                                value={settings.presentationRates?.[item.k] || 1}
+                                                                onChange={(e) => updateSetting('presentationRates', item.k, Number(e.target.value))} />
+                                                            <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-slate-400">x</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
 
                                     </div>
                                 </div>
+                            </div>
 
-
-
-                                {/* 2. Vehicle Configuration */}
-                                <div className="card bg-white border border-indigo-100 shadow-sm overflow-visible">
-                                    <div className="bg-indigo-50/50 p-4 border-b border-indigo-100 flex items-center gap-2">
-                                        <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
-                                            <Truck size={20} />
-                                        </div>
-                                        <h3 className="font-bold text-indigo-900 text-lg">Configuración de Vehículos</h3>
+                            {/* 2. Vehicle Configuration */}
+                            <div className="card bg-white border border-indigo-100 shadow-sm overflow-visible">
+                                <div className="bg-indigo-50/50 p-4 border-b border-indigo-100 flex items-center gap-2">
+                                    <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                                        <Truck size={20} />
                                     </div>
-                                    <div className="p-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                            {[
-                                                { k: '50', l: 'Paq. (<50kg)' }, { k: '500', l: 'Ligero (500kg)' },
-                                                { k: '1500', l: 'Van (1.5T)' }, { k: '3500', l: '3.5 Ton' },
-                                                { k: '10000', l: 'Rabón (10T)' }, { k: '14000', l: 'Torton (14T)' },
-                                                { k: '24000', l: 'Tráiler (24T)' }
-                                            ].map((item) => (
-                                                <div key={item.k} className="p-3 bg-slate-50 border border-slate-200 rounded-lg hover:border-indigo-300 transition-colors shadow-sm">
-                                                    <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-200/60">
-                                                        <span className="text-xs font-bold text-indigo-900">{item.l}</span>
-                                                        <Info size={12} className="text-indigo-300" />
-                                                    </div>
+                                    <h3 className="font-bold text-indigo-900 text-lg">Configuración de Vehículos</h3>
+                                </div>
+                                <div className="p-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                        {[
+                                            { k: '500', l: 'Ligero (500kg)' },
+                                            { k: '1500', l: 'Van (1.5T)' }, { k: '3500', l: '3.5 Ton' },
+                                            { k: '10000', l: 'Rabón (10T)' }, { k: '14000', l: 'Torton (14T)' },
+                                            { k: '24000', l: 'Tráiler (24T)' }
+                                        ].map((item) => (
+                                            <div key={item.k} className="p-5 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors shadow-sm flex flex-col h-full">
+                                                <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-200/60">
+                                                    <span className="text-base font-bold text-indigo-900">{item.l}</span>
+                                                    <Info size={16} className="text-indigo-300" />
+                                                </div>
 
-                                                    {/* Base Price */}
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-[9px] font-bold text-slate-500 uppercase">Tarifa</span>
-                                                        <div className="relative w-20">
-                                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[9px]">$</span>
+                                                {/* Pricing Inputs */}
+                                                <div className="grid grid-cols-2 gap-4 mb-6">
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5 ml-1">Banderazo</label>
+                                                        <div className="relative">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
                                                             <input
                                                                 type="number"
-                                                                className="input input-xs input-bordered w-full pl-4 text-right font-mono font-bold text-slate-700 bg-white h-6 text-[10px]"
+                                                                className="input input-sm input-bordered w-full pl-6 text-right font-mono font-bold text-slate-700 bg-white"
                                                                 value={settings.weightRates?.[item.k] || 0}
                                                                 onChange={(e) => updateSetting('weightRates', item.k, Number(e.target.value))}
                                                             />
                                                         </div>
                                                     </div>
-
-                                                    <div className="grid grid-cols-2 gap-2 mb-2">
-                                                        {/* Efficiency */}
-                                                        <div>
-                                                            <label className="text-[8px] font-bold text-slate-400 block mb-0.5">KM/L</label>
-                                                            <input type="number" step="0.1" className="input input-xs input-bordered w-full text-center font-mono bg-white h-6 text-[10px]"
-                                                                value={(settings.vehicleDimensions as any)?.[item.k]?.efficiency || ''}
-                                                                onChange={(e) => {
-                                                                    const current = (settings.vehicleDimensions as any)?.[item.k] || { length: 0, width: 0, height: 0, efficiency: 0 };
-                                                                    updateSetting('vehicleDimensions', item.k, { ...current, efficiency: Number(e.target.value) });
-                                                                }}
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5 ml-1">Tarifa / Km</label>
+                                                        <div className="relative">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                                                            <input
+                                                                type="text"
+                                                                readOnly
+                                                                className="w-full text-right font-mono font-bold text-indigo-600 bg-indigo-50 border-none rounded focus:ring-0 pl-6 pr-2 py-1 h-8 text-sm"
+                                                                value={(settings.vehicleDimensions as any)?.[item.k]?.pricePerKm || 0}
                                                             />
                                                         </div>
-                                                        {/* Fuel Type */}
-                                                        <div>
-                                                            <label className="text-[8px] font-bold text-slate-400 block mb-0.5">COMB.</label>
-                                                            <select className="select select-xs select-bordered w-full text-center font-mono bg-white h-6 text-[9px] min-h-0 pl-1 pr-1"
-                                                                value={(settings.vehicleDimensions as any)?.[item.k]?.fuelType || 'diesel'}
-                                                                onChange={(e) => {
-                                                                    const current = (settings.vehicleDimensions as any)?.[item.k] || { length: 0, width: 0, height: 0, efficiency: 0 };
-                                                                    updateSetting('vehicleDimensions', item.k, { ...current, fuelType: e.target.value });
-                                                                }}
-                                                            >
-                                                                <option value="diesel">DSL</option>
-                                                                <option value="gasoline87">MAG</option>
-                                                                <option value="gasoline91">PRM</option>
-                                                            </select>
-                                                        </div>
                                                     </div>
+                                                </div>
 
-                                                    {/* Dimensions */}
-                                                    <div className="grid grid-cols-3 gap-1 pt-1 border-t border-slate-200">
+                                                {/* Dimensions Section */}
+                                                <div className="mb-4">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2 ml-1">Dimensiones (Metros)</label>
+                                                    <div className="grid grid-cols-3 gap-3">
                                                         {['length', 'width', 'height'].map((d) => (
-                                                            <div key={d} className="text-center">
-                                                                <label className="text-[7px] text-slate-400 uppercase block">{d.substring(0, 1)}.</label>
+                                                            <div key={d} className="text-center relative">
+                                                                <span className="absolute top-1 left-2 text-[8px] text-slate-400 font-bold uppercase z-10">{d.substring(0, 3)}</span>
                                                                 <input
                                                                     type="number"
-                                                                    step="0.1"
-                                                                    className="input input-xs input-bordered w-full text-center px-0 font-mono text-[9px] bg-white h-5"
+                                                                    step="0.01"
+                                                                    className="input input-sm input-bordered w-full text-right font-mono text-xs bg-white pt-4 px-2 h-10"
+                                                                    placeholder="0.00"
                                                                     value={(settings.vehicleDimensions as any)?.[item.k]?.[d] || ''}
                                                                     onChange={(e) => {
-                                                                        const current = (settings.vehicleDimensions as any)?.[item.k] || { length: 0, width: 0, height: 0, efficiency: 0 };
+                                                                        const current = (settings.vehicleDimensions as any)?.[item.k] || {};
                                                                         updateSetting('vehicleDimensions', item.k, { ...current, [d]: Number(e.target.value) });
                                                                     }}
                                                                 />
@@ -446,308 +533,304 @@ function AdminContent() {
                                                         ))}
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
 
-                                {/* 3. Multipliers */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="card bg-white border border-blue-100 shadow-sm overflow-visible">
-                                        <div className="bg-blue-50/50 p-4 border-b border-blue-100 flex items-center gap-2">
-                                            <Warehouse size={18} className="text-blue-600" />
-                                            <h3 className="font-bold text-blue-900 m-0">Tipo de Servicio</h3>
-                                        </div>
-                                        <div className="p-6 space-y-3">
-                                            {[
-                                                { k: 'FTL', l: 'FTL (Completo)', desc: 'Servicio exclusivo (Full Truck Load). Se cobra el 100% de la tarifa base.' },
-                                                { k: 'PTL', l: 'PTL (Parcial)', desc: 'Servicio parcial (Partial Truck Load). Factor de ajuste para cargas que no llenan la unidad completa.' },
-                                                { k: 'LTL', l: 'LTL (Consolidado)', desc: 'Carga consolidada (Less than Truck Load). Factor para cargas pequeñas compartidas.' }
-                                            ].map((item) => (
-                                                <div key={item.k} className="flex items-center justify-between group">
-                                                    <span className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                                                        {item.l}
-                                                        <div className="relative group/tooltip">
-                                                            <HelpCircle size={12} className="text-blue-300 cursor-help" />
-                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2 bg-slate-800 text-white text-xs rounded hidden group-hover/tooltip:block z-50 pointer-events-none shadow-lg">
-                                                                {item.desc}
-                                                            </div>
-                                                        </div>
-                                                    </span>
-                                                    <div className="relative w-24">
-                                                        <input type="number" step="0.05" className="input input-sm input-bordered w-full text-right pr-6"
-                                                            value={(settings.transportRates as Record<string, number>)?.[item.k] || 1}
-                                                            onChange={(e) => updateSetting('transportRates', item.k, Number(e.target.value))} />
-                                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">x</span>
+                                                {/* FUEL CONFIG SECTION */}
+                                                <div className="mt-auto bg-white p-3 rounded-lg border border-slate-200 shadow-inner">
+                                                    <div className="flex items-center gap-1 mb-2 text-slate-400">
+                                                        <Database size={12} />
+                                                        <span className="text-[10px] font-bold uppercase">Configuración Combustible</span>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                                    <table className="w-full text-xs">
+                                                        <thead>
+                                                            <tr className="text-left text-slate-400 border-b border-slate-100">
+                                                                <th className="font-medium pb-2 pl-1">Tipo</th>
+                                                                <th className="font-medium pb-2 text-center">Uso</th>
+                                                                <th className="font-medium pb-2 text-center">Km/L</th>
+                                                                <th className="font-medium pb-2 text-right pr-1">$/Km</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {[
+                                                                { id: 'diesel', label: 'Diesel', priceRef: settings.fuelPrices?.diesel || 0 },
+                                                                { id: 'gasoline87', label: 'Magna', priceRef: settings.fuelPrices?.gasoline87 || 0 },
+                                                                { id: 'gasoline91', label: 'Premium', priceRef: settings.fuelPrices?.gasoline91 || 0 }
+                                                            ].map((fuel) => {
+                                                                const vConfig = (settings.vehicleDimensions as any)?.[item.k] || {};
+                                                                const fuelConfig = vConfig.fuelConfig?.[fuel.id] || { enabled: false, efficiency: 0 };
+                                                                const costPerKm = (fuelConfig.efficiency > 0 && fuel.priceRef > 0) ? (fuel.priceRef / fuelConfig.efficiency) : 0;
+                                                                const isActive = fuelConfig.enabled;
 
-                                    <div className="card bg-white border border-orange-100 shadow-sm overflow-visible">
-                                        <div className="bg-orange-50/50 p-4 border-b border-orange-100 flex items-center gap-2">
-                                            <AlertCircle size={18} className="text-orange-600" />
-                                            <h3 className="font-bold text-orange-900 m-0">Riesgo Carga</h3>
-                                        </div>
-                                        <div className="p-6 grid grid-cols-2 gap-3">
-                                            {[
-                                                { k: 'hazardous', l: 'Peligroso', desc: 'Factor de incremento por manejo de materiales peligrosos (Hazardous Materials).' },
-                                                { k: 'perishable', l: 'Perecederos', desc: 'Factor de incremento por manejo de cadena de frío o productos perecederos.' },
-                                                { k: 'machinery', l: 'Maquinaria', desc: 'Factor de incremento por manejo de maquinaria pesada o sobredimensionada.' },
-                                                { k: 'fragile', l: 'Frágil', desc: 'Factor de incremento por manejo delicado (vidrio, electrónica, etc).' }
-                                            ].map((item) => (
-                                                <div key={item.k} className="input-group">
-                                                    <span className="text-xs font-bold text-orange-800 block mb-1 flex items-center gap-1">
-                                                        {item.l}
-                                                        <div className="relative group/tooltip">
-                                                            <HelpCircle size={10} className="text-orange-300 cursor-help" />
-                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2 bg-slate-800 text-white text-xs rounded hidden group-hover/tooltip:block z-50 pointer-events-none shadow-lg">
-                                                                {item.desc}
-                                                            </div>
-                                                        </div>
-                                                    </span>
-                                                    <div className="relative">
-                                                        <input type="number" step="0.1" className="input input-sm input-bordered w-full text-right pr-6"
-                                                            value={(settings.cargoRates as Record<string, number>)?.[item.k] || 1}
-                                                            onChange={(e) => updateSetting('cargoRates', item.k, Number(e.target.value))} />
-                                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">x</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
+                                                                return (
+                                                                    <tr key={fuel.id} className={`transition-colors ${isActive ? 'bg-indigo-50/50' : ''}`}>
+                                                                        <td className="py-2.5 font-medium text-slate-600 pl-1">{fuel.label}</td>
+                                                                        <td className="py-2.5 text-center">
+                                                                            <input type="checkbox" className="checkbox checkbox-xs checkbox-primary rounded-[3px]"
+                                                                                checked={fuelConfig.enabled}
+                                                                                onChange={(e) => {
+                                                                                    const isChecked = e.target.checked;
+                                                                                    const currentConfig = (settings.vehicleDimensions as any)?.[item.k] || {};
+                                                                                    const currentFuels = currentConfig.fuelConfig || {};
 
-                                {/* 4. Presentation */}
-                                <div className="card bg-white border border-emerald-100 shadow-sm overflow-visible">
-                                    <div className="bg-emerald-50/50 p-4 border-b border-emerald-100 flex items-center gap-2">
-                                        <PackageIcon size={18} className="text-emerald-600" />
-                                        <h3 className="font-bold text-emerald-900 m-0">Presentación</h3>
-                                    </div>
-                                    <div className="p-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                            {['Granel', 'Paletizado', 'General'].map((k) => (
-                                                <div key={k}>
-                                                    <span className="text-xs font-bold text-emerald-800 block mb-1 flex items-center gap-1">
-                                                        {k}
-                                                        <div className="relative group">
-                                                            <HelpCircle size={10} className="text-emerald-300 cursor-help" />
-                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-xs rounded hidden group-hover:block z-50 pointer-events-none shadow-lg">
-                                                                Factor de ajuste para carga entregada como {k}.
-                                                            </div>
-                                                        </div>
-                                                    </span>
-                                                    <div className="relative">
-                                                        <input type="number" step="0.1" className="input input-bordered w-full text-right pr-8"
-                                                            value={settings.presentationRates?.[k] || 1}
-                                                            onChange={(e) => updateSetting('presentationRates', k, Number(e.target.value))} />
-                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">x</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
+                                                                                    const newFuels = { ...currentFuels };
+                                                                                    let newPricePerKm = currentConfig.pricePerKm;
 
-                                {/* LIVE SIMULATOR (Integrated) */}
-                                <div className="card bg-[var(--card-bg)] border-2 border-[var(--primary)]/20 shadow-2xl relative overflow-visible mt-8">
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-[var(--primary)]"></div>
-                                    <div className="p-6">
-                                        <div className="flex flex-col md:flex-row gap-6 items-center justify-between mb-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg">
-                                                    <Info size={24} />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-lg font-bold text-[var(--foreground)]">Simulador en Vivo</h3>
-                                                    <p className="text-sm text-[var(--secondary)]">Previsualiza el costo final mientras ajustas los parámetros.</p>
+                                                                                    if (isChecked) {
+                                                                                        // Uncheck all others
+                                                                                        ['diesel', 'gasoline87', 'gasoline91'].forEach(fid => {
+                                                                                            const f = newFuels[fid] || { efficiency: 0, enabled: false };
+                                                                                            newFuels[fid] = { ...f, enabled: fid === fuel.id };
+                                                                                        });
+
+                                                                                        // Auto-calc Rate when enabling
+                                                                                        if (fuelConfig.efficiency > 0 && fuel.priceRef > 0) {
+                                                                                            const cost = fuel.priceRef / fuelConfig.efficiency;
+                                                                                            newPricePerKm = Number((cost * settings.profitMargin).toFixed(2));
+                                                                                        }
+
+                                                                                    } else {
+                                                                                        // Simply uncheck this one
+                                                                                        const f = newFuels[fuel.id] || { efficiency: 0, enabled: false };
+                                                                                        newFuels[fuel.id] = { ...f, enabled: false };
+                                                                                    }
+
+                                                                                    updateSetting('vehicleDimensions', item.k, {
+                                                                                        ...currentConfig,
+                                                                                        pricePerKm: newPricePerKm,
+                                                                                        fuelConfig: newFuels
+                                                                                    });
+                                                                                }} />
+                                                                        </td>
+                                                                        <td className="py-2.5 text-center">
+                                                                            <input type="number" step="0.1"
+                                                                                className={`input input-xs input-bordered !w-[60px] px-1 text-center bg-white font-bold text-slate-700`}
+                                                                                value={fuelConfig.efficiency || ''}
+                                                                                placeholder="-"
+                                                                                onChange={(e) => {
+                                                                                    const val = Number(e.target.value);
+                                                                                    const currentConfig = (settings.vehicleDimensions as any)?.[item.k] || {};
+                                                                                    const currentFuels = currentConfig.fuelConfig || {};
+
+                                                                                    // Auto-calc if this fuel is active
+                                                                                    let newPricePerKm = currentConfig.pricePerKm;
+                                                                                    if (fuelConfig.enabled && val > 0 && fuel.priceRef > 0) {
+                                                                                        const cost = fuel.priceRef / val;
+                                                                                        newPricePerKm = Number((cost * settings.profitMargin).toFixed(2));
+                                                                                    }
+
+                                                                                    updateSetting('vehicleDimensions', item.k, {
+                                                                                        ...currentConfig,
+                                                                                        pricePerKm: newPricePerKm,
+                                                                                        fuelConfig: {
+                                                                                            ...currentFuels,
+                                                                                            [fuel.id]: { ...fuelConfig, efficiency: val }
+                                                                                        }
+                                                                                    });
+                                                                                }} />
+                                                                        </td>
+                                                                        <td className="py-2.5 text-right font-mono font-bold text-slate-700 pr-1">
+                                                                            {costPerKm > 0 ? `$${costPerKm.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
                                             </div>
-
-                                        </div>
-
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-[var(--background)] rounded-xl border border-[var(--border)]">
-                                            <div>
-                                                <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Distancia</label>
-                                                <input type="range" min="50" max="3000" step="50"
-                                                    className="range range-xs range-primary w-full"
-                                                    value={sim.dist} onChange={(e) => setSim({ ...sim, dist: Number(e.target.value) })} />
-                                                <div className="text-right text-xs font-bold font-mono mt-1">{sim.dist} km</div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>                            {/* LIVE SIMULATOR (Integrated) */}
+                            <div className="card bg-[var(--card-bg)] border-2 border-[var(--primary)]/20 shadow-2xl relative overflow-visible mt-8">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-[var(--primary)]"></div>
+                                <div className="p-6">
+                                    <div className="flex flex-col md:flex-row gap-6 items-center justify-between mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg">
+                                                <Info size={24} />
                                             </div>
                                             <div>
-                                                <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Peso (kg)</label>
+                                                <h3 className="text-lg font-bold text-[var(--foreground)]">Simulador en Vivo</h3>
+                                                <p className="text-sm text-[var(--secondary)]">Previsualiza el costo final mientras ajustas los parámetros.</p>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-[var(--background)] rounded-xl border border-[var(--border)]">
+                                        <div>
+                                            <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Distancia</label>
+                                            <input type="range" min="50" max="3000" step="50"
+                                                className="range range-xs range-primary w-full"
+                                                value={sim.dist} onChange={(e) => setSim({ ...sim, dist: Number(e.target.value) })} />
+                                            <div className="text-right text-xs font-bold font-mono mt-1">{sim.dist} km</div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Peso (kg)</label>
+                                            <div className="relative">
+                                                <input type="number" min="1" className="input input-xs input-bordered w-full pr-8"
+                                                    value={sim.weight} onChange={(e) => setSim({ ...sim, weight: Number(e.target.value) })} />
+                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">kg</span>
+                                            </div>
+                                            {/* Auto-Selected Vehicle Display */}
+                                            <div className="mt-1 flex items-center gap-1.5 p-1.5 bg-indigo-50 border border-indigo-100 rounded text-[10px] text-indigo-700 font-bold">
+                                                <Truck size={12} />
+                                                {(() => {
+                                                    const weight = sim.weight;
+                                                    let label = 'Ligero (500kg)';
+                                                    if (weight > 500) label = 'Van (1.5T)';
+                                                    if (weight > 1500) label = '3.5 Ton';
+                                                    if (weight > 3500) label = 'Rabón (10T)';
+                                                    if (weight > 10000) label = 'Torton (14T)';
+                                                    if (weight > 14000) label = 'Tráiler (24T)';
+                                                    return label;
+                                                })()}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Tipo</label>
+                                            <select className="select select-bordered select-xs w-full"
+                                                value={sim.transport} onChange={(e) => setSim({ ...sim, transport: e.target.value })}>
+                                                <option value="FTL">FTL</option>
+                                                <option value="PTL">PTL</option>
+                                                <option value="LTL">LTL</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Riesgo</label>
+                                            <select className="select select-bordered select-xs w-full"
+                                                value={sim.risk} onChange={(e) => setSim({ ...sim, risk: e.target.value })}>
+                                                <option value="general">General</option>
+                                                <option value="hazardous">Peligroso</option>
+                                                <option value="perishable">Perecedero</option>
+                                                <option value="fragile">Frágil</option>
+                                                <option value="machinery">Maquinaria</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="col-span-2 md:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-[var(--border)] mt-2">
+                                            <div>
+                                                <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Presentación</label>
+                                                <select className="select select-bordered select-xs w-full"
+                                                    value={sim.pres} onChange={(e) => setSim({ ...sim, pres: e.target.value })}>
+                                                    <option value="General">General/Cajas</option>
+                                                    <option value="Paletizado">Paletizado</option>
+                                                    <option value="Granel">Granel</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Peajes Estimados</label>
                                                 <div className="relative">
-                                                    <input type="number" min="1" className="input input-xs input-bordered w-full pr-8"
-                                                        value={sim.weight} onChange={(e) => setSim({ ...sim, weight: Number(e.target.value) })} />
-                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">kg</span>
-                                                </div>
-                                                {/* Auto-Selected Vehicle Display */}
-                                                <div className="mt-1 flex items-center gap-1.5 p-1.5 bg-indigo-50 border border-indigo-100 rounded text-[10px] text-indigo-700 font-bold">
-                                                    <Truck size={12} />
-                                                    {(() => {
-                                                        const weight = sim.weight;
-                                                        let label = 'Paq. (<50kg)';
-                                                        if (weight > 50) label = 'Ligero (500kg)';
-                                                        if (weight > 500) label = 'Van (1.5T)';
-                                                        if (weight > 1500) label = '3.5 Ton';
-                                                        if (weight > 3500) label = 'Rabón (10T)';
-                                                        if (weight > 10000) label = 'Torton (14T)';
-                                                        if (weight > 14000) label = 'Tráiler (24T)';
-                                                        return label;
-                                                    })()}
+                                                    <input type="number" min="0" className="input input-xs input-bordered w-full pl-6 text-right"
+                                                        value={sim.tolls} onChange={(e) => setSim({ ...sim, tolls: Number(e.target.value) })} />
+                                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Tipo</label>
-                                                <select className="select select-bordered select-xs w-full"
-                                                    value={sim.transport} onChange={(e) => setSim({ ...sim, transport: e.target.value })}>
-                                                    <option value="FTL">FTL</option>
-                                                    <option value="PTL">PTL</option>
-                                                    <option value="LTL">LTL</option>
-                                                </select>
+                                                <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Valor Declarado</label>
+                                                <div className="relative">
+                                                    <input type="number" min="0" className="input input-xs input-bordered w-full pl-6 text-right"
+                                                        value={sim.declaredValue} onChange={(e) => setSim({ ...sim, declaredValue: Number(e.target.value) })} />
+                                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Riesgo</label>
-                                                <select className="select select-bordered select-xs w-full"
-                                                    value={sim.risk} onChange={(e) => setSim({ ...sim, risk: e.target.value })}>
-                                                    <option value="general">General</option>
-                                                    <option value="hazardous">Peligroso</option>
-                                                    <option value="perishable">Perecedero</option>
-                                                    <option value="fragile">Frágil</option>
-                                                    <option value="machinery">Maquinaria</option>
-                                                </select>
-                                            </div>
+                                        </div>
 
-                                            <div className="col-span-2 md:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-[var(--border)] mt-2">
-                                                <div>
-                                                    <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Presentación</label>
-                                                    <select className="select select-bordered select-xs w-full"
-                                                        value={sim.pres} onChange={(e) => setSim({ ...sim, pres: e.target.value })}>
-                                                        <option value="General">General/Cajas</option>
-                                                        <option value="Paletizado">Paletizado</option>
-                                                        <option value="Granel">Granel</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Cantidad</label>
-                                                    <div className="relative">
-                                                        <input type="number" min="1" className="input input-xs input-bordered w-full pr-8"
-                                                            value={sim.qty} onChange={(e) => setSim({ ...sim, qty: Number(e.target.value) })} />
-                                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">#</span>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Peajes Estimados</label>
-                                                    <div className="relative">
-                                                        <input type="number" min="0" className="input input-xs input-bordered w-full pl-6 text-right"
-                                                            value={sim.tolls} onChange={(e) => setSim({ ...sim, tolls: Number(e.target.value) })} />
-                                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Valor Declarado</label>
-                                                    <div className="relative">
-                                                        <input type="number" min="0" className="input input-xs input-bordered w-full pl-6 text-right"
-                                                            value={sim.declaredValue} onChange={(e) => setSim({ ...sim, declaredValue: Number(e.target.value) })} />
-                                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
-                                                    </div>
-                                                </div>
+                                        {/* Insurance Toggle */}
+                                        <div className="col-span-2 md:col-span-4 pt-2">
+                                            <div className="flex gap-2 bg-[var(--background)] p-1 rounded-lg border border-[var(--border)] w-fit">
+                                                <button type="button" onClick={() => setSim({ ...sim, insuranceSelection: 'jfc' })}
+                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${sim.insuranceSelection === 'jfc' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--secondary)] hover:bg-slate-100'}`}>
+                                                    Seguro JFC ({(settings?.insuranceRate || 0)}%)
+                                                </button>
+                                                <button type="button" onClick={() => setSim({ ...sim, insuranceSelection: 'own' })}
+                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${sim.insuranceSelection === 'own' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--secondary)] hover:bg-slate-100'}`}>
+                                                    Seguro Propio
+                                                </button>
                                             </div>
+                                        </div>
 
-                                            {/* Insurance Toggle */}
-                                            <div className="col-span-2 md:col-span-4 pt-2">
-                                                <div className="flex gap-2 bg-[var(--background)] p-1 rounded-lg border border-[var(--border)] w-fit">
-                                                    <button type="button" onClick={() => setSim({ ...sim, insuranceSelection: 'jfc' })}
-                                                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${sim.insuranceSelection === 'jfc' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--secondary)] hover:bg-slate-100'}`}>
-                                                        Seguro JFC ({(settings?.insuranceRate || 0)}%)
-                                                    </button>
-                                                    <button type="button" onClick={() => setSim({ ...sim, insuranceSelection: 'own' })}
-                                                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${sim.insuranceSelection === 'own' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--secondary)] hover:bg-slate-100'}`}>
-                                                        Seguro Propio
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <div className="col-span-2 md:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-                                                {[
-                                                    { key: 'loadingSupport', label: 'Carga', icon: <Users size={14} />, desc: 'Personal de carga' },
-                                                    { key: 'unloadingSupport', label: 'Descarga', icon: <Users size={14} />, desc: 'Personal de descarga' },
-                                                    { key: 'stackable', label: 'Estibable', icon: <PackageIcon size={14} />, desc: 'Se puede apilar' },
-                                                    { key: 'wrap', label: 'Emplayado', icon: <Box size={14} />, desc: 'Requiere protección' }
-                                                ].map((opt) => (
-                                                    <div key={opt.key}
-                                                        onClick={() => setSim({ ...sim, [opt.key]: !(sim as any)[opt.key] })}
-                                                        className={`
+                                        <div className="col-span-2 md:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                                            {[
+                                                { key: 'loadingSupport', label: 'Carga', icon: <Users size={14} />, desc: 'Personal de carga' },
+                                                { key: 'unloadingSupport', label: 'Descarga', icon: <Users size={14} />, desc: 'Personal de descarga' },
+                                                { key: 'stackable', label: 'Estibable', icon: <PackageIcon size={14} />, desc: 'Se puede apilar' },
+                                                { key: 'wrap', label: 'Emplayado', icon: <Box size={14} />, desc: 'Requiere protección' }
+                                            ].map((opt) => (
+                                                <div key={opt.key}
+                                                    onClick={() => setSim({ ...sim, [opt.key]: !(sim as any)[opt.key] })}
+                                                    className={`
                                                             cursor-pointer p-2 rounded-lg border transition-all duration-200 flex items-center gap-2 select-none
                                                             ${(sim as any)[opt.key]
-                                                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)] shadow-sm ring-1 ring-[var(--primary)]'
-                                                                : 'bg-[var(--background)] border-[var(--border)] text-[var(--secondary)] hover:bg-slate-50'}
+                                                            ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)] shadow-sm ring-1 ring-[var(--primary)]'
+                                                            : 'bg-[var(--background)] border-[var(--border)] text-[var(--secondary)] hover:bg-slate-50'}
                                                         `}
-                                                    >
-                                                        <div className={`
+                                                >
+                                                    <div className={`
                                                             w-4 h-4 rounded border flex items-center justify-center transition-colors
                                                             ${(sim as any)[opt.key] ? 'bg-[var(--primary)] border-transparent' : 'border-slate-300'}
                                                         `}>
-                                                            {(sim as any)[opt.key] && <Check size={10} className="text-white" />}
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[10px] font-bold uppercase leading-none">{opt.label}</span>
-                                                            <span className="text-[9px] opacity-70 leading-none mt-0.5">{opt.desc}</span>
-                                                        </div>
+                                                        {(sim as any)[opt.key] && <Check size={10} className="text-white" />}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-bold uppercase leading-none">{opt.label}</span>
+                                                        <span className="text-[9px] opacity-70 leading-none mt-0.5">{opt.desc}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
+                                    </div>
 
-                                        {/* RESULT BLOCK (Moved to bottom) */}
-                                        {/* RESULT BLOCK (Re-designed) */}
-                                        <div className="mt-8 pt-6 border-t border-[var(--border)]">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                                                {/* Breakdown List */}
-                                                <div className="bg-[var(--background)] rounded-xl border border-[var(--border)] p-4 shadow-sm">
-                                                    <div className="text-xs font-bold text-[var(--secondary)] mb-3 pb-2 border-b border-[var(--border)]">Desglose Detallado</div>
-                                                    <div className="space-y-2">
-                                                        {simResult?.breakdown?.map((item, idx) => (
+                                    {/* RESULT BLOCK (Moved to bottom) */}
+                                    {/* RESULT BLOCK (Re-designed) */}
+                                    <div className="mt-8 pt-6 border-t border-[var(--border)]">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                                            {/* Breakdown List */}
+                                            <div className="bg-[var(--background)] rounded-xl border border-[var(--border)] p-4 shadow-sm">
+                                                <div className="text-xs font-bold text-[var(--secondary)] mb-3 pb-2 border-b border-[var(--border)]">Desglose Detallado</div>
+                                                <div className="space-y-2">
+                                                    {(() => {
+                                                        const items = (simResult as any)?.billableLineItems || (simResult as any)?.breakdown || [];
+                                                        if (items.length === 0) {
+                                                            return <div className="text-xs text-slate-400 italic text-center py-2">Sin conceptos calculados</div>;
+                                                        }
+                                                        return items.map((item: any, idx: number) => (
                                                             <div key={idx} className="flex justify-between items-center text-sm group hover:bg-[var(--primary)]/5 p-1 rounded transition-colors">
                                                                 <span className="text-slate-600">{item.label}</span>
                                                                 <span className="font-mono font-medium text-[var(--foreground)]">
-                                                                    ${item.price.toLocaleString('es-MX', { minimumFractionDigits: 0 })}
+                                                                    ${(item.price ?? item.value ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 0 })}
                                                                 </span>
                                                             </div>
-                                                        ))}
-                                                        {(!simResult?.breakdown || simResult?.breakdown?.length === 0) && (
-                                                            <div className="text-xs text-slate-400 italic text-center py-2">Sin conceptos calculados</div>
-                                                        )}
-                                                    </div>
+                                                        ));
+                                                    })()}
+                                                </div>
+                                            </div>
+
+                                            {/* Totals & KPI */}
+                                            <div className="flex flex-col gap-4">
+                                                <div className="bg-slate-900 text-white p-6 rounded-xl shadow-lg relative overflow-hidden">
+                                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16 blur-2xl"></div>
+                                                    <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Total Estimado (MXN)</p>
+                                                    <p className="text-4xl font-black font-mono tracking-tight text-white mb-2">
+                                                        ${simResult?.total.toLocaleString('es-MX', { minimumFractionDigits: 2 }) || '0.00'}
+                                                    </p>
+                                                    <p className="text-xs text-slate-300 flex items-center gap-2">
+                                                        <Info size={12} /> Incluye IVA y márgenes
+                                                    </p>
                                                 </div>
 
-                                                {/* Totals & KPI */}
-                                                <div className="flex flex-col gap-4">
-                                                    <div className="bg-slate-900 text-white p-6 rounded-xl shadow-lg relative overflow-hidden">
-                                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16 blur-2xl"></div>
-                                                        <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Total Estimado (MXN)</p>
-                                                        <p className="text-4xl font-black font-mono tracking-tight text-white mb-2">
-                                                            ${simResult?.total.toLocaleString('es-MX', { minimumFractionDigits: 2 }) || '0.00'}
-                                                        </p>
-                                                        <p className="text-xs text-slate-300 flex items-center gap-2">
-                                                            <Info size={12} /> Incluye IVA y márgenes
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                                        <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Costo Kilométrico</p>
+                                                        <p className="font-mono font-bold text-slate-700">
+                                                            ${sim.dist > 0 ? ((simResult?.total || 0) / sim.dist).toLocaleString('es-MX', { maximumFractionDigits: 2 }) : '0.00'} <span className="text-[10px] font-normal text-slate-400">/km</span>
                                                         </p>
                                                     </div>
-
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Costo Kilométrico</p>
-                                                            <p className="font-mono font-bold text-slate-700">
-                                                                ${sim.dist > 0 ? ((simResult?.total || 0) / sim.dist).toLocaleString('es-MX', { maximumFractionDigits: 2 }) : '0.00'} <span className="text-[10px] font-normal text-slate-400">/km</span>
-                                                            </p>
-                                                        </div>
-                                                        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Ref. Base</p>
-                                                            <p className="font-mono font-bold text-slate-700">
-                                                                ${(sim.dist * (settings?.kilometerRate || 0)).toLocaleString('es-MX')}
-                                                            </p>
-                                                        </div>
+                                                    <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                                        <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Ref. Base</p>
+                                                        <p className="font-mono font-bold text-slate-700">
+                                                            ${(sim.dist * (settings?.kilometerRate || 0)).toLocaleString('es-MX')}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -755,14 +838,13 @@ function AdminContent() {
                                     </div>
                                 </div>
                             </div>
+
                         </form>
                     </div>
                 )
                 }
-
-
-            </div >
-        </div >
+            </div>
+        </div>
     );
 }
 

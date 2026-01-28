@@ -64,7 +64,16 @@ export interface PricingSettings {
     quantityRate?: number; // [NEW] Factor for extra quantity
 
     // [NEW] Vehicle Config (Dimensions & Efficiency)
-    vehicleDimensions?: Record<string, { length: number; width: number; height: number; efficiency?: number; volume?: number; fuelType?: 'diesel' | 'gasoline87' | 'gasoline91' }>; // Keyed by weight/id
+    vehicleDimensions?: Record<string, {
+        length: number;
+        width: number;
+        height: number;
+        efficiency?: number;
+        volume?: number;
+        fuelType?: 'diesel' | 'gasoline87' | 'gasoline91';
+        pricePerKm?: number; // [NEW] Base rate per km for this vehicle
+        fuelConfig?: Record<string, { enabled: boolean; efficiency: number }>; // [NEW] Per-fuel efficiency settings
+    }>; // Keyed by weight/id
 
     // "Cantidad" - Multiplier based on quantity? Or simple cost per unit?
     // User said: "Cost rate que asignamos a cada Naturaleza" (Typo for Quantity?)
