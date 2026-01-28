@@ -274,95 +274,89 @@ function AdminContent() {
                         }}>
                             <div className="space-y-8">
                                 {/* 1. Global & Margins */}
-                                {/* 1. Global Parameters (Compact) */}
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    {/* Margins */}
-                                    <div className="card bg-white border border-slate-200 shadow-sm h-full">
-                                        <div className="p-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
-                                            <DollarSign size={18} className="text-slate-500" />
-                                            <h3 className="font-bold text-slate-700 text-sm">Tarifas y Márgenes Base</h3>
-                                        </div>
-                                        <div className="p-4 space-y-4">
-                                            {/* Margen */}
-                                            <div className="form-control w-full">
-                                                <label className="label py-0 mb-1">
-                                                    <span className="label-text text-[10px] font-bold text-slate-600">Margen Global</span>
-                                                </label>
-                                                <input type="number" step="0.05" className="input input-xs input-bordered w-full text-right font-mono"
-                                                    value={settings.profitMargin || 0}
-                                                    onChange={(e) => updateSetting('profitMargin', null, Number(e.target.value))} />
-                                            </div>
-
-                                            {/* Km Rate */}
-                                            <div className="form-control w-full">
-                                                <label className="label py-0 mb-1">
-                                                    <span className="label-text text-[10px] font-bold text-slate-600">Tarifa por Km ($)</span>
-                                                </label>
-                                                <input type="number" step="1" className="input input-xs input-bordered w-full text-right font-mono"
-                                                    value={settings.kilometerRate || 0}
-                                                    onChange={(e) => updateSetting('kilometerRate', null, Number(e.target.value))} />
-                                            </div>
-
-                                            {/* Ton/Km Rate */}
-                                            <div className="form-control w-full">
-                                                <label className="label py-0 mb-1">
-                                                    <span className="label-text text-[10px] font-bold text-slate-600">Tarifa Ton/Km ($)</span>
-                                                </label>
-                                                <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
-                                                    value={settings.tonKmRate || 0}
-                                                    onChange={(e) => updateSetting('tonKmRate', null, Number(e.target.value))} />
-                                            </div>
-                                        </div>
+                                {/* 1. Global Parameters (Merged & Compact) */}
+                                <div className="card bg-white border border-slate-200 shadow-sm overflow-visible">
+                                    <div className="bg-slate-50/50 p-3 border-b border-slate-100 flex items-center gap-2">
+                                        <div className="p-1.5 bg-slate-100 rounded text-slate-600"><LayoutGrid size={16} /></div>
+                                        <h3 className="font-bold text-slate-700 text-sm">Configuración General</h3>
                                     </div>
+                                    <div className="p-4 grid grid-cols-1 lg:grid-cols-3 gap-6 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
 
-                                    {/* Fuel Prices */}
-                                    <div className="card bg-white border border-slate-200 shadow-sm h-full">
-                                        <div className="p-4 border-b border-slate-100 flex items-center gap-2 bg-red-50/50">
-                                            <div className="p-1 bg-red-100 rounded text-red-600"><AlertCircle size={14} /></div>
-                                            <h3 className="font-bold text-slate-700 text-sm">Combustibles ($/L)</h3>
+                                        {/* Col 1: Tarifas Base */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                                                <DollarSign size={14} className="text-[var(--primary)]" /> Tarifas Base
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="form-control w-full">
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold text-slate-500">Margen</span></label>
+                                                    <input type="number" step="0.05" className="input input-xs input-bordered w-full text-right font-mono"
+                                                        value={settings.profitMargin || 0}
+                                                        onChange={(e) => updateSetting('profitMargin', null, Number(e.target.value))} />
+                                                </div>
+                                                <div className="form-control w-full">
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold text-slate-500">$/Km</span></label>
+                                                    <input type="number" step="1" className="input input-xs input-bordered w-full text-right font-mono"
+                                                        value={settings.kilometerRate || 0}
+                                                        onChange={(e) => updateSetting('kilometerRate', null, Number(e.target.value))} />
+                                                </div>
+                                                <div className="form-control w-full col-span-2">
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold text-slate-500">$/Ton/Km</span></label>
+                                                    <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
+                                                        value={settings.tonKmRate || 0}
+                                                        onChange={(e) => updateSetting('tonKmRate', null, Number(e.target.value))} />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-2">
-                                            <div className="form-control">
-                                                <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold">Diesel</span></label>
-                                                <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
-                                                    value={settings.fuelPrices?.diesel || 0}
-                                                    onChange={(e) => updateSetting('fuelPrices', 'diesel', Number(e.target.value))} />
-                                            </div>
-                                            <div className="form-control">
-                                                <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold">Magna (87)</span></label>
-                                                <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
-                                                    value={settings.fuelPrices?.gasoline87 || 0}
-                                                    onChange={(e) => updateSetting('fuelPrices', 'gasoline87', Number(e.target.value))} />
-                                            </div>
-                                            <div className="form-control">
-                                                <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold">Premium (91)</span></label>
-                                                <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
-                                                    value={settings.fuelPrices?.gasoline91 || 0}
-                                                    onChange={(e) => updateSetting('fuelPrices', 'gasoline91', Number(e.target.value))} />
-                                            </div>
-                                        </div>
-                                    </div>
 
-                                    {/* Maneuvers (Base Costs) */}
-                                    <div className="card bg-white border border-slate-200 shadow-sm h-full">
-                                        <div className="p-4 border-b border-slate-100 flex items-center gap-2 bg-blue-50/50">
-                                            <div className="p-1 bg-blue-100 rounded text-blue-600"><Users size={14} /></div>
-                                            <h3 className="font-bold text-slate-700 text-sm">Maniobras Base</h3>
-                                        </div>
-                                        <div className="p-4 grid grid-cols-2 gap-2">
-                                            <div className="form-control">
-                                                <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold">Carga</span></label>
-                                                <input type="number" className="input input-xs input-bordered w-full text-right font-mono"
-                                                    value={settings.maneuverFees?.loading || 0}
-                                                    onChange={(e) => updateSetting('maneuverFees', 'loading', Number(e.target.value))} />
+                                        {/* Col 2: Combustibles */}
+                                        <div className="space-y-3 pt-4 lg:pt-0 lg:pl-4">
+                                            <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                                                <Database size={14} className="text-red-500" /> Combustibles ($/L)
                                             </div>
-                                            <div className="form-control">
-                                                <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold">Descarga</span></label>
-                                                <input type="number" className="input input-xs input-bordered w-full text-right font-mono"
-                                                    value={settings.maneuverFees?.unloading || 0}
-                                                    onChange={(e) => updateSetting('maneuverFees', 'unloading', Number(e.target.value))} />
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <div className="form-control">
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[9px] font-bold text-slate-500">Diesel</span></label>
+                                                    <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
+                                                        value={settings.fuelPrices?.diesel || 0}
+                                                        onChange={(e) => updateSetting('fuelPrices', 'diesel', Number(e.target.value))} />
+                                                </div>
+                                                <div className="form-control">
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[9px] font-bold text-slate-500">Regular</span></label>
+                                                    <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
+                                                        value={settings.fuelPrices?.gasoline87 || 0}
+                                                        onChange={(e) => updateSetting('fuelPrices', 'gasoline87', Number(e.target.value))} />
+                                                </div>
+                                                <div className="form-control">
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[9px] font-bold text-slate-500">Premium</span></label>
+                                                    <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
+                                                        value={settings.fuelPrices?.gasoline91 || 0}
+                                                        onChange={(e) => updateSetting('fuelPrices', 'gasoline91', Number(e.target.value))} />
+                                                </div>
                                             </div>
                                         </div>
+
+                                        {/* Col 3: Maniobras */}
+                                        <div className="space-y-3 pt-4 lg:pt-0 lg:pl-4">
+                                            <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                                                <Users size={14} className="text-blue-500" /> Maniobras Base
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="form-control">
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[9px] font-bold text-slate-500">Carga</span></label>
+                                                    <input type="number" className="input input-xs input-bordered w-full text-right font-mono"
+                                                        value={settings.maneuverFees?.loading || 0}
+                                                        onChange={(e) => updateSetting('maneuverFees', 'loading', Number(e.target.value))} />
+                                                </div>
+                                                <div className="form-control">
+                                                    <label className="label py-0 mb-1"><span className="label-text text-[9px] font-bold text-slate-500">Descarga</span></label>
+                                                    <input type="number" className="input input-xs input-bordered w-full text-right font-mono"
+                                                        value={settings.maneuverFees?.unloading || 0}
+                                                        onChange={(e) => updateSetting('maneuverFees', 'unloading', Number(e.target.value))} />
+                                                </div>
+                                            </div>
+                                        </div>
+
                                     </div>
                                 </div>
 
@@ -376,44 +370,39 @@ function AdminContent() {
                                         </div>
                                         <h3 className="font-bold text-indigo-900 text-lg">Configuración de Vehículos</h3>
                                     </div>
-                                    <div className="p-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="p-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                                             {[
                                                 { k: '50', l: 'Paq. (<50kg)' }, { k: '500', l: 'Ligero (500kg)' },
                                                 { k: '1500', l: 'Van (1.5T)' }, { k: '3500', l: '3.5 Ton' },
                                                 { k: '10000', l: 'Rabón (10T)' }, { k: '14000', l: 'Torton (14T)' },
                                                 { k: '24000', l: 'Tráiler (24T)' }
                                             ].map((item) => (
-                                                <div key={item.k} className="p-4 bg-slate-50 border border-slate-100 rounded-xl relative hover:border-indigo-200 transition-colors">
-                                                    <div className="flex justify-between items-start mb-3">
-                                                        <span className="text-sm font-bold text-indigo-800">{item.l}</span>
-                                                        <div className="relative group">
-                                                            <Info size={14} className="text-indigo-300 cursor-help" />
-                                                            <div className="absolute right-0 bottom-full mb-1 w-56 p-2 bg-slate-800 text-white text-xs rounded hidden group-hover:block z-50 shadow-xl pointer-events-none">
-                                                                Configura tarifa base, dimensiones y rendimiento para {item.l}.
-                                                            </div>
-                                                        </div>
+                                                <div key={item.k} className="p-3 bg-slate-50 border border-slate-200 rounded-lg hover:border-indigo-300 transition-colors shadow-sm">
+                                                    <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-200/60">
+                                                        <span className="text-xs font-bold text-indigo-900">{item.l}</span>
+                                                        <Info size={12} className="text-indigo-300" />
                                                     </div>
 
                                                     {/* Base Price */}
-                                                    <div className="form-control mb-3">
-                                                        <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold text-slate-500 uppercase">Tarifa Base</span></label>
-                                                        <div className="relative">
-                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-[9px] font-bold text-slate-500 uppercase">Tarifa</span>
+                                                        <div className="relative w-20">
+                                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[9px]">$</span>
                                                             <input
                                                                 type="number"
-                                                                className="input input-sm input-bordered w-full pl-6 text-right font-mono font-bold text-slate-700 bg-white"
+                                                                className="input input-xs input-bordered w-full pl-4 text-right font-mono font-bold text-slate-700 bg-white h-6 text-[10px]"
                                                                 value={settings.weightRates?.[item.k] || 0}
                                                                 onChange={(e) => updateSetting('weightRates', item.k, Number(e.target.value))}
                                                             />
                                                         </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-2 gap-3">
+                                                    <div className="grid grid-cols-2 gap-2 mb-2">
                                                         {/* Efficiency */}
-                                                        <div className="form-control">
-                                                            <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold text-slate-500 uppercase">Rendimiento (km/l)</span></label>
-                                                            <input type="number" step="0.1" className="input input-xs input-bordered w-full text-center font-mono bg-white h-7"
+                                                        <div>
+                                                            <label className="text-[8px] font-bold text-slate-400 block mb-0.5">KM/L</label>
+                                                            <input type="number" step="0.1" className="input input-xs input-bordered w-full text-center font-mono bg-white h-6 text-[10px]"
                                                                 value={(settings.vehicleDimensions as any)?.[item.k]?.efficiency || ''}
                                                                 onChange={(e) => {
                                                                     const current = (settings.vehicleDimensions as any)?.[item.k] || { length: 0, width: 0, height: 0, efficiency: 0 };
@@ -422,38 +411,39 @@ function AdminContent() {
                                                             />
                                                         </div>
                                                         {/* Fuel Type */}
-                                                        <div className="form-control">
-                                                            <label className="label py-0 mb-1"><span className="label-text text-[10px] font-bold text-slate-500 uppercase">Combustible</span></label>
-                                                            <select className="select select-xs select-bordered w-full text-center font-mono bg-white h-7 leading-tight min-h-0"
+                                                        <div>
+                                                            <label className="text-[8px] font-bold text-slate-400 block mb-0.5">COMB.</label>
+                                                            <select className="select select-xs select-bordered w-full text-center font-mono bg-white h-6 text-[9px] min-h-0 pl-1 pr-1"
                                                                 value={(settings.vehicleDimensions as any)?.[item.k]?.fuelType || 'diesel'}
                                                                 onChange={(e) => {
                                                                     const current = (settings.vehicleDimensions as any)?.[item.k] || { length: 0, width: 0, height: 0, efficiency: 0 };
                                                                     updateSetting('vehicleDimensions', item.k, { ...current, fuelType: e.target.value });
                                                                 }}
                                                             >
-                                                                <option value="diesel">Diesel</option>
-                                                                <option value="gasoline87">Magna</option>
-                                                                <option value="gasoline91">Premium</option>
+                                                                <option value="diesel">DSL</option>
+                                                                <option value="gasoline87">MAG</option>
+                                                                <option value="gasoline91">PRM</option>
                                                             </select>
                                                         </div>
-                                                        {/* Dimensions */}
-                                                        <div className="col-span-2 grid grid-cols-3 gap-1 pt-1 border-t border-slate-200 mt-1">
-                                                            {['length', 'width', 'height'].map((d) => (
-                                                                <div key={d} className="form-control relative tooltip" data-tip={d === 'length' ? 'Largo (m)' : d === 'width' ? 'Ancho (m)' : 'Alto (m)'}>
-                                                                    <label className="label py-0 mb-0 justify-center"><span className="label-text text-[9px] text-slate-400 capitalize">{d.substring(0, 3)}.</span></label>
-                                                                    <input
-                                                                        type="number"
-                                                                        step="0.1"
-                                                                        className="input input-xs input-bordered w-full text-center px-1 font-mono text-[10px] bg-white h-6"
-                                                                        value={(settings.vehicleDimensions as any)?.[item.k]?.[d] || ''}
-                                                                        onChange={(e) => {
-                                                                            const current = (settings.vehicleDimensions as any)?.[item.k] || { length: 0, width: 0, height: 0, efficiency: 0 };
-                                                                            updateSetting('vehicleDimensions', item.k, { ...current, [d]: Number(e.target.value) });
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            ))}
-                                                        </div>
+                                                    </div>
+
+                                                    {/* Dimensions */}
+                                                    <div className="grid grid-cols-3 gap-1 pt-1 border-t border-slate-200">
+                                                        {['length', 'width', 'height'].map((d) => (
+                                                            <div key={d} className="text-center">
+                                                                <label className="text-[7px] text-slate-400 uppercase block">{d.substring(0, 1)}.</label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.1"
+                                                                    className="input input-xs input-bordered w-full text-center px-0 font-mono text-[9px] bg-white h-5"
+                                                                    value={(settings.vehicleDimensions as any)?.[item.k]?.[d] || ''}
+                                                                    onChange={(e) => {
+                                                                        const current = (settings.vehicleDimensions as any)?.[item.k] || { length: 0, width: 0, height: 0, efficiency: 0 };
+                                                                        updateSetting('vehicleDimensions', item.k, { ...current, [d]: Number(e.target.value) });
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             ))}
@@ -586,16 +576,27 @@ function AdminContent() {
                                                 <div className="text-right text-xs font-bold font-mono mt-1">{sim.dist} km</div>
                                             </div>
                                             <div>
-                                                <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Peso</label>
-                                                <select className="select select-bordered select-xs w-full"
-                                                    value={sim.weight} onChange={(e) => setSim({ ...sim, weight: Number(e.target.value) })}>
-                                                    <option value="40">Paquete (40kg)</option>
-                                                    <option value="500">Pick-up (500kg)</option>
-                                                    <option value="1500">Van (1.5T)</option>
-                                                    <option value="3500">3.5 Ton</option>
-                                                    <option value="10000">Rabón (10T)</option>
-                                                    <option value="24000">Tráiler (24T)</option>
-                                                </select>
+                                                <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Peso (kg)</label>
+                                                <div className="relative">
+                                                    <input type="number" min="1" className="input input-xs input-bordered w-full pr-8"
+                                                        value={sim.weight} onChange={(e) => setSim({ ...sim, weight: Number(e.target.value) })} />
+                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">kg</span>
+                                                </div>
+                                                {/* Auto-Selected Vehicle Display */}
+                                                <div className="mt-1 flex items-center gap-1.5 p-1.5 bg-indigo-50 border border-indigo-100 rounded text-[10px] text-indigo-700 font-bold">
+                                                    <Truck size={12} />
+                                                    {(() => {
+                                                        const weight = sim.weight;
+                                                        let label = 'Paq. (<50kg)';
+                                                        if (weight > 50) label = 'Ligero (500kg)';
+                                                        if (weight > 500) label = 'Van (1.5T)';
+                                                        if (weight > 1500) label = '3.5 Ton';
+                                                        if (weight > 3500) label = 'Rabón (10T)';
+                                                        if (weight > 10000) label = 'Torton (14T)';
+                                                        if (weight > 14000) label = 'Tráiler (24T)';
+                                                        return label;
+                                                    })()}
+                                                </div>
                                             </div>
                                             <div>
                                                 <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Tipo</label>
