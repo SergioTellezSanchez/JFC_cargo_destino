@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Truck, Save, DollarSign, Package as PackageIcon, Users, Warehouse, Plus, LayoutGrid, Database, Lock, AlertCircle, Info, HelpCircle } from 'lucide-react';
+import { Truck, Save, DollarSign, Package as PackageIcon, Users, Warehouse, Plus, LayoutGrid, Database, Lock, AlertCircle, Info, HelpCircle, Box, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTranslation } from '@/lib/i18n';
 import { useUser } from '@/lib/UserContext';
@@ -39,7 +39,9 @@ function AdminContent() {
         unloadingSupport: true,
         stackable: false,
         wrap: false,
-        tolls: 0
+        tolls: 0,
+        declaredValue: 0,
+        insuranceSelection: 'jfc'
     });
     const [simResult, setSimResult] = useState<{ base: number; total: number; subtotal: number; breakdown: any[] } | null>(null);
 
@@ -74,7 +76,9 @@ function AdminContent() {
                 requiresUnloadingSupport: sim.unloadingSupport,
                 isStackable: sim.stackable,
                 requiresStretchWrap: sim.wrap,
-                tolls: sim.tolls
+                tolls: sim.tolls,
+                declaredValue: sim.declaredValue,
+                insuranceSelection: sim.insuranceSelection as any
             }, VEHICLE_TYPES[0], settings);
 
             setSimResult({
@@ -276,24 +280,37 @@ function AdminContent() {
                                     <div className="card bg-white border border-slate-200 shadow-sm h-full">
                                         <div className="p-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
                                             <DollarSign size={18} className="text-slate-500" />
-                                            <h3 className="font-bold text-slate-700 text-sm">Márgenes Comerciales</h3>
+                                            <h3 className="font-bold text-slate-700 text-sm">Tarifas y Márgenes Base</h3>
                                         </div>
-                                        <div className="p-4">
+                                        <div className="p-4 space-y-4">
+                                            {/* Margen */}
                                             <div className="form-control w-full">
-                                                <label className="label">
-                                                    <span className="label-text text-xs font-bold text-slate-600 flex gap-1 items-center">
-                                                        Margen Global
-                                                        <div className="relative group">
-                                                            <HelpCircle size={12} className="text-slate-400 cursor-help" />
-                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-xs rounded hidden group-hover:block z-50 pointer-events-none shadow-xl">
-                                                                Factor multiplicador. 1.4 = 40% utilidad.
-                                                            </div>
-                                                        </div>
-                                                    </span>
+                                                <label className="label py-0 mb-1">
+                                                    <span className="label-text text-[10px] font-bold text-slate-600">Margen Global</span>
                                                 </label>
-                                                <input type="number" step="0.05" className="input input-sm input-bordered w-full text-right font-mono"
+                                                <input type="number" step="0.05" className="input input-xs input-bordered w-full text-right font-mono"
                                                     value={settings.profitMargin || 0}
                                                     onChange={(e) => updateSetting('profitMargin', null, Number(e.target.value))} />
+                                            </div>
+
+                                            {/* Km Rate */}
+                                            <div className="form-control w-full">
+                                                <label className="label py-0 mb-1">
+                                                    <span className="label-text text-[10px] font-bold text-slate-600">Tarifa por Km ($)</span>
+                                                </label>
+                                                <input type="number" step="1" className="input input-xs input-bordered w-full text-right font-mono"
+                                                    value={settings.kilometerRate || 0}
+                                                    onChange={(e) => updateSetting('kilometerRate', null, Number(e.target.value))} />
+                                            </div>
+
+                                            {/* Ton/Km Rate */}
+                                            <div className="form-control w-full">
+                                                <label className="label py-0 mb-1">
+                                                    <span className="label-text text-[10px] font-bold text-slate-600">Tarifa Ton/Km ($)</span>
+                                                </label>
+                                                <input type="number" step="0.1" className="input input-xs input-bordered w-full text-right font-mono"
+                                                    value={settings.tonKmRate || 0}
+                                                    onChange={(e) => updateSetting('tonKmRate', null, Number(e.target.value))} />
                                             </div>
                                         </div>
                                     </div>
@@ -627,41 +644,58 @@ function AdminContent() {
                                                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
                                                     </div>
                                                 </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-[var(--secondary)] mb-1 block">Valor Declarado</label>
+                                                    <div className="relative">
+                                                        <input type="number" min="0" className="input input-xs input-bordered w-full pl-6 text-right"
+                                                            value={sim.declaredValue} onChange={(e) => setSim({ ...sim, declaredValue: Number(e.target.value) })} />
+                                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">$</span>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div className="col-span-2 md:col-span-4 flex flex-wrap gap-4 pt-2">
-                                                <label className="cursor-pointer label justify-start gap-2 p-0 group relative">
-                                                    <input type="checkbox" className="checkbox checkbox-xs checkbox-primary"
-                                                        checked={sim.loadingSupport} onChange={(e) => setSim({ ...sim, loadingSupport: e.target.checked })} />
-                                                    <span className="label-text text-xs flex items-center gap-1">
-                                                        Apoyo Carga
-                                                        <HelpCircle size={10} className="text-slate-400" />
-                                                    </span>
-                                                    <div className="absolute bottom-full left-0 mb-2 w-40 p-2 bg-slate-800 text-white text-[10px] rounded hidden group-hover:block z-50 pointer-events-none">
-                                                        Costo extra por maniobras de carga.
+                                            {/* Insurance Toggle */}
+                                            <div className="col-span-2 md:col-span-4 pt-2">
+                                                <div className="flex gap-2 bg-[var(--background)] p-1 rounded-lg border border-[var(--border)] w-fit">
+                                                    <button type="button" onClick={() => setSim({ ...sim, insuranceSelection: 'jfc' })}
+                                                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${sim.insuranceSelection === 'jfc' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--secondary)] hover:bg-slate-100'}`}>
+                                                        Seguro JFC ({(settings?.insuranceRate || 0)}%)
+                                                    </button>
+                                                    <button type="button" onClick={() => setSim({ ...sim, insuranceSelection: 'own' })}
+                                                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${sim.insuranceSelection === 'own' ? 'bg-[var(--primary)] text-white shadow-sm' : 'text-[var(--secondary)] hover:bg-slate-100'}`}>
+                                                        Seguro Propio
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="col-span-2 md:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                                                {[
+                                                    { key: 'loadingSupport', label: 'Carga', icon: <Users size={14} />, desc: 'Personal de carga' },
+                                                    { key: 'unloadingSupport', label: 'Descarga', icon: <Users size={14} />, desc: 'Personal de descarga' },
+                                                    { key: 'stackable', label: 'Estibable', icon: <PackageIcon size={14} />, desc: 'Se puede apilar' },
+                                                    { key: 'wrap', label: 'Emplayado', icon: <Box size={14} />, desc: 'Requiere protección' }
+                                                ].map((opt) => (
+                                                    <div key={opt.key}
+                                                        onClick={() => setSim({ ...sim, [opt.key]: !(sim as any)[opt.key] })}
+                                                        className={`
+                                                            cursor-pointer p-2 rounded-lg border transition-all duration-200 flex items-center gap-2 select-none
+                                                            ${(sim as any)[opt.key]
+                                                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)] shadow-sm ring-1 ring-[var(--primary)]'
+                                                                : 'bg-[var(--background)] border-[var(--border)] text-[var(--secondary)] hover:bg-slate-50'}
+                                                        `}
+                                                    >
+                                                        <div className={`
+                                                            w-4 h-4 rounded border flex items-center justify-center transition-colors
+                                                            ${(sim as any)[opt.key] ? 'bg-[var(--primary)] border-transparent' : 'border-slate-300'}
+                                                        `}>
+                                                            {(sim as any)[opt.key] && <Check size={10} className="text-white" />}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-bold uppercase leading-none">{opt.label}</span>
+                                                            <span className="text-[9px] opacity-70 leading-none mt-0.5">{opt.desc}</span>
+                                                        </div>
                                                     </div>
-                                                </label>
-                                                <label className="cursor-pointer label justify-start gap-2 p-0 group relative">
-                                                    <input type="checkbox" className="checkbox checkbox-xs checkbox-primary"
-                                                        checked={sim.unloadingSupport} onChange={(e) => setSim({ ...sim, unloadingSupport: e.target.checked })} />
-                                                    <span className="label-text text-xs flex items-center gap-1">
-                                                        Apoyo Descarga
-                                                        <HelpCircle size={10} className="text-slate-400" />
-                                                    </span>
-                                                    <div className="absolute bottom-full left-0 mb-2 w-40 p-2 bg-slate-800 text-white text-[10px] rounded hidden group-hover:block z-50 pointer-events-none">
-                                                        Costo extra por maniobras de descarga.
-                                                    </div>
-                                                </label>
-                                                <label className="cursor-pointer label justify-start gap-2 p-0">
-                                                    <input type="checkbox" className="checkbox checkbox-xs checkbox-secondary"
-                                                        checked={sim.stackable} onChange={(e) => setSim({ ...sim, stackable: e.target.checked })} />
-                                                    <span className="label-text text-xs">Estibable</span>
-                                                </label>
-                                                <label className="cursor-pointer label justify-start gap-2 p-0">
-                                                    <input type="checkbox" className="checkbox checkbox-xs checkbox-accent"
-                                                        checked={sim.wrap} onChange={(e) => setSim({ ...sim, wrap: e.target.checked })} />
-                                                    <span className="label-text text-xs">Emplayado</span>
-                                                </label>
+                                                ))}
                                             </div>
                                         </div>
 

@@ -212,14 +212,22 @@ export function calculateLogisticsCosts(
 
     const calculatedFuelCost = (distance / vEfficiency) * fuelPrice;
 
+    // [NEW] 1.2 Tonelada/KM
+    const tonKmRate = settings.tonKmRate || 0;
+    let tonKmCost = 0;
+    if (tonKmRate > 0 && distance > 0) {
+        const weightTons = pkg.weight / 1000;
+        tonKmCost = distance * weightTons * tonKmRate;
+    }
+
     const rawWeightCost = weightBaseCosts[String(pkg.weight)] || weightBaseCosts[weightKey] || 1500;
 
     const transportRate = transportRates[pkg.transportType || 'FTL'] || 1.0;
     const cargoType = pkg.cargoType || 'general';
     const cargoRate = cargoTypeRates[cargoType] || 1.0;
 
-    // Base Freight = (Start Fee + Mileage) * Multipliers
-    const baseFreight = (rawWeightCost + mileageCost) * transportRate * cargoRate;
+    // Base Freight = (Start Fee + Mileage + TonKm) * Multipliers
+    const baseFreight = (rawWeightCost + mileageCost + tonKmCost) * transportRate * cargoRate;
 
     // 1. Peso (Base Start Fee)
     breakdownDetails.push({
@@ -237,9 +245,18 @@ export function calculateLogisticsCosts(
         });
     }
 
+    // [NEW] 1.2 Breakdown Push
+    if (tonKmCost > 0) {
+        breakdownDetails.push({
+            label: `Ton/Km: ${(pkg.weight / 1000).toFixed(2)}t x ${distance}km x $${tonKmRate}`,
+            value: tonKmCost,
+            type: 'base'
+        });
+    }
+
     // 2. Transporte (Adjustment)
-    // We calculate the adjustment based on the combined base (Start + Mileage)
-    const combinedBase = rawWeightCost + mileageCost;
+    // We calculate the adjustment based on the combined base (Start + Mileage + TonKm)
+    const combinedBase = rawWeightCost + mileageCost + tonKmCost;
     const transportAdjustment = (combinedBase * transportRate) - combinedBase;
 
     if (transportRate !== 1.0) {

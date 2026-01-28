@@ -36,6 +36,7 @@ export interface PricingSettings {
 
     // 1. Base Cost Components (Configurable)
     kilometerRate?: number; // Cost per km (e.g. $15/km)
+    tonKmRate?: number; // [NEW] Cost per km per ton (e.g. $2/km/ton)
 
     // "Costo fijo asignado a cada Peso Aproximado"
     weightRates?: Record<string, number>; // e.g. {'50': 500, '500': 1500...}
