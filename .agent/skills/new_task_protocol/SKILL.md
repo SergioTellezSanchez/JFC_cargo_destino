@@ -11,6 +11,7 @@ description: Protocol for handing new inquiries. It enforces gathering context, 
 **CRITICAL:** Before doing anything, you must understand the request.
 1.  **Analyze the Request:** What is vague? What is missing?
 2.  **Ask the User:**
+    *   **Jira Ticket ID:** "What is the Jira Ticket ID (e.g. SCRUM-20)? **Why:** I need this to link commits to the task."
     *   Formulate specific questions.
     *   **Explain WHY:** For every question, state clearly *why* this information is needed.
     *   *Example:* "Please provide the file path for the component. **Why:** I need to ensure I am modifying the correct version of the file."
