@@ -113,7 +113,11 @@ function AdminContent() {
         }
     };
 
-    const updateSetting = (section: keyof PricingSettings, key: string | null, value: number) => {
+    const updateSetting = <K extends keyof PricingSettings>(
+        section: K,
+        key: string | null,
+        value: unknown
+    ) => {
         if (!settings) return;
         setSettings(prev => {
             if (!prev) return null;
@@ -121,16 +125,15 @@ function AdminContent() {
 
             if (key) {
                 // Handle nested object updates (e.g. weightRates['50'])
-                // @ts-ignore
+                // We assert that the section is a Record-like object
+                const currentSection = updated[section] as Record<string, unknown> | undefined;
                 updated[section] = {
-                    // @ts-ignore
-                    ...updated[section],
+                    ...(currentSection || {}),
                     [key]: value
-                };
+                } as PricingSettings[K];
             } else {
                 // Handle top-level updates (e.g. basePrice)
-                // @ts-ignore
-                updated[section] = value;
+                updated[section] = value as PricingSettings[K];
             }
             return updated;
         });

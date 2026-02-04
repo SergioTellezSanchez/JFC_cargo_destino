@@ -109,15 +109,6 @@ Lanzar la funcionalidad core que permite a clientes crear órdenes, transportist
 - ✅ 0 errores críticos en producción
 - ✅ Tiempo de respuesta API < 500ms (p95)
 
-### Equipo Requerido
-
-- 2 Frontend Developers
-- 2 Backend Developers
-- 1 DevOps Engineer
-- 1 QA Engineer
-- 1 Product Manager
-- 1 UI/UX Designer
-
 ---
 
 ## FASE 2: TRACKING & OPTIMIZATION
@@ -185,12 +176,6 @@ Implementar tracking en tiempo real, validación de riesgos, y optimizaciones de
 - ✅ 0 incidentes de seguridad sin detectar
 - ✅ Customer satisfaction > 4.5/5
 
-### Equipo Adicional
-
-- +1 Backend Developer (WebSockets specialist)
-- +1 Mobile Developer (GPS optimization)
-
----
 
 ## FASE 3: ANALYTICS & PROFITABILITY
 ### Duración: 2 meses

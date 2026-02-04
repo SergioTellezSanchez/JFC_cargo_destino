@@ -221,38 +221,16 @@
 ## BACKEND TECHNOLOGIES
 
 ### Core System
+**Runtime**: Node.js 20 LTS (Serverless on Vercel)
 
-**Runtime**: Node.js 20 LTS
-
-**Framework Options:**
-
-#### Option A: Express.js (Recomendado para MVP)
+**Framework:**
 ```json
 {
-  "framework": "Express.js 4.18+",
+  "framework": "Next.js API Routes (Serverless)",
   "language": "TypeScript",
   "validation": "Zod",
   "auth": "Firebase Admin SDK",
-  "cors": "cors",
-  "security": "helmet",
-  "rateLimit": "express-rate-limit",
-  "logging": "winston + morgan"
-}
-```
-
-#### Option B: Fastify (Para alta performance)
-```json
-{
-  "framework": "Fastify 4.x",
-  "language": "TypeScript",
-  "validation": "Zod + Fastify Schema",
-  "auth": "Firebase Admin SDK",
-  "plugins": [
-    "@fastify/cors",
-    "@fastify/helmet",
-    "@fastify/rate-limit",
-    "@fastify/websocket"
-  ]
+  "logging": "console (Vercel Logs)"
 }
 ```
 
@@ -336,65 +314,24 @@ notificationQueue.process(async (job) => {
 });
 ```
 
-### WebSocket Server
+### Realtime System
 
-**Library**: Socket.io 4
+**Service**: Firebase Realtime Database / Firestore Listeners
 
 ```typescript
-import { Server } from 'socket.io';
+import { getDatabase, ref, onValue } from "firebase/database";
 
-const io = new Server(server, {
-  cors: {
-    origin: process.env.ALLOWED_ORIGINS,
-    credentials: true
-  }
-});
-
-io.use(async (socket, next) => {
-  // Auth middleware
-  const token = socket.handshake.auth.token;
-  const user = await verifyToken(token);
-  socket.userId = user.uid;
-  next();
+const db = getDatabase();
+const starCountRef = ref(db, 'posts/' + postId + '/starCount');
+onValue(starCountRef, (snapshot) => {
+  const data = snapshot.val();
+  updateStarCount(postElement, data);
 });
 ```
 
 ### Event Bus
 
-**Options:**
-
-#### Option A: EventEmitter (Simple, para MVP)
-```typescript
-import { EventEmitter } from 'events';
-
-class OrderEventBus extends EventEmitter {}
-const orderEvents = new OrderEventBus();
-
-// Emit event
-orderEvents.emit('order:created', orderData);
-
-// Listen to event
-orderEvents.on('order:created', async (order) => {
-  await sendNotification(order.clientId, 'Order created');
-});
-```
-
-#### Option B: RabbitMQ (Escalable, para producción)
-```json
-{
-  "library": "amqplib",
-  "exchanges": ["orders", "tracking", "incidents"],
-  "queues": ["notifications", "analytics", "webhooks"]
-}
-```
-
-#### Option C: AWS EventBridge (Cloud-native)
-```json
-{
-  "service": "AWS EventBridge",
-  "sdk": "@aws-sdk/client-eventbridge"
-}
-```
+**Implementation**: internal-event-bus (for in-process) + Firebase Cloud Functions (for async)
 
 ---
 
@@ -415,300 +352,15 @@ const app = initializeApp({
 });
 
 const db = getFirestore(app);
-
-// Enable offline persistence (client-side)
-import { enableIndexedDbPersistence } from 'firebase/firestore';
-await enableIndexedDbPersistence(db);
-```
-
-**Indexes Required:**
-```javascript
-// Composite indexes
-[
-  {
-    collection: 'orders',
-    fields: [
-      { field: 'carrierId', order: 'ASCENDING' },
-      { field: 'status', order: 'ASCENDING' },
-      { field: 'createdAt', order: 'DESCENDING' }
-    ]
-  },
-  {
-    collection: 'tracking',
-    fields: [
-      { field: 'orderId', order: 'ASCENDING' },
-      { field: 'timestamp', order: 'DESCENDING' }
-    ]
-  },
-  {
-    collection: 'auctions',
-    fields: [
-      { field: 'status', order: 'ASCENDING' },
-      { field: 'expiresAt', order: 'ASCENDING' }
-    ]
-  }
-]
-```
-
-### Cache Layer
-
-**Service**: Redis 7
-
-**Use Cases:**
-- Session storage
-- Queue backend (Bull)
-- Hot data caching (tracking, ETA)
-- Rate limiting
-
-**Configuration:**
-```typescript
-import Redis from 'ioredis';
-
-const redis = new Redis({
-  host: process.env.REDIS_HOST,
-  port: 6379,
-  password: process.env.REDIS_PASSWORD,
-  db: 0,
-  retryStrategy: (times) => Math.min(times * 50, 2000)
-});
-
-// Cache tracking data
-await redis.setex(
-  `tracking:${orderId}`,
-  10, // 10 seconds TTL
-  JSON.stringify(trackingData)
-);
 ```
 
 ### Analytics Database
 
-**Service**: Google BigQuery
-
-**Schema:**
-```sql
-CREATE TABLE jfc_analytics.profitability (
-  order_id STRING,
-  carrier_id STRING,
-  driver_id STRING,
-  revenue FLOAT64,
-  costs STRUCT<
-    fuel FLOAT64,
-    salary FLOAT64,
-    tolls FLOAT64,
-    depreciation FLOAT64,
-    total FLOAT64
-  >,
-  margin FLOAT64,
-  roi FLOAT64,
-  distance FLOAT64,
-  duration FLOAT64,
-  type STRING,
-  timestamp TIMESTAMP
-);
-```
+**Service**: Google BigQuery (via Firebase Extensions)
 
 ### File Storage
 
-**Service**: AWS S3 / Google Cloud Storage
-
-**Buckets:**
-- `jfc-documents` - PODs, invoices, contracts
-- `jfc-photos` - Delivery photos, signatures
-- `jfc-backups` - Database backups
-
-**Configuration:**
-```typescript
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-
-const s3 = new S3Client({ region: 'us-east-1' });
-
-// Upload file
-await s3.send(new PutObjectCommand({
-  Bucket: 'jfc-documents',
-  Key: `pods/${orderId}.pdf`,
-  Body: pdfBuffer,
-  ContentType: 'application/pdf'
-}));
-```
-
----
-
-## THIRD-PARTY INTEGRATIONS
-
-### Payments
-
-#### Stripe
-```json
-{
-  "library": "stripe",
-  "version": "14.x",
-  "features": [
-    "Payment Intents",
-    "Webhooks",
-    "Refunds",
-    "Payment Methods"
-  ]
-}
-```
-
-```typescript
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// Create payment intent
-const paymentIntent = await stripe.paymentIntents.create({
-  amount: order.pricing.total * 100, // cents
-  currency: 'mxn',
-  metadata: { orderId: order.id }
-});
-```
-
-#### PayPal
-```json
-{
-  "library": "@paypal/checkout-server-sdk",
-  "version": "1.x"
-}
-```
-
-### Communications
-
-#### Twilio (SMS)
-```json
-{
-  "library": "twilio",
-  "version": "4.x",
-  "features": ["SMS", "WhatsApp (future)"]
-}
-```
-
-```typescript
-import twilio from 'twilio';
-
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
-
-await client.messages.create({
-  to: '+52' + phone,
-  from: process.env.TWILIO_PHONE_NUMBER,
-  body: message
-});
-```
-
-#### SendGrid (Email)
-```json
-{
-  "library": "@sendgrid/mail",
-  "version": "7.x"
-}
-```
-
-### Maps & Geolocation
-
-#### Google Maps Platform
-```json
-{
-  "library": "@googlemaps/google-maps-services-js",
-  "version": "3.x",
-  "APIs": [
-    "Directions API",
-    "Geocoding API",
-    "Distance Matrix API",
-    "Geofencing (Maps JavaScript API)",
-    "Places API"
-  ]
-}
-```
-
-```typescript
-import { Client } from '@googlemaps/google-maps-services-js';
-
-const mapsClient = new Client({});
-
-// Calculate route
-const directions = await mapsClient.directions({
-  params: {
-    origin: originAddress,
-    destination: destAddress,
-    mode: 'driving',
-    departure_time: 'now',
-    key: process.env.GOOGLE_MAPS_API_KEY
-  }
-});
-```
-
-### GPS Tracking
-
-#### Samsara
-```json
-{
-  "API": "Samsara Fleet API",
-  "version": "2023-12-01",
-  "features": [
-    "Vehicle Location",
-    "Driver Status",
-    "Fuel Consumption",
-    "Engine Diagnostics"
-  ]
-}
-```
-
-### AI & Analytics
-
-#### Claude API (Anthropic)
-```json
-{
-  "library": "@anthropic-ai/sdk",
-  "version": "0.9.x",
-  "model": "claude-3-sonnet-20240229"
-}
-```
-
-```typescript
-import Anthropic from '@anthropic-ai/sdk';
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
-
-const response = await anthropic.messages.create({
-  model: 'claude-3-sonnet-20240229',
-  max_tokens: 1024,
-  messages: [{
-    role: 'user',
-    content: userMessage
-  }]
-});
-```
-
-#### Google Analytics
-```json
-{
-  "library": "react-ga4",
-  "version": "2.x"
-}
-```
-
-### Document Processing
-
-#### OCR - Google Vision API
-```json
-{
-  "library": "@google-cloud/vision",
-  "version": "4.x"
-}
-```
-
-#### PDF Generation
-```json
-{
-  "library": "pdfkit",
-  "version": "0.14.x"
-}
-```
+**Service**: Firebase Storage (Google Cloud Storage bucket)
 
 ---
 
@@ -716,31 +368,16 @@ const response = await anthropic.messages.create({
 
 ### Cloud Provider
 
-**Primary**: AWS / Google Cloud Platform
+**Primary**: Vercel (Frontend + Serverless API)
+**Backend Services**: Google Cloud Platform (via Firebase)
 
-#### AWS Services
+#### Vercel Services
 ```json
 {
-  "compute": "ECS Fargate / Lambda",
-  "storage": "S3",
-  "database": "Firestore (Firebase)",
-  "cache": "ElastiCache (Redis)",
-  "cdn": "CloudFront",
-  "monitoring": "CloudWatch",
-  "secrets": "Secrets Manager"
-}
-```
-
-#### GCP Services
-```json
-{
-  "compute": "Cloud Run / Cloud Functions",
-  "storage": "Cloud Storage",
-  "database": "Firestore",
-  "cache": "Memorystore (Redis)",
-  "cdn": "Cloud CDN",
-  "monitoring": "Cloud Monitoring",
-  "secrets": "Secret Manager"
+  "compute": "Vercel Functions (Serverless)",
+  "cdn": "Vercel Edge Network",
+  "monitoring": "Vercel Analytics + Speed Insights",
+  "cron": "Vercel Cron"
 }
 ```
 

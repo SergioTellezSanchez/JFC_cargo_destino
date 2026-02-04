@@ -11,33 +11,32 @@ JFC Cargo Destino es una plataforma integral de gestión logística que conecta 
 
 ## ARQUITECTURA DE 4 CAPAS
 
-```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        CAPA 1: INTERFACES DE USUARIO                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │ MOBILE APP   │  │  CUSTOMER    │  │   CARRIER    │  │ SUPER ADMIN  │   │
-│  │ (Conductor)  │  │   PORTAL     │  │   PORTAL     │  │     ZONE     │   │
-│  │              │  │  (Cliente)   │  │(Transportista│  │   (Admin)    │   │
-│  │ - Tracking   │  │              │  │              │  │              │   │
-│  │ - Entregas   │  │ - Crear orden│  │ - Gestión    │  │ - User Mgmt  │   │
-│  │ - Subastas   │  │ - Tracking   │  │   flota      │  │ - Analytics  │   │
-│  │ - Reportes   │  │ - Documentos │  │ - Dashboard  │  │ - Security   │   │
-│  │ - Offline    │  │ - Pagos      │  │   Subastas   │  │ - Verification│  │
-│  │              │  │ - Cotizar    │  │ - Rentabilidad│ │ - Risk Zones │   │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
-│                                                                              │
-│  ┌──────────────┐  ┌──────────────┐                                        │
-│  │  WAREHOUSE   │  │   CUSTOMS    │                                        │
-│  │   PORTAL     │  │   PORTAL     │                                        │
-│  │  (Almacén)   │  │ (Aduanas)    │                                        │
-│  │              │  │              │                                        │
-│  │ - Management │  │ - Admin      │                                        │
-│  │ - Capacity   │  │ - Tracking   │                                        │
-│  │ - Inventory  │  │ - Docs       │                                        │
-│  └──────────────┘  └──────────────┘                                        │
-│                                                                              │
+│                                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  ┌───────────────┐   │
+│  │ MOBILE APP   │  │  CUSTOMER    │  │   CARRIER     │  │ SUPER ADMIN   │   │
+│  │ (Conductor)  │  │   PORTAL     │  │   PORTAL      │  │     ZONE      │   │
+│  │              │  │  (Cliente)   │  │(Transportista)│  │   (Admin)     │   │
+│  │ - Tracking   │  │              │  │               │  │               │   │
+│  │ - Entregas   │  │ - Crear orden│  │ - Gestión     │  │ - User Mgmt   │   │
+│  │              │  │ - Tracking   │  │   flota       │  │ - Analytics   │   │
+│  │ - Reportes   │  │ - Documentos │  │ - Dashboard   │  │ - Security    │   │
+│  │ - Offline    │  │ - Pagos      │  │   Subastas    │  │ - Verification│   │
+│  │              │  │ - Cotizar    │  │ - Rentabilidad│  │ - Risk Zones  │   │
+│  └──────────────┘  └──────────────┘  └───────────────┘  └───────────────┘   │
+│                                                                             │
+│  ┌──────────────┐  ┌──────────────┐                                         │
+│  │  WAREHOUSE   │  │   CUSTOMS    │                                         │
+│  │   PORTAL     │  │   PORTAL     │                                         │
+│  │  (Almacén)   │  │ (Aduanas)    │                                         │
+│  │              │  │              │                                         │
+│  │ - Management │  │ - Admin      │                                         │
+│  │ - Capacity   │  │ - Tracking   │                                         │
+│  │ - Inventory  │  │ - Docs       │                                         │
+│  └──────────────┘  └──────────────┘                                         │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     ▲
                                     │ Bidireccional
@@ -46,30 +45,30 @@ JFC Cargo Destino es una plataforma integral de gestión logística que conecta 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                      CAPA 2: JFC CORE SYSTEM                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐         │
-│  │ BUSINESS LOGIC   │  │ STATE MACHINES   │  │  DATA HANDLERS   │         │
-│  │                  │  │                  │  │                  │         │
-│  │ - Pricing Engine │  │ - Order Flow     │  │ - CRUD Ops       │         │
-│  │ - Route Optimizer│  │ - Delivery Flow  │  │ - Sync Engine    │         │
-│  │ - Risk Validator │  │ - Auction Flow   │  │ - Queue Manager  │         │
-│  │ - Auth & RBAC    │  │ - Payment Flow   │  │ - Webhook Handler│         │
-│  │ - Notifications  │  │ - Incident Flow  │  │ - Realtime Sync  │         │
-│  │ - User Privileges│  │                  │  │                  │         │
-│  └──────────────────┘  └──────────────────┘  └──────────────────┘         │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────┐       │
+│                                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐           │
+│  │ BUSINESS LOGIC   │  │ STATE MACHINES   │  │  DATA HANDLERS   │           │
+│  │                  │  │                  │  │                  │           │
+│  │ - Pricing Engine │  │ - Order Flow     │  │ - CRUD Ops       │           │
+│  │ - Route Optimizer│  │ - Delivery Flow  │  │ - Sync Engine    │           │
+│  │ - Risk Validator │  │ - Auction Flow   │  │ - Queue Manager  │           │
+│  │ - Auth & RBAC    │  │ - Payment Flow   │  │ - Webhook Handler│           │
+│  │ - Notifications  │  │ - Incident Flow  │  │ - Realtime Sync  │           │
+│  │ - User Privileges│  │                  │  │                  │           │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘           │
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────┐       │
 │  │                    EVENT BUS / MESSAGE BROKER                    │       │
 │  │                                                                  │       │
-│  │  Events: OrderCreated, DriverAssigned, DeliveryStarted,         │       │
-│  │          RiskDetected, AuctionClaimed, PaymentCompleted, etc.   │       │
+│  │  Events: OrderCreated, DriverAssigned, DeliveryStarted,          │       │
+│  │          RiskDetected, AuctionClaimed, PaymentCompleted, etc.    │       │
 │  │                                                                  │       │
-│  │  Tech: EventEmitter / RabbitMQ / AWS EventBridge                │       │
-│  └─────────────────────────────────────────────────────────────────┘       │
-│                                                                              │
-│  Tech Stack: Node.js, Express/Fastify, TypeScript, XState,                 │
+│  │  Tech: EventEmitter / RabbitMQ / AWS EventBridge                 │       │
+│  └──────────────────────────────────────────────────────────────────┘       │
+│                                                                             │
+│  Tech Stack: Node.js, Express/Fastify, TypeScript, XState,                  │
 │              Firebase SDK, React Query Server, Bull Queue, WebSockets       │
-│                                                                              │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     ▲
                                     │ Bidireccional
@@ -78,34 +77,34 @@ JFC Cargo Destino es una plataforma integral de gestión logística que conecta 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                   CAPA 3: INTEGRACIONES EXTERNAS                            │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
+│                                                                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
 │  │   PAYMENTS   │  │COMMUNICATION │  │     MAPS     │  │   BARCODE    │   │
 │  │              │  │              │  │              │  │              │   │
-│  │ - Stripe     │  │ - Twilio SMS │  │ - Google Maps│  │ - Generator  │   │
-│  │ - PayPal     │  │ - SendGrid   │  │ - Geocoding  │  │ - QR Scanner │   │
-│  │              │  │ - AWS SES    │  │ - Directions │  │              │   │
+│  │ - Stripe     │  │ - Resend     │  │ - Google Maps│  │ - Generator  │   │
+│  │ - PayPal     │  │   (Emails)   │  │ - Geocoding  │  │ - QR Scanner │   │
+│  │              │  │ - Twilio SMS │  │ - Directions │  │              │   │
 │  │              │  │              │  │ - Geofencing │  │              │   │
 │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
-│                                                                              │
+│                                                                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
 │  │  ANALYTICS   │  │      AI      │  │ GPS TRACKING │  │   DOCUMENT   │   │
 │  │              │  │              │  │              │  │  MANAGEMENT  │   │
-│  │ - Google     │  │ - Claude API │  │ - Samsara    │  │              │   │
-│  │   Analytics  │  │ - OpenAI     │  │ - Geotab     │  │ - AWS S3     │   │
-│  │ - BigQuery   │  │              │  │              │  │ - GCS        │   │
+│  │ - Google     │  │ - Vercel AI  │  │ - Samsara    │  │              │   │
+│  │   Analytics  │  │   SDK        │  │ - Geotab     │  │ - AWS S3     │   │
+│  │ - BigQuery   │  │ - OpenAI     │  │              │  │ - GCS        │   │
 │  │              │  │              │  │              │  │              │   │
 │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
-│                                                                              │
-│  ┌──────────────┐                                                           │
-│  │     OCR      │                                                           │
-│  │              │                                                           │
-│  │ - Google     │                                                           │
-│  │   Vision API │                                                           │
-│  │ - Tesseract  │                                                           │
-│  │              │                                                           │
-│  └──────────────┘                                                           │
-│                                                                              │
+│                                                                             │
+│  ┌──────────────┐  ┌──────────────┐                                         │
+│  │     OCR      │  │  SCHEDULING  │                                         │
+│  │              │  │              │                                         │
+│  │ - Google     │  │ - Vercel     │                                         │
+│  │   Vision API │  │   Cron       │                                         │
+│  │ - Tesseract  │  │              │                                         │
+│  │              │  │              │                                         │
+│  └──────────────┘  └──────────────┘                                         │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     ▲
                                     │ Bidireccional
@@ -114,27 +113,27 @@ JFC Cargo Destino es una plataforma integral de gestión logística que conecta 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │              CAPA 4: PERSISTENCIA Y SISTEMAS EXTERNOS                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────┐        │
-│  │                  FIRESTORE (Base de Datos Principal)           │        │
-│  │                                                                │        │
-│  │  Ver sección "FIRESTORE SCHEMA" para detalles completos       │        │
-│  └────────────────────────────────────────────────────────────────┘        │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────┐        │
-│  │         ENTERPRISE RESOURCE PLANNING (ERP) - Externos          │        │
-│  │                                                                │        │
-│  │  - ERP Systems (SAP, Oracle, NetSuite)                        │        │
-│  │  - Warehouse Management Systems (WMS)                         │        │
-│  │  - Content Management Systems (CMS)                           │        │
-│  │  - GPS Tracking Systems (dedicated)                           │        │
-│  │  - Freight Marketplace Platforms                              │        │
-│  │  - Data Analytics Platforms                                   │        │
-│  │  - Regulatory Databases (compliance)                          │        │
-│  │                                                                │        │
-│  │  Protocolo: REST API / EDI / Webhooks                         │        │
-│  └────────────────────────────────────────────────────────────────┘        │
-│                                                                              │
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────┐         │
+│  │                  FIRESTORE (Base de Datos Principal)           │         │
+│  │                                                                │         │
+│  │  Ver sección "FIRESTORE SCHEMA" para detalles completos        │         │
+│  └────────────────────────────────────────────────────────────────┘         │
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────┐         │
+│  │         ENTERPRISE RESOURCE PLANNING (ERP) - Externos          │         │
+│  │                                                                │         │
+│  │  - ERP Systems (SAP, Oracle, NetSuite)                         │         │
+│  │  - Warehouse Management Systems (WMS)                          │         │
+│  │  - Content Management Systems (CMS)                            │         │
+│  │  - GPS Tracking Systems (dedicated)                            │         │
+│  │  - Freight Marketplace Platforms                               │         │
+│  │  - Data Analytics Platforms                                    │         │
+│  │  - Regulatory Databases (compliance)                           │         │
+│  │                                                                │         │
+│  │  Protocolo: REST API / EDI / Webhooks                          │         │
+│  └────────────────────────────────────────────────────────────────┘         │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -203,7 +202,7 @@ firestore/
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
-├── warehouses/                 # [NUEVO] Almacenes
+├── warehouses/                 # Almacenes
 │   ├── {warehouseId}/
 │   │   ├── name: string
 │   │   ├── location: geopoint
@@ -215,7 +214,7 @@ firestore/
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
-├── quotes/                     # [NUEVO - Separado de orders] Cotizaciones
+├── quotes/                     # Cotizaciones
 │   ├── {quoteId}/
 │   │   ├── clientId: string (ref)
 │   │   ├── origin: object { address, coords }
@@ -273,7 +272,7 @@ firestore/
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
-├── bids/                       # [NUEVO - Separado de auctions] Pujas en subastas
+├── bids/                       # Pujas en subastas
 │   ├── {bidId}/
 │   │   ├── auctionId: string (ref)
 │   │   ├── driverId: string (ref)
@@ -346,7 +345,7 @@ firestore/
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
-├── invoices/                   # [NUEVO] Facturas
+├── invoices/                   # Facturas
 │   ├── {invoiceId}/
 │   │   ├── orderId: string (ref)
 │   │   ├── clientId: string (ref)
@@ -362,7 +361,7 @@ firestore/
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
-├── documents/                  # [NUEVO] Documentos (PODs, customs, etc.)
+├── documents/                  # Documentos (PODs, customs, etc.)
 │   ├── {documentId}/
 │   │   ├── orderId: string (ref)
 │   │   ├── type: 'pod' | 'customs' | 'invoice' | 'contract' | 'permit' | 'other'
@@ -376,7 +375,7 @@ firestore/
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
-├── notifications/              # [NUEVO] Cola de notificaciones
+├── notifications/              # Cola de notificaciones
 │   ├── {notificationId}/
 │   │   ├── userId: string (ref)
 │   │   ├── type: 'push' | 'sms' | 'email'
@@ -427,7 +426,7 @@ firestore/
 │   │   ├── resolvedAt: timestamp [opcional]
 │   │   └── updatedAt: timestamp
 │
-└── audit_logs/                 # [NUEVO] Logs de auditoría (compliance)
+└── audit_logs/                 # Logs de auditoría (compliance)
     ├── {logId}/
     │   ├── userId: string (ref)
     │   ├── action: string
@@ -444,22 +443,22 @@ firestore/
 
 ## MATRIZ DE CONECTIVIDAD
 
-| Componente | Conecta Con | Tipo | Protocolo |
-|-----------|-----------|------|-----------|
-| Mobile App | Core System | Bidireccional | REST API + WebSocket |
-| Mobile App | 3rd Party (Maps, GPS) | Unidireccional | REST API |
-| Customer Portal | Core System | Bidireccional | REST API + WebSocket |
-| Customer Portal | 3rd Party (Payments) | Unidireccional | REST API |
-| Carrier Portal | Core System | Bidireccional | REST API + WebSocket |
-| Carrier Portal | 3rd Party (Analytics) | Bidireccional | REST API |
-| Super Admin Zone | Core System | Bidireccional | REST API + WebSocket |
-| Super Admin Zone | Todas 3rd Party | Monitoreo | REST API |
-| Warehouse Portal | Core System | Bidireccional | REST API |
-| Customs Portal | Core System | Bidireccional | REST API |
-| Core System | Firestore | Bidireccional | SDK / Realtime |
-| Core System | ERP / External | Bidireccional | REST API / EDI |
-| Core System | 3rd Party | Bidireccional | REST API / Webhooks |
-| Event Bus | Todos los módulos | Pub/Sub | Message Queue |
+| Componente       | Conecta Con           | Tipo             | Protocolo           |
+|------------------|-----------------------|------------------|---------------------|
+| Mobile App       | Core System           | Bidireccional    | REST API + WebSocket|
+| Mobile App       | 3rd Party (Maps, GPS) | Unidireccional   | REST API            |
+| Customer Portal  | Core System           | Bidireccional    | REST API + WebSocket|
+| Customer Portal  | 3rd Party (Payments)  | Unidireccional   | REST API            |
+| Carrier Portal   | Core System           | Bidireccional    | REST API + WebSocket|
+| Carrier Portal   | 3rd Party (Analytics) | Bidireccional    | REST API            |
+| Super Admin Zone | Core System           | Bidireccional    | REST API + WebSocket|
+| Super Admin Zone | Todas 3rd Party       | Monitoreo        | REST API            |
+| Warehouse Portal | Core System           | Bidireccional    | REST API            |
+| Customs Portal   | Core System           | Bidireccional    | REST API            |
+| Core System      | Firestore             | Bidireccional    | SDK / Realtime      |
+| Core System      | ERP / External        | Bidireccional    | REST API / EDI      |
+| Core System      | 3rd Party             | Bidireccional    | REST API / Webhooks |
+| Event Bus        | Todos los módulos     | Pub/Sub          | Message Queue       |
 
 ---
 
@@ -699,12 +698,12 @@ REPORTED → INVESTIGATING → RESOLVED → CLOSED
 - **Forms**: React Hook Form + Zod
 
 ### Backend
-- **Runtime**: Node.js 20+
-- **Framework**: Express.js / Fastify
+- **Runtime**: Node.js 20+ (Serverless functions)
+- **Framework**: Next.js API Routes
 - **Language**: TypeScript
 - **State Machines**: XState
-- **Queue**: Bull + Redis
-- **WebSockets**: Socket.io
+- **Queue**: Bull + Redis (Upstash or self-hosted)
+- **Realtime**: Firebase Realtime Database / Firestore Listeners
 
 ### Database
 - **Primary**: Firestore (NoSQL)
