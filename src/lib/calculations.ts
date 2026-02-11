@@ -5,7 +5,7 @@
  * It uses the unified schema from firebase/schema.ts
  */
 
-import { formatNumber } from './utils';
+
 
 import type { Vehicle, PricingSettings, Pricing } from './firebase/schema';
 
@@ -70,13 +70,17 @@ export interface Package {
     weight: number; // kg
     distanceKm: number;
 
+    // Split Distance
+    distanceOutbound?: number;
+    distanceReturn?: number;
+
     // Optional cargo fields
     volume?: number; // m³
     type?: 'general' | 'fragile' | 'dangerous';
     packageType?: string;
     description?: string;
     value?: number; // for insurance
-    declaredValue?: number; // alias for value
+    declaredValue?: number;
 
     // Logistics options
     loadType?: string;
@@ -91,7 +95,8 @@ export interface Package {
     // Detailed cost fields
     fuelPrice?: number;
     fuelEfficiency?: number;
-    tolls?: number;
+    tollsOutbound?: number;
+    tollsReturn?: number;
     driverSalary?: number;
     driverCommission?: number;
     assistantSalary?: number;
@@ -101,6 +106,7 @@ export interface Package {
     travelDays?: number;
     unforeseenPercent?: number;
     otherExpenses?: number;
+
 
     // CRM/Folio data
     seller?: string;
@@ -115,372 +121,285 @@ export interface Package {
 // CALCULATIONS
 // ============================================================================
 
+// ============================================================================
+// FINANCIAL BREAKDOWN
+// ============================================================================
+
+export interface TripCost {
+    // Operational
+    fuel: number;
+    tires: number;
+    gps: number;
+    depreciation: number;
+    driverBase: number;
+    driverViaticos: number;
+    tolls: number;
+    maneuvers: number;
+    operationalTotal: number;
+
+    // Financial
+    imponderables: number;
+    subBase: number;
+
+    // Margins
+    jfcUtility: number;
+    carrierMargin: number;
+
+    // Final
+    clientTotal: number;
+}
+
+export interface LogisticsCostBreakdown extends Pricing {
+    breakdown: {
+        outbound: TripCost;
+        returnTrip: TripCost;
+        summary: {
+            totalOperational: number;
+            totalImponderables: number;
+            totalJFCUtility: number;
+            totalCarrierMargin: number;
+        };
+    };
+}
+
 /**
- * NEW SIMPLIFIED QUOTING LOGIC (Service-Based)
- * Formula: Costo Base (Weights x TransportRate x CargoRate) + Extras + Surcharges
+ * Helper: Safe Division to prevent Infinity/NaN
+ */
+const safeDiv = (num: number, den: number, fallback = 0): number => {
+    return (den && den !== 0 && isFinite(den)) ? num / den : fallback;
+};
+
+/**
+ * QUOTING LOGIC (Vehicle-Centric)
  */
 export function calculateLogisticsCosts(
     pkg: Package,
     vehicle: Vehicle | VehicleDefinition,
     settings: PricingSettings,
     serviceLevel: 'standard' | 'express' = 'standard'
-): Pricing & {
-    // Legacy fields kept for compatibility, but simplified or set to 0 where appropriate
-    fuelCost: number;
-    tolls: number;
-    driverSalary: number;
-    driverCommission: number;
-    assistantSalary: number;
-    assistantCommission: number;
-    food: number;
-    lodging: number;
-    depreciation: number;
-    otherExpenses: number;
-    unforeseen: number;
-    operationalCost: number;
-    operationalCostPerKm: number;
-    subtotal: number;
-    iva: number;
-    priceToClient: number;
-    priceBeforeTax: number;
-    capacityOccupiedPercent: number;
-    utility: number;
-    utilityPercent: number;
-    insuranceRate: number;
+): LogisticsCostBreakdown {
 
-    // Billable Breakdown (For UI)
-    billableFreight: number;
-    billableFees: number;
-    billableTolls: number;
-    billableLineItems?: Array<{ label: string; value: number; type: string; price: number }>;
-} {
-    // 1. Core Variables
-    const distance = pkg.distanceKm || 0;
-    const insuranceRate = (settings.insuranceRate || 1.5) / 100;
-    const margin = settings.profitMargin || 1.4;
-
-    // 2. Multipliers & Breakdown Setup
-    const breakdownDetails = [];
-
-    // --- 1. COSTO BASE (Formula: Peso * Transporte * Carga) ---
-    // "Peso Aproximado (Costo fijo)" * "Cost rate Tipo Transporte" * "Cost rate Tipo Carga"
-
-    const weightBaseCosts: Record<string, number> = settings.weightRates || {
-        '500': 1500,   // Light
-        '1500': 3500,  // Van
-        '3500': 6500,  // 3.5 Ton
-        '10000': 12000,// Rabon
-        '14000': 18000,// Torton
-        '24000': 25000 // Trailer
+    // 1. EXTRACT FINANCIAL FACTORS (With fallbacks)
+    const ff = settings.financialFactors || {
+        gpsMonthlyRent: 1500,
+        gpsRentCost: 100,
+        driverPaymentType: 'per_day' as const,
+        driverDailySalary: 800,
+        driverPercent: 15,
+        driverKmPerDay: 600,
+        driverViaticosPerDay: 500,
+        imponderablesToUse: 3.0,
+        tireCount: 6,
+        tirePrice: 5000,
+        tireLifeKm: 100000,
+        vehicleValue: 1000000,
+        vehicleUsefulLifeKm: 500000,
+        profitMarginJFC: 10.0,
+        profitMarginJFCOutbound: 10.0,
+        profitMarginJFCReturn: 5.0,
+        profitMarginCarrierOutbound: 30.0,
+        profitMarginCarrierReturn: 10.0
     };
 
-    const transportRates: Record<string, number> = settings.transportRates || {
-        'FTL': 1.0,
-        'PTL': 0.8,
-        'LTL': 0.6
-    };
+    const distance = Math.max(0, pkg.distanceKm || 0);
 
-    const cargoTypeRates: Record<string, number> = settings.cargoRates || {
-        'general': 1.0,
-        'packages': 1.0,
-        'hazardous': 1.5,
-        'perishable': 1.3,
-        'machinery': 1.4,
-        'furniture': 1.2,
-        'heavy': 1.2,
-        'fragile': 1.2 // [NEW] Supported in calculations
-    };
+    // 2. RESOLVE VEHICLE SETTINGS (Source of Truth)
+    const vConfig: any = (settings.vehicleDimensions as any)?.[vehicle.id] || {};
 
-    // Find closest or matching weight key
-    const weightKey = Object.keys(weightBaseCosts).reduce((prev, curr) =>
-        (Math.abs(Number(curr) - pkg.weight) < Math.abs(Number(prev) - pkg.weight) ? curr : prev)
-        , '500');
+    // 3. RESOLVE FUEL & EFFICIENCY (Single Pass)
+    const FUEL_TYPES = ['diesel', 'gasoline87', 'gasoline91'] as const;
+    const activeFuelId = vConfig.fuelConfig
+        ? FUEL_TYPES.find(f => vConfig.fuelConfig[f]?.enabled)
+        : undefined;
+    const activeFuelConfig = activeFuelId ? vConfig.fuelConfig[activeFuelId] : undefined;
 
-    // Calculate Base Logic
-    // [MODIFIED] Use Vehicle Specific Price Per Km if available, otherwise Global
-    const dynamicVehicleForRate = (settings.vehicleDimensions as any)?.[weightKey];
-    const vehicleKmRate = dynamicVehicleForRate?.pricePerKm || settings.kilometerRate || 0;
+    const vEfficiency = Math.max(
+        activeFuelConfig?.efficiency || vConfig.efficiency || (vehicle as any).fuelEfficiency || 3.5,
+        0.1
+    );
 
-    const mileageCost = distance * vehicleKmRate;
+    const fuelType = activeFuelId || vConfig.fuelType || (vehicle as any).fuelType || 'diesel';
+    const fuelPrice = (settings.fuelPrices as any)?.[fuelType] || settings.defaultFuelPrice || 25;
 
-    // [NEW] Calculate Fuel Cost (Informational / Breakdown)
-    // Dynamic Vehicle Lookup from Settings (Updates in real-time)
-    const dynamicVehicle = (settings.vehicleDimensions as any)?.[weightKey];
+    // 4. PRE-CALCULATE TRIP DAYS (Total for the service)
+    const dOut = pkg.distanceOutbound ?? distance;
+    const dRet = pkg.distanceReturn ?? distance;
+    const totalDistance = dOut + dRet;
+    const kmPerDay = ff.driverKmPerDay || 600;
+    const totalDays = pkg.travelDays || Math.max(1, Math.ceil(safeDiv(totalDistance, kmPerDay, 1)));
+    const ratioOut = totalDistance > 0 ? dOut / totalDistance : 1;
+    const ratioRet = totalDistance > 0 ? dRet / totalDistance : 0;
 
-    // Find active fuel config
-    let vEfficiency = 3.5;
-    let fuelPrice = settings.defaultFuelPrice || 25;
+    // 5. HELPER: CALCULATE A SINGLE LEG
+    const calculateLeg = (dist: number, isReturn: boolean, legRatio: number): TripCost => {
+        if (dist === 0) {
+            return {
+                fuel: 0, tires: 0, gps: 0, depreciation: 0, driverBase: 0, driverViaticos: 0, tolls: 0, maneuvers: 0,
+                operationalTotal: 0, imponderables: 0, subBase: 0, jfcUtility: 0, carrierMargin: 0, clientTotal: 0
+            };
+        }
 
-    // Check new 'fuelConfig' structure
-    if (dynamicVehicle?.fuelConfig) {
-        // Try to find the best fuel (prioritize selected if we had a selector, otherwise first enabled)
-        const fuels = ['diesel', 'gasoline87', 'gasoline91'];
-        const activeFuel = fuels.find(f => dynamicVehicle.fuelConfig[f]?.enabled);
+        // --- A. DIRECT OPERATIONAL COSTS ---
 
-        if (activeFuel) {
-            vEfficiency = dynamicVehicle.fuelConfig[activeFuel].efficiency || vEfficiency;
-            if (settings.fuelPrices) {
-                fuelPrice = (settings.fuelPrices as any)[activeFuel] || fuelPrice;
+        // 1. Fuel (Per Km)
+        const fuel = safeDiv(dist, vEfficiency) * fuelPrice;
+
+        // 2. Tires (Per Km)
+        const tireCount = vConfig.tireCount || (vehicle as any).tireCount || ff.tireCount || 6;
+        const tirePriceUnit = vConfig.tirePrice || ff.tirePrice || 5000;
+        const tireLife = vConfig.tireLifeKm || ff.tireLifeKm || 100000;
+        const tires = dist * safeDiv(tireCount * tirePriceUnit, tireLife);
+
+        // 3. Depreciation (Per Km)
+        const vehicleVal = vConfig.vehicleValue || (vehicle as any).value || ff.vehicleValue || 1000000;
+        const usefulLife = vConfig.vehicleUsefulLifeKm || (vehicle as any).usefulLifeKm || ff.vehicleUsefulLifeKm || 500000;
+        const depreciation = dist * safeDiv(vehicleVal, usefulLife);
+
+        // 4. GPS (Time-based, proportional to leg)
+        const gpsMonthly = ff.gpsMonthlyRent || 1500;
+        const gps = safeDiv(gpsMonthly, 30) * totalDays * legRatio;
+
+        // 5. Driver (Time-based, proportional to leg)
+        let driverBase = 0;
+        if (ff.driverPaymentType !== 'percent') {
+            driverBase = (ff.driverDailySalary || 800) * totalDays * legRatio;
+        }
+        const driverViaticos = (ff.driverViaticosPerDay || 500) * totalDays * legRatio;
+
+        // 6. Tolls & Maneuvers
+        const legTolls = isReturn ? (pkg.tollsReturn || 0) : (pkg.tollsOutbound || 0);
+        const maneuvers = isReturn ? 0 : (
+            (pkg.requiresLoadingSupport ? (settings.maneuverFees?.loading || 0) : 0) +
+            (pkg.requiresUnloadingSupport ? (settings.maneuverFees?.unloading || 0) : 0)
+        );
+
+        let operationalTotal = fuel + tires + depreciation + gps + driverBase + driverViaticos + legTolls + maneuvers;
+
+        // Handle Percent Driver Pay
+        if (ff.driverPaymentType === 'percent') {
+            const driverPct = (ff.driverPercent || 15) / 100;
+            if (driverPct > 0 && driverPct < 1) {
+                const otherCosts = operationalTotal;
+                operationalTotal = safeDiv(otherCosts, (1 - driverPct));
+                driverBase = operationalTotal * driverPct;
             }
         }
-    } else {
-        // Fallback to legacy structure
-        const vFuelType = dynamicVehicle?.fuelType || (vehicle as any).fuelType || 'diesel';
-        vEfficiency = dynamicVehicle?.efficiency || (vehicle as any).efficiency || (vehicle as any).fuelEfficiency || 3.5;
-        if (vFuelType && settings.fuelPrices) {
-            fuelPrice = (settings.fuelPrices as any)[vFuelType] || fuelPrice;
-        }
-    }
 
-    const calculatedFuelCost = (distance / vEfficiency) * fuelPrice;
+        // --- B. FINANCIAL LAYER ---
+        const imponderables = operationalTotal * ((ff.imponderablesToUse || 3.0) / 100);
+        const subBase = operationalTotal + imponderables;
 
-    // [NEW] 1.2 Tonelada/KM
-    const tonKmRate = settings.tonKmRate || 0;
-    let tonKmCost = 0;
-    if (tonKmRate > 0 && distance > 0) {
-        const weightTons = pkg.weight / 1000;
-        tonKmCost = distance * weightTons * tonKmRate;
-    }
+        // --- C. MARGINS (Always directional from financialFactors) ---
 
-    const rawWeightCost = weightBaseCosts[String(pkg.weight)] || weightBaseCosts[weightKey] || 1500;
+        // 1. Carrier Margin (% stored as integer, e.g. 30 = 30%)
+        const carrierMarginPct = isReturn
+            ? (ff.profitMarginCarrierReturn || 0)
+            : (ff.profitMarginCarrierOutbound || 0);
+        const carrierMargin = subBase * (carrierMarginPct / 100);
+        const priceToCarrier = subBase + carrierMargin;
 
-    const transportRate = transportRates[pkg.transportType || 'FTL'] || 1.0;
-    const cargoType = pkg.cargoType || 'general';
-    const cargoRate = cargoTypeRates[cargoType] || 1.0;
+        // 2. JFC Utility (% stored as integer, e.g. 10 = 10%)
+        const jfcMarginPct = isReturn
+            ? (ff.profitMarginJFCReturn ?? ff.profitMarginJFC ?? 0)
+            : (ff.profitMarginJFCOutbound ?? ff.profitMarginJFC ?? 0);
+        const jfcUtility = priceToCarrier * (jfcMarginPct / 100);
 
-    // Base Freight = (Start Fee + Mileage + TonKm) * Multipliers
-    const baseFreight = (rawWeightCost + mileageCost + tonKmCost) * transportRate * cargoRate;
+        // Final Client Total for this Leg
+        const clientTotal = priceToCarrier + jfcUtility;
 
-    // 1. Base Cost Components Split
-    // A. Banderazo
-    breakdownDetails.push({
-        label: `Banderazo / Salida`,
-        value: rawWeightCost,
-        type: 'base'
+        return {
+            fuel, tires, gps, depreciation, driverBase, driverViaticos, tolls: legTolls, maneuvers,
+            operationalTotal, imponderables, subBase, jfcUtility, carrierMargin, clientTotal
+        };
+    };
+
+    // 6. EXECUTE CALCULATIONS
+
+    const outbound = calculateLeg(dOut, false, ratioOut);
+    const returnTrip = calculateLeg(dRet, true, ratioRet);
+
+    const totalClientPrice = outbound.clientTotal + returnTrip.clientTotal;
+
+    // 6. APPLY MINIMUM (Per-Vehicle Minimum Price)
+    // Reuse vConfig (resolved at line 207) — same source that reads fuel, tires, etc.
+    const vehicleMinimum = vConfig.minPrice || settings.basePrice || 1500;
+    const minimumApplied = totalClientPrice < vehicleMinimum;
+    const finalPricePreIva = Math.max(totalClientPrice, vehicleMinimum);
+
+    const totalIva = finalPricePreIva * 0.16;
+    const finalPriceTotal = finalPricePreIva + totalIva;
+
+    // 7. BILLABLE ITEMS GENERATION
+    const billableLineItems = [];
+
+    // Pass-throughs
+    const totalTolls = outbound.tolls + returnTrip.tolls;
+    const insuranceValue = pkg.value || pkg.declaredValue || 0;
+    const insurance = (pkg.insuranceSelection === 'own' ? 0 : (settings.insuranceRate || 0) * insuranceValue / 100);
+
+    const totalManeuvers = outbound.maneuvers + returnTrip.maneuvers;
+
+    // Base Freight Display = Final Price - (Services + Tolls + Insurance)
+    const baseFreightDisplay = finalPricePreIva - totalManeuvers - totalTolls;
+
+    const finalBillingWithInsurance = finalPricePreIva + insurance;
+    const totalIvaWithInsurance = finalBillingWithInsurance * 0.16;
+
+    billableLineItems.push({
+        label: 'Flete Base (Transporte Global)',
+        value: baseFreightDisplay,
+        type: 'base',
+        price: baseFreightDisplay
     });
 
-    // B. Costo Kilométrico
-    if (mileageCost > 0) {
-        breakdownDetails.push({
-            label: `Costo Kilométrico (${distance}km * $${vehicleKmRate})`,
-            value: mileageCost,
-            type: 'base'
-        });
+    if (totalManeuvers > 0) {
+        billableLineItems.push({ label: 'Maniobras', value: totalManeuvers, type: 'fee', price: totalManeuvers });
     }
-
-    // C. Tonelada/Km
-    if (tonKmCost > 0) {
-        breakdownDetails.push({
-            label: `Factor Carga/Distancia ($/Ton/Km)`,
-            value: tonKmCost,
-            type: 'base'
-        });
+    if (totalTolls > 0) {
+        billableLineItems.push({ label: 'Casetas', value: totalTolls, type: 'pass-through', price: totalTolls });
     }
-
-    // 2. Transporte (Adjustment)
-    // We calculate the adjustment based on the combined base (Start + Mileage + TonKm)
-    const combinedBase = rawWeightCost + mileageCost + tonKmCost;
-    const transportAdjustment = (combinedBase * transportRate) - combinedBase;
-
-    if (transportRate !== 1.0) {
-        breakdownDetails.push({
-            label: `Transp: ${pkg.transportType || 'FTL'} (${transportRate > 1 ? '+' : ''}${Math.round((transportRate - 1) * 100)}%)`,
-            value: transportAdjustment,
-            type: 'base'
-        });
+    if (insurance > 0) {
+        billableLineItems.push({ label: 'Seguro', value: insurance, type: 'pass-through', price: insurance });
     }
-
-    // 3. Carga (Adjustment on top of Transp)
-    const intermediateBase = combinedBase * transportRate;
-    const cargoAdjustment = (intermediateBase * cargoRate) - intermediateBase;
-
-    if (cargoRate !== 1.0) {
-        breakdownDetails.push({
-            label: `Carga: ${pkg.cargoType || 'general'} (${cargoRate > 1 ? '+' : ''}${Math.round((cargoRate - 1) * 100)}%)`,
-            value: cargoAdjustment,
-            type: 'base'
-        });
-    }
-
-
-    // --- 2. COSTOS OPERATIVOS EXTRAS (Fixed Add-ons) ---
-    // "Servicios de Maniobra + Condiciones de Manejo"
-    const maneuverFees = settings.maneuverFees || { loading: 500, unloading: 500 };
-    const packagingFees = settings.packagingFees || { stackable: 0, stretchWrap: 200 };
-
-    let extraFees = 0;
-
-    if (pkg.requiresLoadingSupport) { extraFees += maneuverFees.loading; breakdownDetails.push({ label: 'Maniobra Carga (Personal)', value: maneuverFees.loading, type: 'fee' }); }
-    if (pkg.requiresUnloadingSupport) { extraFees += maneuverFees.unloading; breakdownDetails.push({ label: 'Maniobra Descarga (Personal)', value: maneuverFees.unloading, type: 'fee' }); }
-
-    if (pkg.isStackable && (packagingFees.stackable || 0) > 0) {
-        extraFees += packagingFees.stackable;
-        breakdownDetails.push({ label: 'Producto Estibable (Manejo)', value: packagingFees.stackable, type: 'fee' });
-    }
-
-    if (pkg.requiresStretchWrap) {
-        extraFees += packagingFees.stretchWrap;
-        breakdownDetails.push({ label: 'Material de Emplayado', value: packagingFees.stretchWrap, type: 'fee' });
-    }
-
-
-    // --- 3. RATE COST OPERATIVOS (Multipliers) ---
-    // "Presentación de Carga & Cantidad"
-
-    // A. Presentación de Carga (Rate Cost)
-    const presentationRates = settings.presentationRates || {
-        'Granel': 1.3,
-        'Maquinaria': 1.4,
-        'Paletizado / Tarimas': 1.1,
-        'General': 1.0
-    };
-    const presentation = pkg.packageType || 'General';
-    const presentationRate = presentationRates[presentation] || 1.0;
-
-    if (presentationRate > 1.0) {
-        const surcharge = baseFreight * (presentationRate - 1);
-        breakdownDetails.push({ label: `Presentación: ${presentation} (+${Math.round((presentationRate - 1) * 100)}%)`, value: surcharge, type: 'surcharge' });
-    }
-
-    // B. Cantidad (Rate Cost)
-    const qtyRate = settings.quantityRate || 0.05;
-    const qty = pkg.packageCount || 1;
-
-    if (qty > 1) {
-        const qtySurcharge = baseFreight * ((qty - 1) * qtyRate);
-        breakdownDetails.push({ label: `Cantidad: ${qty} (+${Math.round((qty - 1) * qtyRate * 100)}%)`, value: qtySurcharge, type: 'surcharge' });
-    }
-
-    // Accumulate for Total Operations Cost
-    let totalSurcharges = 0;
-    breakdownDetails.forEach(i => { if (i.type === 'surcharge') totalSurcharges += i.value; });
-    const totalOpsCost = baseFreight + totalSurcharges + extraFees;
-
-    // --- 4. OTROS (Pass-throughs + Imponderables) ---
-    // Insurance
-    const insuranceValue = pkg.value || pkg.declaredValue || 0;
-    const insurance = pkg.insuranceSelection === 'own' ? 0 : insuranceValue * insuranceRate;
-    breakdownDetails.push({ label: 'Seguro de Carga', value: insurance, type: 'pass-through' });
-
-    // Tolls (Casetas)
-    const tolls = pkg.tolls || 0;
-    if (tolls > 0) {
-        breakdownDetails.push({ label: 'Casetas y Peajes (Directo)', value: tolls, type: 'pass-through' });
-    }
-
-    // Imponderables
-    const imponderablesRate = settings.imponderablesRate !== undefined ? settings.imponderablesRate : 3;
-    const imponderables = totalOpsCost * (imponderablesRate / 100);
-
-    if (imponderables > 0) {
-        breakdownDetails.push({
-            label: `Imponderables (${imponderablesRate}%)`,
-            value: imponderables,
-            type: 'imponderables'
-        });
-    }
-
-    const costWithImponderables = totalOpsCost + imponderables;
-
-    // 5. MARGIN APPLICATION
-    // Price = (OpsCost + Imponderables) * Margin + PassThroughs
-    const priceForService = costWithImponderables * margin;
-
-    const totalPassThrough = insurance + tolls;
-    let adjustedPriceBeforeInsurance = priceForService + tolls;
-
-    // [NEW] Minimum Floor Logic
-    const minPrice = settings.basePrice || 0;
-    if (adjustedPriceBeforeInsurance < minPrice) {
-        adjustedPriceBeforeInsurance = minPrice;
-        // We adjust the basePrice field in return object to reflect this bump if needed, 
-        // but strictly speaking 'basePrice' in the return interface is usually just the transport cost.
-        // However, to ensure the total matches, we use this floor.
-    }
-
-    const priceToClient = adjustedPriceBeforeInsurance + insurance; // Insurance is usually separate or added after? 
-    // Logic above: priceToClient = priceForService + totalPassThrough (insurance + tolls)
-    // So if we floored 'adjustedPrice', we just add insurance on top if it wasn't part of the floor.
-    // Usually "Minimum Turn" includes everything except maybe taxes. 
-    // Let's assume settings.basePrice is the minimum SUB TOTAL before IVA.
-
-    // Re-calculating to be precise:
-    const calculatedSubtotal = priceForService + tolls + insurance;
-    const finalSubtotal = Math.max(calculatedSubtotal, minPrice);
-
-    // We update priceToClient to this new floor
-    const finalPriceToClient = finalSubtotal;
-    const iva = finalPriceToClient * 0.16;
-    const finalPriceWithIva = finalPriceToClient + iva;
-
-    // Revenue Ratio for Billable Items
-    const revenueRatio = costWithImponderables > 0 ? (priceForService / costWithImponderables) : margin;
-
-    // Convert to Billable Line Items
-    // [MODIFIED] Now we separate the Margin as its own line item rather than hiding it in the ratio
-    const marginAmount = priceForService - costWithImponderables;
-
-    const billableLineItems = breakdownDetails.map(item => ({
-        ...item,
-        price: item.value // We show the direct calculated cost/value without margin distribution
-    }));
-
-    // Add Margin Line Item
-    if (marginAmount > 0) {
-        billableLineItems.push({
-            label: `Margen Operativo / Utilidad`,
-            value: marginAmount,
-            type: 'margin',
-            price: marginAmount
-        });
-    }
-
-    // Backwards compatibility filling
-    const operationalCost = costWithImponderables;
-    const operationalCostPerKm = distance > 0 ? (operationalCost / distance) : 0;
-    const capacityOccupiedPercent = (vehicle as any).capacity ? (pkg.weight / (vehicle as any).capacity) * 100 : 0;
-    const billableFreight = baseFreight * revenueRatio;
-    const billableFees = extraFees * revenueRatio;
-    const billableTolls = tolls;
 
     return {
-        // Pricing Interface
-        basePrice: finalSubtotal - insurance - tolls, // Reverse engineered base
+        basePrice: finalPricePreIva,
         fuelSurcharge: 0,
         insurance,
-        urgency: serviceLevel === 'express' ? (finalSubtotal * ((settings.serviceMultipliers?.express || 1.4) - 1)) : 0,
-        total: finalPriceWithIva,
+        urgency: 0,
+        total: finalBillingWithInsurance + totalIvaWithInsurance,
+        subtotal: finalBillingWithInsurance,
+        iva: totalIvaWithInsurance,
+        priceToClient: finalBillingWithInsurance + totalIvaWithInsurance,
 
-        // Detailed Breakdown (Simulated/Calculated)
-        fuelCost: calculatedFuelCost,
-        tolls,
-        driverSalary: 0,
+        breakdown: {
+            outbound,
+            returnTrip,
+            summary: {
+                totalOperational: outbound.operationalTotal + returnTrip.operationalTotal,
+                totalImponderables: outbound.imponderables + returnTrip.imponderables,
+                totalJFCUtility: outbound.jfcUtility + returnTrip.jfcUtility,
+                totalCarrierMargin: outbound.carrierMargin + returnTrip.carrierMargin
+            }
+        },
+
+        // Legacy Fields (Filled with totals)
+        fuelCost: outbound.fuel + returnTrip.fuel,
+        tolls: totalTolls,
+        driverSalary: outbound.driverBase,
         driverCommission: 0,
         assistantSalary: 0,
         assistantCommission: 0,
-        food: 0,
+        food: outbound.driverViaticos + returnTrip.driverViaticos,
         lodging: 0,
-        depreciation: 0,
-        otherExpenses: extraFees, // Fees cost basis
-        unforeseen: imponderables,
-        operationalCost: costWithImponderables,
-        operationalCostPerKm,
-
-        // UI Display Helpers (Billable/Selling Prices)
-        billableFreight,
-        billableFees,
-        billableTolls,
-        billableLineItems, // New Detailed List
-
-        subtotal: finalPriceToClient,
-        iva,
-        priceToClient: finalPriceWithIva,
-        priceBeforeTax: finalPriceToClient,
-        capacityOccupiedPercent,
-        utility: priceToClient - costWithImponderables - insurance,
-        utilityPercent: ((priceToClient - costWithImponderables - insurance) / priceToClient) * 100,
-        insuranceRate: insuranceRate * 100
-    };
+        depreciation: outbound.depreciation + returnTrip.depreciation,
+        otherExpenses: outbound.gps,
+        unforeseen: outbound.imponderables + returnTrip.imponderables,
+        operationalCost: outbound.operationalTotal + returnTrip.operationalTotal,
+        billableLineItems,
+        minimumApplied,
+        vehicleMinimum,
+    } as any;
 }
 
 /**
@@ -522,7 +441,7 @@ export function calculateTripProfitability(
     const totalDepreciation = depreciationPerKm * distance;
 
     // 4. Real Tolls
-    const tolls = actualValues?.realTolls || pkg.tolls || 0;
+    const tolls = actualValues?.realTolls || ((pkg.tollsOutbound || 0) + (pkg.tollsReturn || 0));
 
     // 5. Total Real Cost
     const totalRealCost = fuelCost + driverSalaryTotal + assistantSalaryTotal + food + lodging + totalDepreciation + tolls + (pkg.otherExpenses || 0);
@@ -572,3 +491,36 @@ export function isVehicleSuitable(v: Vehicle | VehicleDefinition, pkg: Package):
 
     return true;
 }
+
+// ============================================================================
+// DEFAULT PRICING SETTINGS (Seed Data)
+// ============================================================================
+
+export const DEFAULT_SETTINGS: PricingSettings = {
+    fuelPrices: { diesel: 24.50, gasoline87: 22.10, gasoline91: 24.20 },
+    maneuverFees: { loading: 1500, unloading: 1500 },
+    tonKmRate: 2.50,
+    basePrice: 1500.00,
+    usefulLifeKm: 800000,
+    vehicleDimensions: {
+        'van': { enabled: true, length: 3.0, width: 1.8, height: 1.8, tireCount: 4, tirePrice: 3800, vehicleValue: 450000, vehicleUsefulLifeKm: 500000, minPrice: 3000, fuelConfig: { gasoline87: { enabled: true, efficiency: 6.5 }, diesel: { enabled: false, efficiency: 7.5 } } },
+        'rabon': { enabled: true, length: 6.5, width: 2.5, height: 2.4, tireCount: 6, tirePrice: 5500, vehicleValue: 850000, vehicleUsefulLifeKm: 600000, minPrice: 5000, fuelConfig: { diesel: { enabled: true, efficiency: 4.5 } } },
+        'torton': { enabled: true, length: 8.5, width: 2.5, height: 2.7, tireCount: 10, tirePrice: 9200, vehicleValue: 1800000, vehicleUsefulLifeKm: 800000, minPrice: 7000, fuelConfig: { diesel: { enabled: true, efficiency: 3.5 } } },
+        'trailer': { enabled: true, length: 13.5, width: 2.6, height: 2.8, tireCount: 18, tirePrice: 10500, vehicleValue: 2400000, vehicleUsefulLifeKm: 1000000, minPrice: 9000, fuelConfig: { diesel: { enabled: true, efficiency: 2.2 } } },
+        'full': { enabled: true, length: 13.5, width: 2.6, height: 2.8, tireCount: 34, tirePrice: 10500, vehicleValue: 3500000, vehicleUsefulLifeKm: 1000000, minPrice: 15000, fuelConfig: { diesel: { enabled: true, efficiency: 1.8 } } },
+        'plataforma': { enabled: true, length: 13.5, width: 2.6, height: 1.5, tireCount: 18, tirePrice: 10500, vehicleValue: 1200000, vehicleUsefulLifeKm: 1000000, minPrice: 9000, fuelConfig: { diesel: { enabled: true, efficiency: 2.2 } } },
+        // Ensure all types from VEHICLE_TYPES are present
+        'lowboy': { enabled: true, length: 12.0, width: 2.6, height: 1.0, tireCount: 18, tirePrice: 12000, vehicleValue: 2800000, vehicleUsefulLifeKm: 1000000, minPrice: 12000, fuelConfig: { diesel: { enabled: true, efficiency: 1.5 } } },
+        'tren': { enabled: true, length: 20.0, width: 2.6, height: 2.8, tireCount: 42, tirePrice: 10500, vehicleValue: 4500000, vehicleUsefulLifeKm: 1000000, minPrice: 18000, fuelConfig: { diesel: { enabled: true, efficiency: 1.6 } } },
+        'megacamion': { enabled: true, length: 25.0, width: 2.6, height: 2.8, tireCount: 42, tirePrice: 10500, vehicleValue: 5000000, vehicleUsefulLifeKm: 1000000, minPrice: 20000, fuelConfig: { diesel: { enabled: true, efficiency: 1.7 } } },
+        'refrigerado': { enabled: true, length: 13.5, width: 2.6, height: 2.8, tireCount: 18, tirePrice: 10500, vehicleValue: 2800000, vehicleUsefulLifeKm: 800000, minPrice: 12000, fuelConfig: { diesel: { enabled: true, efficiency: 2.0 } } },
+        'pipa': { enabled: true, length: 12.0, width: 2.5, height: 2.5, tireCount: 18, tirePrice: 10500, vehicleValue: 2600000, vehicleUsefulLifeKm: 800000, minPrice: 10000, fuelConfig: { diesel: { enabled: true, efficiency: 2.1 } } },
+        'granelera': { enabled: true, length: 12.0, width: 2.5, height: 2.5, tireCount: 18, tirePrice: 10500, vehicleValue: 1500000, vehicleUsefulLifeKm: 800000, minPrice: 8000, fuelConfig: { diesel: { enabled: true, efficiency: 3.0 } } },
+        'ganadera': { enabled: true, length: 13.5, width: 2.6, height: 2.8, tireCount: 18, tirePrice: 10500, vehicleValue: 2200000, vehicleUsefulLifeKm: 800000, minPrice: 10000, fuelConfig: { diesel: { enabled: true, efficiency: 2.1 } } },
+        'madrina': { enabled: true, length: 18.0, width: 2.6, height: 3.0, tireCount: 18, tirePrice: 10500, vehicleValue: 3500000, vehicleUsefulLifeKm: 1000000, minPrice: 12000, fuelConfig: { diesel: { enabled: true, efficiency: 2.0 } } },
+        'plataforma_ext': { enabled: true, length: 18.0, width: 2.6, height: 1.5, tireCount: 18, tirePrice: 12000, vehicleValue: 1500000, vehicleUsefulLifeKm: 1000000, minPrice: 10000, fuelConfig: { diesel: { enabled: true, efficiency: 2.0 } } },
+    },
+    transportRates: { 'FTL': 1.0, 'PTL': 1.15, 'LTL': 1.4 },
+    cargoRates: { 'general': 1.0, 'hazardous': 1.25, 'perishable': 1.2, 'fragile': 1.15, 'machinery': 1.1, 'packages': 1.0 },
+    insuranceRate: 0.15,
+};
