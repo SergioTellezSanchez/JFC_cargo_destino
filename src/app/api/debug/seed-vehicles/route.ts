@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
+import { verifyAuth, unauthorized } from '@/lib/auth-server';
 
 const PARTNER_COMPANIES = [
     'JFC Cargo Central',
@@ -26,7 +27,10 @@ const TRUCK_STANDARDS: Record<string, { weight: number, volume: number }> = {
     'Nissan NPM': { weight: 1500, volume: 8 }
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+    const auth = await verifyAuth(request);
+    if (!auth) return unauthorized();
+
     try {
         const batch = adminDb.batch();
         const vehiclesRef = adminDb.collection('vehicles');

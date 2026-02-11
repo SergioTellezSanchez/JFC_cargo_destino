@@ -43,3 +43,9 @@ import.env
 next-env.d.ts
 
 /src/generated/prisma
+
+# temp build outputs
+tsc_output*.txt
+
+# user-uploaded evidence images (served from Firebase Storage)
+public/uploads/
