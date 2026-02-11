@@ -328,7 +328,7 @@ export default function QuotePage() {
             console.log('Calculation Results:', results);
 
             setQuoteDetails(results);
-            setQuotePrice(results.priceToClient);
+            setQuotePrice(results.priceToClient ?? 0);
             setCalculated(true);
         }
     }, [distanceKm, weight, dimensions, serviceLevel, isRouteValid, selectedVehicleType, settings, declaredValue, vehicles, packageType, fuelPrice, fuelEfficiency, tolls, driverSalary, driverCommission, assistantSalary, assistantCommission, food, lodging, travelDays, unforeseenPercent, otherExpenses, transportType, cargoType, requiresLoadingSupport, requiresUnloadingSupport, isStackable, requiresStretchWrap, insuranceSelection]);

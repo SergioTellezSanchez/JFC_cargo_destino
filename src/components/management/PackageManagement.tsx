@@ -177,8 +177,8 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
 
         // Sort by calculated operational cost for this specific package
         const bestVehicle = suitableVehicles.sort((a, b) => {
-            const costA = calculateLogisticsCosts(pkg as PackageType, a, settings).operationalCost;
-            const costB = calculateLogisticsCosts(pkg as PackageType, b, settings).operationalCost;
+            const costA = calculateLogisticsCosts(pkg as PackageType, a, settings).operationalCost ?? 0;
+            const costB = calculateLogisticsCosts(pkg as PackageType, b, settings).operationalCost ?? 0;
             return costA - costB;
         })[0];
 
@@ -382,24 +382,24 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                                                     <div className="space-y-3" style={{ fontSize: '0.95rem' }}>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
                                                                             <span style={{ color: 'var(--secondary)' }}>Costo Operativo</span>
-                                                                            <strong>{formatCurrency(costs.operationalCost)}</strong>
+                                                                            <strong>{formatCurrency(costs.operationalCost ?? 0)}</strong>
                                                                         </div>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
                                                                             <span style={{ color: 'var(--secondary)' }}>Seguro (Base)</span>
-                                                                            <strong>{formatCurrency(costs.insurance)}</strong>
+                                                                            <strong>{formatCurrency(costs.insurance ?? 0)}</strong>
                                                                         </div>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
                                                                             <span style={{ color: 'var(--secondary)' }}>Depreciación</span>
-                                                                            <strong>{formatCurrency(costs.depreciation)}</strong>
+                                                                            <strong>{formatCurrency(costs.depreciation ?? 0)}</strong>
                                                                         </div>
                                                                         <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success)' }}>
                                                                             <span>Utilidad Estimada</span>
-                                                                            <strong>+{formatCurrency(costs.utility)} ({costs.utilityPercent.toFixed(1)}%)</strong>
+                                                                            <strong>+{formatCurrency(costs.utility ?? 0)} ({(costs.utilityPercent ?? 0).toFixed(1)}%)</strong>
                                                                         </div>
                                                                         <div style={{ marginTop: '1rem', borderTop: '2px dashed var(--border)', paddingTop: '1rem', fontSize: '1.1rem' }}>
                                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                                                 <strong style={{ color: 'var(--primary)' }}>Cotización Final</strong>
-                                                                                <strong style={{ fontSize: '1.25rem', color: 'var(--primary)' }}>{formatCurrency(costs.priceToClient)}</strong>
+                                                                                <strong style={{ fontSize: '1.25rem', color: 'var(--primary)' }}>{formatCurrency(costs.priceToClient ?? 0)}</strong>
                                                                             </div>
                                                                             <p style={{ fontSize: '0.75rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>*Incluye margen operativo e IVA 16%</p>
                                                                         </div>
