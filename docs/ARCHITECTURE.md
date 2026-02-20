@@ -145,45 +145,15 @@ JFC Cargo Destino es una plataforma integral de gestión logística que conecta 
 
 ```
 firestore/
-├── clients/                    # Usuarios clientes
-│   ├── {clientId}/
+├── users/                      # Todos los usuarios del sistema (Autenticación Principal)
+│   ├── {userId}/
 │   │   ├── email: string
 │   │   ├── name: string
 │   │   ├── phone: string
-│   │   ├── company: string
-│   │   ├── address: object
-│   │   ├── creditLimit: number
-│   │   ├── paymentTerms: string
-│   │   ├── status: 'active' | 'suspended'
-│   │   ├── createdAt: timestamp
-│   │   └── updatedAt: timestamp
-│
-├── carriers/                   # Empresas transportistas
-│   ├── {carrierId}/
-│   │   ├── name: string
-│   │   ├── email: string
-│   │   ├── phone: string
-│   │   ├── rfc: string
-│   │   ├── address: object
-│   │   ├── fleetSize: number
-│   │   ├── rating: number
-│   │   ├── status: 'active' | 'suspended'
-│   │   ├── createdAt: timestamp
-│   │   └── updatedAt: timestamp
-│
-├── drivers/                    # Conductores individuales
-│   ├── {driverId}/
-│   │   ├── carrierId: string (ref)
-│   │   ├── name: string
-│   │   ├── email: string
-│   │   ├── phone: string
-│   │   ├── license: string
-│   │   ├── licenseExpiry: timestamp
-│   │   ├── currentVehicleId: string (ref)
-│   │   ├── status: 'available' | 'on_trip' | 'offline'
-│   │   ├── rating: number
-│   │   ├── totalTrips: number
-│   │   ├── earnings: number
+│   │   ├── role: 'ADMIN' | 'CARRIER' | 'DRIVER' | 'CLIENT' | 'UNASSIGNED'
+│   │   ├── status: 'active' | 'suspended' | 'available' | 'on_trip' | 'offline'
+│   │   ├── ... + Campos específicos según el rol (ver schemas/users.ts)
+│   │   │     (Ej: CARRIER tiene fleetSize, rfc / DRIVER tiene license, currentVehicleId)
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
@@ -214,6 +184,14 @@ firestore/
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
+├── pricing_settings/           # Configuración global de utilidades y depreciaciones
+│   ├── {configId}/ (default)
+│   │   ├── basePrice: number
+│   │   ├── kilometerRate: number
+│   │   ├── vehicleDimensions: object (Specs y MinPrice por tipo de vehículo)
+│   │   ├── financialFactors: object (Márgenes de ganancia, costos fijos)
+│   │   └── ...
+│
 ├── quotes/                     # Cotizaciones
 │   ├── {quoteId}/
 │   │   ├── clientId: string (ref)
@@ -224,12 +202,13 @@ firestore/
 │   │   ├── deliveryDate: timestamp
 │   │   ├── vehicleType: string
 │   │   ├── pricing: object
-│   │   │   ├── basePrice: number
-│   │   │   ├── fuelSurcharge: number
-│   │   │   ├── insurance: number
-│   │   │   ├── total: number
 │   │   ├── validUntil: timestamp
 │   │   ├── status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'
+│   │   ├── seller: string [opcional]
+│   │   ├── folio: string [opcional]
+│   │   ├── loadType: 'FTL' | 'PTL' | 'LTL'
+│   │   ├── cargoType: string
+│   │   ├── packageCount: number
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
@@ -237,9 +216,9 @@ firestore/
 │   ├── {orderId}/
 │   │   ├── quoteId: string (ref) [opcional]
 │   │   ├── clientId: string (ref)
-│   │   ├── carrierId: string (ref)
-│   │   ├── driverId: string (ref)
-│   │   ├── vehicleId: string (ref)
+│   │   ├── carrierId: string (ref) [opcional]
+│   │   ├── driverId: string (ref) [opcional]
+│   │   ├── vehicleId: string (ref) [opcional]
 │   │   ├── origin: object
 │   │   ├── destination: object
 │   │   ├── cargo: object
@@ -251,6 +230,12 @@ firestore/
 │   │   │         'paused_security'
 │   │   ├── type: 'regular' | 'auction'
 │   │   ├── auctionId: string (ref) [si type=auction]
+│   │   ├── seller: string [opcional]
+│   │   ├── folio: string [opcional]
+│   │   ├── distanceKm: number
+│   │   ├── loadType: 'FTL' | 'PTL' | 'LTL'
+│   │   ├── actualPickupTime: timestamp [opcional]
+│   │   ├── actualDeliveryTime: timestamp [opcional]
 │   │   ├── createdAt: timestamp
 │   │   └── updatedAt: timestamp
 │
@@ -468,32 +453,28 @@ firestore/
 
 ```typescript
 enum UserRole {
-  SUPER_ADMIN = 'super_admin',
-  WAREHOUSE_MANAGER = 'warehouse_manager',
-  CARRIER_ADMIN = 'carrier_admin',
-  DRIVER = 'driver',
-  CUSTOMER = 'customer',
-  CUSTOMS_AGENT = 'customs_agent'
+  ADMIN = 'ADMIN',       // Dueño — acceso total al sistema
+  CARRIER = 'CARRIER',   // Empresa transportista — gestiona flota
+  DRIVER = 'DRIVER',     // Conductor — ve viajes asignados
+  CLIENT = 'CLIENT',     // Cliente — solo portal de cotización y seguimiento
+  UNASSIGNED = 'UNASSIGNED' // Sin rol asignado (nuevo registro)
 }
 ```
 
 ### Matriz de Permisos
 
-| Recurso | Super Admin | Warehouse | Carrier Admin | Driver | Customer | Customs |
-|---------|------------|-----------|---------------|--------|----------|---------|
-| **Orders** | CRUD | Read | Read (own) | Read (assigned) | CRUD (own) | Read (related) |
-| **Quotes** | CRUD | - | Read (own) | - | CRUD (own) | - |
-| **Auctions** | CRUD | - | CRUD (own) | Read + Claim | - | - |
-| **Drivers** | CRUD | - | CRUD (own) | Read (self) | - | - |
-| **Vehicles** | CRUD | - | CRUD (own) | Read (assigned) | - | - |
-| **Tracking** | Read All | Read | Read (own) | Write (self) | Read (own) | Read (related) |
-| **Incidents** | CRUD | Read | Read (own) | Create | Read (own) | - |
-| **Payments** | CRUD | - | Read (own) | Read (own) | CRUD (own) | - |
-| **Analytics** | Read All | Read (own) | Read (own) | Read (self) | Read (own) | - |
-| **Risk Zones** | CRUD | - | Read | Read | - | - |
-| **Warehouses** | CRUD | CRUD (own) | Read | Read | Read | - |
-| **Documents** | CRUD | CRUD | Read (own) | Read (assigned) | Read (own) | CRUD (related) |
-| **Audit Logs** | Read All | - | - | - | - | - |
+| Recurso | ADMIN | CARRIER | DRIVER | CLIENT |
+|---------|-------|---------|--------|--------|
+| **Orders** | CRUD | Read (own) | Read (assigned) | CRUD (own) |
+| **Quotes** | CRUD | Read (own) | - | CRUD (own) |
+| **Auctions** | CRUD | CRUD (own) | Read + Claim | - |
+| **Users/Drivers** | CRUD | CRUD (own) | Read (self) | - |
+| **Vehicles** | CRUD | CRUD (own) | Read (assigned) | - |
+| **Tracking** | Read All | Read (own) | Write (self) | Read (own) |
+| **Incidents** | CRUD | Read (own) | Create | Read (own) |
+| **Payments** | CRUD | Read (own) | Read (own) | CRUD (own) |
+| **Analytics** | Read All | Read (own) | Read (self) | Read (own) |
+| **Documents** | CRUD | Read (own) | Read (assigned) | Read (own) |
 
 ---
 
