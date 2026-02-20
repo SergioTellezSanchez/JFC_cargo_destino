@@ -5,18 +5,22 @@ import { Shield, Search, RefreshCw, Building2, Pencil, User as UserIcon } from '
 import { authenticatedFetch } from '@/lib/api';
 import Modal from '@/components/Modal';
 
-const ROLE_ORDER = ['ADMIN', 'CARRIER', 'DRIVER', 'CLIENT'];
+const ROLE_ORDER = ['ADMIN', 'WAREHOUSE_ADMIN', 'CARRIER', 'DRIVER', 'CLIENT', 'CUSTOMS_AGENT'];
 const ROLE_NAMES: Record<string, string> = {
     ADMIN: 'Administradores',
+    WAREHOUSE_ADMIN: 'Almacén',
     CARRIER: 'Transportistas',
     DRIVER: 'Conductores',
     CLIENT: 'Clientes',
+    CUSTOMS_AGENT: 'Aduanas',
 };
 const ROLE_BADGE: Record<string, string> = {
     ADMIN: 'badge-primary',
+    WAREHOUSE_ADMIN: 'badge-info',
     CARRIER: 'badge-secondary',
     DRIVER: 'badge-warning',
     CLIENT: 'badge-neutral',
+    CUSTOMS_AGENT: 'badge-accent',
 };
 
 export default function UserRoleManagement() {
@@ -276,8 +280,10 @@ export default function UserRoleManagement() {
                                                         >
                                                             <option value="" disabled>Seleccionar...</option>
                                                             <option value="CLIENT">CLIENTE</option>
+                                                            <option value="CUSTOMS_AGENT">ADUANAS</option>
                                                             <option value="DRIVER">CONDUCTOR</option>
                                                             <option value="CARRIER">TRANSPORTISTA</option>
+                                                            <option value="WAREHOUSE_ADMIN">ALMACÉN</option>
                                                             <option value="ADMIN">ADMIN</option>
                                                         </select>
                                                     </td>

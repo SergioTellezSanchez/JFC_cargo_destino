@@ -6,10 +6,12 @@ import { Address } from './shared';
 // ============================================================================
 
 export enum UserRole {
-    ADMIN = 'ADMIN',       // Dueño — acceso total al sistema
-    CARRIER = 'CARRIER',   // Empresa transportista — gestiona flota y acepta cargas de la bolsa
-    DRIVER = 'DRIVER',     // Conductor — ve viajes asignados
-    CLIENT = 'CLIENT',     // Cliente — solo portal de cotización y seguimiento
+    ADMIN = 'ADMIN',             // Dueño — acceso total al sistema
+    WAREHOUSE_ADMIN = 'WAREHOUSE_ADMIN', // Almacén — gestiona inventarios y despachos
+    CARRIER = 'CARRIER',         // Empresa transportista — gestiona flota y acepta cargas de la bolsa
+    DRIVER = 'DRIVER',           // Conductor — ve viajes asignados
+    CLIENT = 'CLIENT',           // Cliente — solo portal de cotización y seguimiento
+    CUSTOMS_AGENT = 'CUSTOMS_AGENT', // Agente Aduanal — tramita docs y despachos internacionales
 }
 
 // ============================================================================

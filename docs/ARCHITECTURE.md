@@ -453,28 +453,31 @@ firestore/
 
 ```typescript
 enum UserRole {
-  ADMIN = 'ADMIN',       // Dueño — acceso total al sistema
-  CARRIER = 'CARRIER',   // Empresa transportista — gestiona flota
-  DRIVER = 'DRIVER',     // Conductor — ve viajes asignados
-  CLIENT = 'CLIENT',     // Cliente — solo portal de cotización y seguimiento
-  UNASSIGNED = 'UNASSIGNED' // Sin rol asignado (nuevo registro)
+  ADMIN = 'ADMIN',                 // Dueño — acceso total al sistema
+  WAREHOUSE_ADMIN = 'WAREHOUSE_ADMIN', // Almacén — despachos y confirmación física
+  CARRIER = 'CARRIER',             // Empresa transportista — gestiona flota
+  DRIVER = 'DRIVER',               // Conductor — ve viajes asignados
+  CLIENT = 'CLIENT',               // Cliente — solo portal de cotización y seguimiento
+  CUSTOMS_AGENT = 'CUSTOMS_AGENT', // Agente Aduanal — procesos y docs internacionales
+  UNASSIGNED = 'UNASSIGNED'        // Sin rol asignado (nuevo registro)
 }
 ```
 
 ### Matriz de Permisos
 
-| Recurso | ADMIN | CARRIER | DRIVER | CLIENT |
-|---------|-------|---------|--------|--------|
-| **Orders** | CRUD | Read (own) | Read (assigned) | CRUD (own) |
-| **Quotes** | CRUD | Read (own) | - | CRUD (own) |
-| **Auctions** | CRUD | CRUD (own) | Read + Claim | - |
-| **Users/Drivers** | CRUD | CRUD (own) | Read (self) | - |
-| **Vehicles** | CRUD | CRUD (own) | Read (assigned) | - |
-| **Tracking** | Read All | Read (own) | Write (self) | Read (own) |
-| **Incidents** | CRUD | Read (own) | Create | Read (own) |
-| **Payments** | CRUD | Read (own) | Read (own) | CRUD (own) |
-| **Analytics** | Read All | Read (own) | Read (self) | Read (own) |
-| **Documents** | CRUD | Read (own) | Read (assigned) | Read (own) |
+| Recurso | ADMIN | WAREHOUSE_ADMIN | CARRIER | DRIVER | CLIENT | CUSTOMS_AGENT |
+|---------|-------|-----------------|---------|--------|--------|---------------|
+| **Orders** | CRUD | Read | Read (own) | Read (assigned) | CRUD (own) | Read (related) |
+| **Quotes** | CRUD | - | Read (own) | - | CRUD (own) | - |
+| **Auctions** | CRUD | - | CRUD (own) | Read + Claim | - | - |
+| **Users/Drivers** | CRUD | - | CRUD (own) | Read (self) | - | - |
+| **Vehicles** | CRUD | - | CRUD (own) | Read (assigned) | - | - |
+| **Tracking** | Read All | Read | Read (own) | Write (self) | Read (own) | Read (related) |
+| **Incidents** | CRUD | Read | Read (own) | Create | Read (own) | - |
+| **Payments** | CRUD | - | Read (own) | Read (own) | CRUD (own) | - |
+| **Analytics** | Read All | Read (own) | Read (own) | Read (self) | Read (own) | - |
+| **Warehouses** | CRUD | CRUD (own) | Read | Read | Read | - |
+| **Documents** | CRUD | CRUD | Read (own) | Read (assigned) | Read (own) | CRUD (related) |
 
 ---
 
