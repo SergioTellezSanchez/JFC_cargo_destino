@@ -54,6 +54,15 @@ export interface Vehicle {
     currentDriverId?: string;
     gpsDeviceId?: string;
 
+    // Location & Operations
+    currentLocation?: {
+        address: string;
+        lat: number;
+        lng: number;
+        updatedAt: Timestamp;
+    };
+    serviceStatus?: 'available' | 'in_transit' | 'awaiting_backhaul';
+
     // Additional Info
     description?: string;
     uses?: string[]; // Use cases: ['Urbano', 'Regional', 'Perecederos', etc.]

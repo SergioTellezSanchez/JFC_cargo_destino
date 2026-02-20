@@ -14,6 +14,7 @@ export interface PricingSettings {
     basePrice: number; // Minimum trip cost
     usefulLifeKm: number;
     imponderablesRate?: number; // e.g. 3%
+    backhaulMatchRadiusKm?: number; // Order matching radius for return trips (e.g. 50km)
 
     // Fuel Costs (Configurable)
     fuelPrices?: FuelPrices;

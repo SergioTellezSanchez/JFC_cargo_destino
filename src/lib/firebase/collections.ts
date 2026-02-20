@@ -34,6 +34,9 @@ export const COLLECTIONS = {
     // Analytics & Audit
     ANALYTICS: 'analytics',
     AUDIT_LOGS: 'audit_logs',
+
+    // Settings
+    PRICING_SETTINGS: 'pricing_settings',
 } as const;
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS];

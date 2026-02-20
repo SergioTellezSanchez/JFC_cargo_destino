@@ -109,7 +109,7 @@ function AdminContent() {
 
     const menuItems = [
         { id: 'dashboard', label: t('dashboardTitle'), icon: LayoutDashboard },
-        { id: 'orders', label: t('orders'), icon: ShoppingCart },
+        { id: 'orders', label: 'Administración de Ordenes', icon: ShoppingCart },
         { id: 'carriers', label: t('carriers'), icon: Building2 },
         { id: 'drivers', label: t('drivers'), icon: UserCheck },
         { id: 'vehicles', label: t('vehicles'), icon: Truck },
@@ -192,7 +192,7 @@ function AdminContent() {
 
                 {/* Body */}
                 <div className="flex-1 overflow-auto p-4 md:p-8">
-                    <div className="max-w-7xl mx-auto pb-20">
+                    <div className="w-full px-6 mx-auto pb-20">
                         {activeTab === 'dashboard' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-in fade-in zoom-in duration-300">
                                 {[

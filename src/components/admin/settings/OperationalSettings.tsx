@@ -72,6 +72,37 @@ export default function OperationalSettings({ settings, updateSetting }: Operati
                 </div>
             </div>
 
+            {/* Row 1.5: Logística */}
+            <div className="mb-8 pb-8 border-b border-slate-100">
+                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
+                    {/* <Map size={16} className="text-green-500" /> */}
+                    LOGÍSTICA & RUTAS
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="form-control">
+                        <label className="label py-0 mb-1">
+                            <span className="label-text text-xs font-bold text-slate-500">
+                                Radio de Búsqueda Regreso (Backhaul)
+                            </span>
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                className="input input-sm input-bordered w-full pr-12 text-right font-mono font-bold"
+                                value={settings.backhaulMatchRadiusKm || 50}
+                                onChange={(e) => updateSetting('backhaulMatchRadiusKm', null, Number(e.target.value))}
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">km</span>
+                        </div>
+                        <label className="label py-0 mt-1">
+                            <span className="label-text-alt text-[10px] text-slate-400">
+                                Distancia máx. entre Origen/Destino para considerar "Regreso"
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* SUB-SECTION: GPS */}
                 <div>
