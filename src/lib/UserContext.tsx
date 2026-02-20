@@ -39,7 +39,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 try {
                     const userRef = doc(db, 'users', firebaseUser.uid);
                     const userSnap = await getDoc(userRef);
-                    let role = UserRole.CUSTOMER; // Default
+                    let role = UserRole.CLIENT; // Default
 
                     if (userSnap.exists()) {
                         role = userSnap.data().role as UserRole;
@@ -105,7 +105,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const isAdmin = !!(user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.WAREHOUSE_MANAGER || user?.role === UserRole.CARRIER_ADMIN);
+    const isAdmin = !!(user?.role === UserRole.ADMIN || user?.role === UserRole.CARRIER);
 
     return (
         <UserContext.Provider value={{ user, loading, loginWithGoogle, logout, isAdmin }}>

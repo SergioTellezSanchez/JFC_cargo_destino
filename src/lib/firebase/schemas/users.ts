@@ -6,12 +6,10 @@ import { Address } from './shared';
 // ============================================================================
 
 export enum UserRole {
-    SUPER_ADMIN = 'super_admin',
-    WAREHOUSE_MANAGER = 'warehouse_manager',
-    CARRIER_ADMIN = 'carrier_admin',
-    DRIVER = 'driver',
-    CUSTOMER = 'customer',
-    CUSTOMS_AGENT = 'customs_agent',
+    ADMIN = 'ADMIN',       // Dueño — acceso total al sistema
+    CARRIER = 'CARRIER',   // Empresa transportista — gestiona flota y acepta cargas de la bolsa
+    DRIVER = 'DRIVER',     // Conductor — ve viajes asignados
+    CLIENT = 'CLIENT',     // Cliente — solo portal de cotización y seguimiento
 }
 
 // ============================================================================

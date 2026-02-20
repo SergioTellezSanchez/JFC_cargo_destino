@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const userEmail = auth.email?.toLowerCase();
     const isHardcodedAdmin = userEmail === 'sergiotellezsanchez@gmail.com' || userEmail === 'contacto@jfccargodestino.com' || userEmail === 'sergiotellezsanchez.us@gmail.com';
 
-    if (requesterRole !== 'ADMIN_MASTER' && requesterRole !== 'ADMIN_JR' && !isHardcodedAdmin) {
+    if (requesterRole !== 'ADMIN' && requesterRole !== 'CARRIER' && !isHardcodedAdmin) {
         return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
     }
 
@@ -42,20 +42,24 @@ export async function PUT(request: Request) {
     const userEmail = auth.email?.toLowerCase();
     const isHardcodedAdmin = userEmail === 'sergiotellezsanchez@gmail.com' || userEmail === 'contacto@jfccargodestino.com' || userEmail === 'sergiotellezsanchez.us@gmail.com';
 
-    if (requesterRole !== 'ADMIN_MASTER' && !isHardcodedAdmin) {
+    if (requesterRole !== 'ADMIN' && !isHardcodedAdmin) {
         return NextResponse.json({ error: 'Only Admin Master can manage roles' }, { status: 403 });
     }
 
     try {
-        const { uid, role } = await request.json();
-        if (!uid || !role) {
-            return NextResponse.json({ error: 'Missing uid or role' }, { status: 400 });
+        const { uid, role, company } = await request.json();
+        if (!uid || (!role && company === undefined)) {
+            return NextResponse.json({ error: 'Missing uid or fields to update' }, { status: 400 });
         }
 
-        await adminDb.collection('users').doc(uid).update({ role });
+        const updateData: Record<string, string> = {};
+        if (role) updateData.role = role;
+        if (company !== undefined) updateData.company = company;
+
+        await adminDb.collection('users').doc(uid).update(updateData);
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Error updating user role:', error);
-        return NextResponse.json({ error: 'Failed to update role' }, { status: 500 });
+        console.error('Error updating user:', error);
+        return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
     }
 }
