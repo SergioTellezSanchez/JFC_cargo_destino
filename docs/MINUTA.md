@@ -5,10 +5,11 @@
 ---
 
 ## 🚀 1. Estado Actual (Snapshot)
-**Fase Actual:** Sprint 1 — Refactorización Motor de Cotización
-**Objetivo Inmediato:** Motor de cotización desacoplado, simulador en vivo refinado, precios mínimos por vehículo.
+**Fase Actual:** Sprint 1 — Mejora UI y Roles Admin
+**Objetivo Inmediato:** Simplificar la asignación de flotas por transportistas y mejorar legibilidad del panel de usuarios admin.
 
 ### Módulos Activos
+*   **Gestión Administrativa (`PackageManagement.tsx`, `UserRoleManagement.tsx`):** UI actualizada al estándar. Agrupación por roles de usuario, lógica de solo-lectura para conductores/vehículos desde vista admin (delegando al carrier), y asignación estricta de Empresas Aliadas con desplegables hidratados dinámicamente.
 *   **Motor de Cotización (`calculations.ts`):** Refactorizado. Lógica desacoplada en hooks (`useQuoteCalculator`). Incluye precio mínimo por vehículo.
 *   **Simulador en Vivo (`AdminSimulator`):** Funcional con inputs exactos de km, casetas separadas ida/vuelta, indicador de precio mínimo.
 *   **Admin Panel (Configuración de Vehículos):** Campo `minPrice` editable por vehículo desde el panel.
@@ -17,6 +18,16 @@
 ---
 
 ## 📜 2. Histórico de Minutas (Bitácora)
+
+### 📅 [20-Feb-2026] Refactorización UI Admin - Órdenes y Hub de Usuarios
+*   **Resumen:** Reingeniería visual y de UX de los paneles principales de administración (Órdenes y Usuarios) para coincidir con la estética del Portal Carrier y separar responsabilidades lógicas entre roles.
+*   **Cambios Clave:**
+    1.  **Agrupación de Usuarios:** El panel de `UserRoleManagement` ahora agrupa visualmente a los usuarios en tarjetas según su rol (`ADMIN`, `CARRIER`, `DRIVER`, `CLIENT`, `Sin Rol`) en vez de una sola tabla.
+    2.  **Selector Dinámico de Empresas:** Se reemplaza el input libre por un `<select>` que descubre todas las empresas dinámicamente desde la BD (Conductores + Vehículos + Manuales) en el panel de usuarios y en el panel de órdenes.
+    3.  **Alineación Visual de Órdenes:** `PackageManagement` adaptó totalmente el aspecto de píldoras de estado, rutas multicolores y tipografía de `OrderTable` del carrier.
+    4.  **Flujo Delegado al Conductor:** En el acordeón de una orden, la vista de Administrador ahora tiene bloqueados (sólo-lectura) los campos de Vehículo y Conductor para que el "Carrier" sea el único que controle su propia asignación interna. El Admin solo elige a la "Empresa Aliada".
+*   **Archivos Principales:** `UserRoleManagement.tsx`, `PackageManagement.tsx`, `walkthrough.md`.
+*   **Decisión:** El Admin Platform sirve como la torre de control de negocio, mientras que las asignaciones granulares de la flotilla descansan estrictamente del lado del front-end del `CARRIER`.
 
 ### 📅 [11-Feb-2026] Refactorización Motor de Cotización y Precio Mínimo por Vehículo
 *   **Resumen:** Se completa la refactorización del motor de costos logísticos y el simulador en vivo del panel admin.
