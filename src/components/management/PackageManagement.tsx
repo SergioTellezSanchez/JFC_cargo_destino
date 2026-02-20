@@ -53,6 +53,17 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
     const [currentItem, setCurrentItem] = useState<any>(null);
 
+    const [isAssignCarrierModalOpen, setIsAssignCarrierModalOpen] = useState(false);
+    const [pkgToAssign, setPkgToAssign] = useState<any>(null);
+    const [selectedCarrierForAssign, setSelectedCarrierForAssign] = useState('');
+
+    const availableCarriers = React.useMemo(() => {
+        const companies = new Set<string>(LOGISTICS_COMPANIES);
+        drivers.forEach(d => { if (d.company) companies.add(d.company); });
+        vehicles.forEach(v => { if (v.company) companies.add(v.company); });
+        return Array.from(companies).sort();
+    }, [drivers, vehicles]);
+
     const [assignmentState, setAssignmentState] = useState({
         driverId: '',
         vehicleId: '',
@@ -249,178 +260,277 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '3rem' }}>Cargando envíos...</div>
             ) : (
-                <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                    <div className="table-container">
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>Tracking ID</th>
-                                    <th>Destinatario</th>
-                                    <th style={{ width: '180px' }}>Estado</th>
-                                    <th>Aliado / Empresa</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredPackages.length > 0 ? filteredPackages.map((pkg: any) => {
-                                    const currentDelivery = pkg.deliveries?.[0];
-                                    const status = pkg.status || currentDelivery?.status || 'PENDING';
-                                    const isExpanded = expandedRow === pkg.id;
+                <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100">
+                    <table className="table w-full">
+                        <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-xs uppercase">
+                                <th className="font-bold">Tracking ID</th>
+                                <th className="font-bold">Ruta</th>
+                                <th className="font-bold">Destinatario</th>
+                                <th className="font-bold" style={{ width: '170px' }}>Estado</th>
+                                <th className="font-bold">Aliado / Empresa</th>
+                                <th className="font-bold text-center">Solicitudes</th>
+                                <th className="font-bold text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredPackages.length > 0 ? filteredPackages.map((pkg: any) => {
+                                const currentDelivery = pkg.deliveries?.[0];
+                                const status = pkg.status || currentDelivery?.status || 'PENDING';
+                                const isExpanded = expandedRow === pkg.id;
 
-                                    const selectedVehicle = vehicles.find(v => v.id === (assignmentState.vehicleId));
-                                    const costs = selectedVehicle ? calculateLogisticsCosts(pkg as PackageType, selectedVehicle, settings) : null;
-                                    const recommendation = getRecommendation(pkg);
+                                const selectedVehicle = vehicles.find(v => v.id === (assignmentState.vehicleId));
+                                const costs = selectedVehicle ? calculateLogisticsCosts(pkg as PackageType, selectedVehicle, settings) : null;
+                                const recommendation = getRecommendation(pkg);
 
-                                    return (
-                                        <React.Fragment key={pkg.id}>
-                                            <tr style={{ background: isExpanded ? 'var(--secondary-bg)' : 'transparent' }}>
-                                                <td style={{ fontWeight: 'bold' }}>{pkg.trackingId}</td>
-                                                <td>{pkg.recipientName}</td>
-                                                <td onClick={(e) => e.stopPropagation()}>
-                                                    <select
-                                                        className="input"
-                                                        style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', height: 'auto', border: '1px solid var(--border)' }}
-                                                        value={status}
-                                                        onChange={(e) => handleQuickStatusUpdate(pkg.id, e.target.value)}
+                                // Basic colors mapping similar to OrderTable
+                                const getStatusColors = (s: string) => {
+                                    switch (s) {
+                                        case 'PENDING': return { bg: '#fef3c7', text: '#d97706' };
+                                        case 'ASSIGNED': return { bg: '#e0e7ff', text: '#4f46e5' };
+                                        case 'PICKED_UP': return { bg: '#dbeafe', text: '#2563eb' };
+                                        case 'IN_TRANSIT': return { bg: '#f3e8ff', text: '#9333ea' };
+                                        case 'DELIVERED': return { bg: '#dcfce7', text: '#16a34a' };
+                                        case 'CANCELLED': return { bg: '#fee2e2', text: '#dc2626' };
+                                        default: return { bg: '#f1f5f9', text: '#64748b' };
+                                    }
+                                };
+                                const colors = getStatusColors(status);
+
+                                return (
+                                    <React.Fragment key={pkg.id}>
+                                        <tr
+                                            className={`hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-100 ${isExpanded ? 'bg-indigo-50/30' : ''}`}
+                                            onClick={() => toggleRow(pkg)}
+                                        >
+                                            <td className="font-mono font-bold text-indigo-600 text-sm">
+                                                #{pkg.trackingId || pkg.id.slice(0, 8)}
+                                            </td>
+                                            <td className="max-w-[220px]" onClick={e => e.stopPropagation()}>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                                                        <span className="text-xs font-semibold text-slate-700 truncate">
+                                                            {typeof pkg.origin === 'object' && pkg.origin?.address
+                                                                ? pkg.origin.address.split(',')[0]
+                                                                : (pkg.origin?.split(',')[0] || '—')}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                                                        <span className="text-xs font-semibold text-slate-700 truncate">
+                                                            {typeof pkg.destination === 'object' && pkg.destination?.address
+                                                                ? pkg.destination.address.split(',')[0]
+                                                                : (pkg.destination?.split(',')[0] || pkg.address?.split(',')[0] || '—')}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="text-sm text-slate-700 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
+                                                {pkg.recipientName}
+                                            </td>
+                                            <td onClick={(e) => e.stopPropagation()}>
+                                                <select
+                                                    className="select select-sm border-0 font-bold focus:ring-0 cursor-pointer px-2"
+                                                    style={{
+                                                        background: colors.bg,
+                                                        color: colors.text,
+                                                        borderRadius: '9999px',
+                                                        height: '28px',
+                                                        minHeight: '28px',
+                                                        fontSize: '0.75rem',
+                                                        width: '100%',
+                                                    }}
+                                                    value={status}
+                                                    onChange={(e) => handleQuickStatusUpdate(pkg.id, e.target.value)}
+                                                >
+                                                    {STATUS_OPTIONS.map(s => <option key={s} value={s} className="bg-white text-slate-800">{t(s as any)}</option>)}
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <div className="flex items-center gap-1.5 text-slate-600 text-xs font-medium">
+                                                    <Building2 size={13} className="text-slate-400" />
+                                                    <span className="truncate max-w-[120px]">{pkg.logisticsCompany && pkg.logisticsCompany !== 'UNASSIGNED' ? pkg.logisticsCompany : <span className="text-slate-400 italic">Pendiente</span>}</span>
+                                                </div>
+                                            </td>
+                                            <td className="text-center">
+                                                {pkg.interestedCarriers?.length > 0 ? (
+                                                    <span
+                                                        title={`${pkg.interestedCarriers.length} solicitud(es)`}
+                                                        className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-600 rounded-full px-2.5 py-0.5 text-xs font-bold cursor-pointer hover:bg-indigo-100 transition-colors"
+                                                        onClick={(e) => { e.stopPropagation(); toggleRow(pkg); }}
                                                     >
-                                                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(s as any)}</option>)}
-                                                    </select>
-                                                </td>
-                                                <td>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontSize: '0.9rem' }}>
-                                                        <Building2 size={14} /> {pkg.logisticsCompany || 'Pendiente'}
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                        <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => generateShippingGuide(pkg)}><FileText size={16} /></button>
-                                                        <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => toggleRow(pkg)}>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
-                                                        <button className="btn btn-secondary" style={{ padding: '0.3rem' }} onClick={() => handleOpenModal('edit', pkg)}><Edit size={16} /></button>
-                                                        <button className="btn btn-danger" style={{ padding: '0.3rem' }} onClick={() => handleDelete(pkg.id)}><Trash2 size={16} /></button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {isExpanded && (
-                                                <tr>
-                                                    <td colSpan={5} style={{ padding: '2rem', background: 'var(--secondary-bg)' }}>
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
-                                                            <div className="card" style={{ padding: '1.5rem', background: 'var(--secondary-bg)', border: '1px solid var(--border)' }}>
-                                                                <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--primary)' }}>
-                                                                    <Truck size={20} /> Asignación Logística
-                                                                </h3>
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                                                        {pkg.interestedCarriers.length}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-300 text-sm">—</span>
+                                                )}
+                                            </td>
+                                            <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <button
+                                                        className="btn btn-ghost btn-xs btn-square text-slate-400 hover:text-indigo-600"
+                                                        onClick={() => generateShippingGuide(pkg)}
+                                                        title="Guía"
+                                                    >
+                                                        <FileText size={15} />
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-ghost btn-xs btn-square text-slate-400 hover:text-indigo-600"
+                                                        onClick={() => handleOpenModal('edit', pkg)}
+                                                        title="Editar"
+                                                    >
+                                                        <Edit size={15} />
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-ghost btn-xs btn-square text-slate-400 hover:text-rose-600"
+                                                        onClick={() => handleDelete(pkg.id)}
+                                                        title="Eliminar"
+                                                    >
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-ghost btn-xs btn-square text-slate-400 hover:text-indigo-600"
+                                                        onClick={() => toggleRow(pkg)}
+                                                    >
+                                                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {isExpanded && (
+                                            <tr className="bg-slate-50/50">
+                                                <td colSpan={7} className="p-0">
+                                                    <div className="p-6 border-b border-slate-100">
+                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                                            {/* LEFT: Assignment Form */}
+                                                            <div className="space-y-4">
+                                                                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                                    <Truck size={16} className="text-indigo-500" />
+                                                                    Asignación Logística
+                                                                </h4>
 
-                                                                <div className="space-y-5">
-                                                                    <div className="input-group" style={{ margin: 0 }}>
-                                                                        <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Empresa Logística (Aliado)</label>
-                                                                        <select
-                                                                            className="input"
-                                                                            style={{ width: '100%', margin: 0, height: '42px' }}
-                                                                            value={assignmentState.logisticsCompany}
-                                                                            onChange={(e) => setAssignmentState({ ...assignmentState, logisticsCompany: e.target.value, vehicleId: '', driverId: '' })}
-                                                                            disabled={!canEditAssignment}
-                                                                        >
-                                                                            <option value="">Seleccionar Empresa</option>
-                                                                            {LOGISTICS_COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                                                        </select>
+                                                                <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="text-xs font-bold text-slate-600">Empresa Logística (Aliado)</label>
+                                                                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-700 flex items-center justify-between gap-2">
+                                                                            <div className="flex items-center gap-2 overflow-hidden w-full">
+                                                                                <Building2 size={14} className="text-slate-400 shrink-0" />
+                                                                                {pkg.logisticsCompany && pkg.logisticsCompany !== 'UNASSIGNED' ? (
+                                                                                    <span className="font-medium truncate text-indigo-700">
+                                                                                        {pkg.logisticsCompany}
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <span className="text-slate-400 italic truncate">Sin Asignar</span>
+                                                                                )}
+                                                                            </div>
+                                                                            {canEditAssignment && (
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setPkgToAssign(pkg);
+                                                                                        setSelectedCarrierForAssign(pkg.logisticsCompany === 'UNASSIGNED' ? '' : pkg.logisticsCompany || '');
+                                                                                        setIsAssignCarrierModalOpen(true);
+                                                                                    }}
+                                                                                    className="btn btn-ghost btn-xs text-indigo-600 hover:bg-indigo-50 border border-slate-200 shrink-0 h-7 min-h-7 px-3"
+                                                                                >
+                                                                                    Cambiar
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
 
-                                                                    <div className="input-group" style={{ margin: 0 }}>
-                                                                        <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Vehículo de Flotilla</label>
-                                                                        <select
-                                                                            className="input"
-                                                                            style={{ width: '100%', margin: 0, height: '42px' }}
-                                                                            value={assignmentState.vehicleId}
-                                                                            onChange={(e) => setAssignmentState({ ...assignmentState, vehicleId: e.target.value })}
-                                                                            disabled={!canEditAssignment}
-                                                                        >
-                                                                            <option value="">Seleccionar Vehículo</option>
-                                                                            {vehicles
-                                                                                .filter(v => !assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany)
-                                                                                .filter(v => isVehicleSuitable(v, pkg as PackageType))
-                                                                                .map(v => (
-                                                                                    <option key={v.id} value={v.id}>{v.name || 'Vehículo'} ({v.plates || 'S/P'})</option>
-                                                                                ))}
-                                                                        </select>
-                                                                        {vehicles.filter(v => (!assignmentState.logisticsCompany || v.company === assignmentState.logisticsCompany) && isVehicleSuitable(v, pkg as PackageType)).length === 0 && (
-                                                                            <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                                                <AlertTriangle size={12} /> No hay vehículos adecuados.
-                                                                            </p>
-                                                                        )}
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="text-xs font-bold text-slate-600">Vehículo de Flotilla</label>
+                                                                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-700 flex items-center gap-2">
+                                                                            <Truck size={14} className="text-slate-400" />
+                                                                            {pkg.vehicleId ? (
+                                                                                <span className="font-medium">
+                                                                                    {vehicles.find(v => v.id === pkg.vehicleId)?.name || 'Vehículo'}
+                                                                                    {vehicles.find(v => v.id === pkg.vehicleId)?.plates ? ` (${vehicles.find(v => v.id === pkg.vehicleId)?.plates})` : ''}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-slate-400 italic">Pendiente por asignar (Carrier)</span>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
 
-                                                                    <div className="input-group" style={{ margin: 0 }}>
-                                                                        <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--secondary)', marginBottom: '0.4rem', display: 'block' }}>Conductor Responsable</label>
-                                                                        <select
-                                                                            className="input"
-                                                                            style={{ width: '100%', margin: 0, height: '42px' }}
-                                                                            value={assignmentState.driverId}
-                                                                            onChange={(e) => setAssignmentState({ ...assignmentState, driverId: e.target.value })}
-                                                                            disabled={!canEditAssignment}
-                                                                        >
-                                                                            <option value="">Seleccionar Conductor</option>
-                                                                            {drivers
-                                                                                .filter(d => !assignmentState.logisticsCompany || d.company === assignmentState.logisticsCompany)
-                                                                                .map(d => (
-                                                                                    <option key={d.id} value={d.id}>{d.name}</option>
-                                                                                ))}
-                                                                        </select>
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="text-xs font-bold text-slate-600">Conductor Responsable</label>
+                                                                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm text-slate-700 flex items-center gap-2">
+                                                                            <User size={14} className="text-slate-400" />
+                                                                            {pkg.driverId ? (
+                                                                                <span className="font-medium">
+                                                                                    {drivers.find(d => d.id === pkg.driverId)?.name || 'Conductor asignado'}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-slate-400 italic">Pendiente por asignar (Carrier)</span>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
 
-                                                                    {canEditAssignment && (
-                                                                        <button className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', height: '45px', borderRadius: '0.75rem', boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)' }} onClick={() => handleAssignmentUpdate(pkg.id)}>
-                                                                            <Save size={18} /> Actualizar Asignación
-                                                                        </button>
-                                                                    )}
                                                                 </div>
                                                             </div>
 
-                                                            <div className="card" style={{ padding: '1.5rem', border: '1px solid var(--border)' }}>
-                                                                <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                    <DollarSign size={18} className="text-secondary" /> Proyección ROI
-                                                                </h3>
+                                                            {/* RIGHT: ROI Projection */}
+                                                            <div className="space-y-4">
+                                                                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                                    <DollarSign size={16} className="text-emerald-500" />
+                                                                    Proyección ROI
+                                                                </h4>
                                                                 {costs ? (
-                                                                    <div className="space-y-3" style={{ fontSize: '0.95rem' }}>
-                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                                                                            <span style={{ color: 'var(--secondary)' }}>Costo Operativo</span>
-                                                                            <strong>{formatCurrency(costs.operationalCost ?? 0)}</strong>
+                                                                    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3 text-sm">
+                                                                        <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                                                                            <span className="text-slate-500">Costo Operativo</span>
+                                                                            <strong className="text-slate-800">{formatCurrency(costs.operationalCost ?? 0)}</strong>
                                                                         </div>
-                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                                                                            <span style={{ color: 'var(--secondary)' }}>Seguro (Base)</span>
-                                                                            <strong>{formatCurrency(costs.insurance ?? 0)}</strong>
+                                                                        <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                                                                            <span className="text-slate-500">Seguro (Base)</span>
+                                                                            <strong className="text-slate-800">{formatCurrency(costs.insurance ?? 0)}</strong>
                                                                         </div>
-                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                                                                            <span style={{ color: 'var(--secondary)' }}>Depreciación</span>
-                                                                            <strong>{formatCurrency(costs.depreciation ?? 0)}</strong>
+                                                                        <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                                                                            <span className="text-slate-500">Depreciación</span>
+                                                                            <strong className="text-slate-800">{formatCurrency(costs.depreciation ?? 0)}</strong>
                                                                         </div>
-                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success)' }}>
+                                                                        <div className="flex justify-between items-center text-emerald-600 font-medium">
                                                                             <span>Utilidad Estimada</span>
                                                                             <strong>+{formatCurrency(costs.utility ?? 0)} ({(costs.utilityPercent ?? 0).toFixed(1)}%)</strong>
                                                                         </div>
-                                                                        <div style={{ marginTop: '1rem', borderTop: '2px dashed var(--border)', paddingTop: '1rem', fontSize: '1.1rem' }}>
-                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                                <strong style={{ color: 'var(--primary)' }}>Cotización Final</strong>
-                                                                                <strong style={{ fontSize: '1.25rem', color: 'var(--primary)' }}>{formatCurrency(costs.priceToClient ?? 0)}</strong>
+                                                                        <div className="pt-3 mt-3 border-t-2 border-dashed border-slate-100">
+                                                                            <div className="flex justify-between items-center">
+                                                                                <strong className="text-indigo-600">Cotización Final</strong>
+                                                                                <strong className="text-lg text-indigo-700">{formatCurrency(costs.priceToClient ?? 0)}</strong>
                                                                             </div>
-                                                                            <p style={{ fontSize: '0.75rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>*Incluye margen operativo e IVA 16%</p>
+                                                                            <p className="text-[0.7rem] text-slate-400 mt-1">*Incluye margen operativo e IVA 16%</p>
                                                                         </div>
                                                                     </div>
-                                                                ) : <div style={{ textAlign: 'center', color: 'var(--secondary)', padding: '2rem', background: 'var(--secondary-bg)', borderRadius: '0.5rem', border: '1px dashed var(--border)' }}>
-                                                                    <Info size={24} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-                                                                    <p style={{ fontSize: '0.85rem' }}>{recommendation.message}</p>
-                                                                </div>}
+                                                                ) : (
+                                                                    <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-500">
+                                                                        <Info size={24} className="mx-auto mb-2 opacity-50" />
+                                                                        <p className="text-xs px-4">{recommendation.message}</p>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </React.Fragment>
-                                    );
-                                }) : (
-                                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>No hay envíos.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            }) : (
+                                <tr>
+                                    <td colSpan={7}>
+                                        <div className="text-center py-12 text-slate-500">
+                                            <PackageIcon size={32} className="mx-auto mb-3 opacity-20" />
+                                            <p className="text-sm font-medium">No hay envíos que coincidan con los filtros.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
 
             )}
@@ -487,7 +597,7 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                                 disabled={!canEditAssignment}
                             >
                                 <option value="">Ninguna</option>
-                                {LOGISTICS_COMPANIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                {availableCarriers.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
                         <div className="input-group" style={{ gridColumn: 'span 2' }}><label>Descripción / Instrucciones</label><textarea name="description" className="input" style={{ height: '80px' }} defaultValue={currentItem?.description || currentItem?.instructions}></textarea></div>
@@ -497,6 +607,55 @@ export default function PackageManagement({ isAdminView = false }: PackageManage
                         <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Guardar</button>
                     </div>
                 </form>
+            </Modal>
+
+            <Modal isOpen={isAssignCarrierModalOpen} onClose={() => setIsAssignCarrierModalOpen(false)} title="Asignar Empresa Logística">
+                <div className="space-y-4">
+                    <p className="text-sm text-slate-600">
+                        Selecciona la empresa aliada responsable de llevar este envío.
+                        El transportista será el encargado de asignar conductor y vehículo.
+                    </p>
+                    <select
+                        className="select select-bordered w-full bg-slate-50 focus:border-indigo-500 transition-shadow"
+                        value={selectedCarrierForAssign}
+                        onChange={(e) => setSelectedCarrierForAssign(e.target.value)}
+                    >
+                        <option value="" disabled>Seleccionar Empresa...</option>
+                        {availableCarriers.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+
+                    <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 mt-6">
+                        <button className="btn btn-ghost border border-slate-200 text-slate-600" onClick={() => setIsAssignCarrierModalOpen(false)}>
+                            Cancelar
+                        </button>
+                        <button
+                            className="btn btn-primary shadow-sm"
+                            onClick={async () => {
+                                if (!pkgToAssign) return;
+                                try {
+                                    const res = await authenticatedFetch(`/api/packages/${pkgToAssign.id}/assign`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            logisticsCompany: selectedCarrierForAssign,
+                                            driverId: '',
+                                            vehicleId: ''
+                                        })
+                                    });
+                                    if (res.ok) {
+                                        alert('Empresa asignada correctamente');
+                                        setIsAssignCarrierModalOpen(false);
+                                        fetchData();
+                                    }
+                                } catch (e) {
+                                    console.error(e);
+                                }
+                            }}
+                        >
+                            <Save size={16} className="mr-1" /> Asignar Empresa
+                        </button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );

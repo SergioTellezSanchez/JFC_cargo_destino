@@ -66,6 +66,11 @@ export interface Order {
     type: 'regular' | 'auction';
     auctionId?: string;
 
+    // Marketplace
+    interestedCarriers?: string[]; // Carrier IDs who requested this load
+    assignmentStatus?: 'unassigned' | 'carrier_requested' | 'carrier_assigned' | 'driver_assigned';
+    publishedToMarketplace?: boolean;
+
     // Additional fields from logistics.ts
     seller?: string;
     folio?: string;
@@ -73,13 +78,14 @@ export interface Order {
     distanceKm?: number;
     loadType?: 'FTL' | 'PTL' | 'LTL';
     cargoType?: 'hazardous' | 'perishable' | 'machinery' | 'furniture' | 'packages' | 'general';
+    packageCount?: number;
 
     // Timing
     actualPickupTime?: Timestamp;
     actualDeliveryTime?: Timestamp;
     deliveryDuration?: number; // milliseconds
 
-    // Rating
+    // Rating 
     rating?: number;
     ratingCategories?: {
         punctuality: number;

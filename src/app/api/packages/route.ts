@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const storageStatus = searchParams.get('storageStatus');
 
     try {
-        let query: FirebaseFirestore.Query = adminDb.collection('packages');
+        let query: FirebaseFirestore.Query = adminDb.collection('orders');
 
         if (storageStatus) {
             query = query.where('storageStatus', '==', storageStatus);
@@ -65,17 +65,29 @@ export async function POST(request: Request) {
             leaveWithSecurity: leaveWithSecurity || false,
             storageStatus: 'NONE',
             createdAt: new Date().toISOString(),
-            status: 'PENDING',
+            status: body.status || 'pending_assignment',
             createdBy: body.userId || body.createdBy || null,
             // Enhanced fields from Quote flow
-            origin: body.origin || null,
-            destination: body.destination || address,
+            carrierId: body.carrierId || null, // Allow explicit assignment (e.g. self-dispatch)
+            // Save origin as Location object {address, coords} — required by Bolsa de Carga UI
+            origin: body.origin && typeof body.origin === 'object'
+                ? { address: body.origin.address, coords: body.origin.coords }
+                : { address: body.origin || body.address || '', coords: null },
+            // Save destination as Location object {address, coords}
+            destination: body.destination && typeof body.destination === 'object'
+                ? { address: body.destination.address, coords: body.destination.coords }
+                : { address: body.destination || address, coords: null },
             senderName: body.senderName || null,
             senderPhone: body.senderPhone || null,
             receiverPhone: body.recipientPhone || body.receiverPhone || null,
             type: body.packageType || body.type || 'BOX',
             packageCount: body.packageCount || 1,
             price: body.price || body.cost || 0,
+            // Pricing object for Bolsa de Carga card display
+            pricing: body.quoteDetails ? {
+                subtotal: body.quoteDetails.subtotal ?? body.quoteDetails.priceToClient ?? body.price ?? 0,
+                total: body.quoteDetails.priceToClient ?? body.price ?? 0,
+            } : null,
             loadType: body.loadType || null,
             loadTypeDetails: body.loadTypeDetails || null,
             serviceLevel: body.serviceLevel || 'standard',
@@ -115,7 +127,7 @@ export async function POST(request: Request) {
             quoteDetails: body.quoteDetails || null
         };
 
-        const docRef = await adminDb.collection('packages').add(newPackage);
+        const docRef = await adminDb.collection('orders').add(newPackage);
 
         return NextResponse.json({ id: docRef.id, ...newPackage });
     } catch (error: any) {
