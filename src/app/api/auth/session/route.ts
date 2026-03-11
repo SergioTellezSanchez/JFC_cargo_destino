@@ -18,15 +18,15 @@ export async function POST(request: Request) {
         // 2. Refresh Role from Firestore (Single Source of Truth)
         // We do this to ensure the session cookie has the latest role
         const userDoc = await adminDb.collection('users').doc(uid).get();
-        let role = 'user'; // Default role
+        let role = 'CLIENT'; // Default role
 
         if (userDoc.exists) {
-            role = userDoc.data()?.role || 'user';
+            role = userDoc.data()?.role || 'CLIENT';
         } else {
             // Fallback for bootstrap admins if needed (optional)
             const adminEmails = ['sergiotellezsanchez@gmail.com', 'contacto@jfccargodestino.com'];
             if (decodedToken.email && adminEmails.includes(decodedToken.email)) {
-                role = 'super_admin';
+                role = 'ADMIN';
                 // Optionally create the doc here if desired, but UserContext usually handles it.
             }
         }

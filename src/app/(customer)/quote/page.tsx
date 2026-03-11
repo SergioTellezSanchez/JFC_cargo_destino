@@ -6,18 +6,22 @@ import { useUser } from '@/lib/UserContext';
 import { useTranslation } from '@/lib/i18n';
 import { useLanguage } from '@/lib/LanguageContext';
 import { authenticatedFetch } from '@/lib/api';
+import { queryDocuments } from '@/lib/firebase/helpers';
+import { COLLECTIONS } from '@/lib/firebase/collections';
+import { where, Timestamp } from 'firebase/firestore';
 import PlaceAutocomplete from '@/components/PlaceAutocomplete';
 import DirectionsMap from '@/components/DirectionsMap';
 import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatNumber, calcDistance } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import PinSelectionModal from '@/components/PinSelectionModal';
 import CostBreakdownModal from '@/components/CostBreakdownModal';
 import CustomSelect from '@/components/CustomSelect';
 import EditableNumberSelect from '@/components/EditableNumberSelect';
-import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box, Repeat, Car, Info, Edit } from 'lucide-react';
+import { MapPin, Package, Zap, ChevronRight, CheckCircle, Navigation, Clock, ShieldCheck, Truck, Scale, Box, Repeat, Car, Info, Edit, Calendar } from 'lucide-react';
 import { calculateLogisticsCosts, VEHICLE_TYPES, VEHICLE_CATEGORIES, isVehicleSuitable, type Package as PackageType, type VehicleDefinition } from '@/lib/calculations';
 import type { Vehicle } from '@/lib/firebase/schema';
+import { ReturnTrip } from '@/lib/firebase/schemas/orders';
 
 
 interface LocationState {
@@ -45,6 +49,10 @@ export default function QuotePage() {
     const [destination, setDestination] = useState<LocationState | null>(null);
     const [distanceKm, setDistanceKm] = useState(0);
     const [duration, setDuration] = useState('');
+    const [durationSeconds, setDurationSeconds] = useState<number>(0);
+    const [pickupDate, setPickupDate] = useState<string>('');
+    const [matchedReturnTrip, setMatchedReturnTrip] = useState<ReturnTrip | null>(null);
+    const [activeReturnTrips, setActiveReturnTrips] = useState<ReturnTrip[]>([]);
 
     // Package Details
     const [weight, setWeight] = useState<number | ''>('');
@@ -133,10 +141,51 @@ export default function QuotePage() {
         }
     }, [selectedVehicleType, settings, vehicles]);
 
-    // Update validation logic
+    // Fetch active return trips
+    useEffect(() => {
+        if (!user) return;
+        const fetchReturnTrips = async () => {
+            try {
+                const trips = await queryDocuments<ReturnTrip>(
+                    COLLECTIONS.RETURN_TRIPS,
+                    where('status', '==', 'active')
+                );
+                // Filter ones where availableUntil is in the future
+                const validTrips = trips.filter(t => (t.availableUntil as any).toDate() > new Date());
+                setActiveReturnTrips(validTrips);
+            } catch (error) {
+                console.error('Error fetching return trips:', error);
+            }
+        };
+        fetchReturnTrips();
+    }, [user]);
+
+    // Match return trips
+    useEffect(() => {
+        if (origin && destination && pickupDate && activeReturnTrips.length > 0) {
+            const pickupD = new Date(pickupDate + 'T12:00:00'); // Check against noon of selected date (more robust than midnight)
+
+            const match = activeReturnTrips.find(trip => {
+                const distOrigin = calcDistance(origin.lat, origin.lng, trip.origin.coords.lat, trip.origin.coords.lng);
+                const distDest = calcDistance(destination.lat, destination.lng, trip.destination.coords.lat, trip.destination.coords.lng);
+
+                const fromD = (trip.availableFrom as any).toDate();
+                const untilD = (trip.availableUntil as any).toDate();
+
+                const dateValid = pickupD >= fromD && pickupD <= untilD;
+
+                return distOrigin <= 100 && distDest <= 100 && dateValid;
+            });
+
+            setMatchedReturnTrip(match || null);
+        } else {
+            setMatchedReturnTrip(null);
+        }
+    }, [origin, destination, pickupDate, activeReturnTrips]);
+
     const isPackageDetailsValid = !!weight && Number(weight) > 0 && !!packageType;
     const isVehicleSelectedValid = !!selectedVehicleType;
-    const isRouteValid = !!origin && !!destination;
+    const isRouteValid = !!origin && !!destination && !!pickupDate;
 
     const isStep1Valid = isPackageDetailsValid;
     const isStep2Valid = isStep1Valid && isRouteValid;
@@ -340,17 +389,36 @@ export default function QuotePage() {
             return;
         }
 
+        setLoading(true);
+
         try {
+            // Calculate delivery date based on pickup date + duration
+            let calculatedPickupDate = new Date(pickupDate + 'T12:00:00'); // Default to noon
+            let calculatedDeliveryDate = new Date(calculatedPickupDate);
+            if (durationSeconds) {
+                calculatedDeliveryDate = new Date(calculatedPickupDate.getTime() + (durationSeconds * 1000));
+            }
+
             const packageData = {
-                origin: origin?.address,
-                destination: destination?.address,
+                origin: origin ? {
+                    address: origin.address,
+                    coords: { lat: origin.lat, lng: origin.lng }
+                } : null,
+                destination: destination ? {
+                    address: destination.address,
+                    coords: { lat: destination.lat, lng: destination.lng }
+                } : null,
+                pickupDate: calculatedPickupDate.toISOString(),
+                deliveryDate: calculatedDeliveryDate.toISOString(),
                 weight,
                 dimensions: `${dimensions.length}x${dimensions.width}x${dimensions.height}`,
                 packageCount: packageCount || 1,
                 price: quotePrice,
                 description,
-                status: 'PENDING',
+                status: 'pending_assignment', // Use explicit status
+                matchedReturnTripId: matchedReturnTrip?.id || null,
                 userId: user.uid,
+                // carrierId: user.uid, // REMOVED: Do not auto-assign. Let it go to Marketplace.
                 recipientName,
                 recipientPhone,
                 serviceLevel,
@@ -397,14 +465,19 @@ export default function QuotePage() {
             });
 
             if (res.ok) {
-                alert('Paquete creado exitosamente');
-                router.push('/tracking');
+                // Success feedback via UI (could optionally add a toast here, but removing alert is step 1)
+                // Wait a moment to show success state if we add one, or just redirect
+                router.push('/portal');
             } else {
-                alert('Error al crear el paquete');
+                console.error('Error creating package');
+                // Optional: set error state to show in modal
             }
         } catch (error) {
             console.error(error);
-            alert('Error al conectar con el servidor');
+        } finally {
+            // If preventing redirect on error, we would set loading(false). 
+            // If redirecting, component unmounts.
+            if (!loading) setLoading(false);
         }
     };
 
@@ -494,6 +567,11 @@ export default function QuotePage() {
                 setDistanceKm={setDistanceKm}
                 duration={duration}
                 setDuration={setDuration}
+                durationSeconds={durationSeconds}
+                setDurationSeconds={setDurationSeconds}
+                pickupDate={pickupDate}
+                setPickupDate={setPickupDate}
+                matchedReturnTrip={matchedReturnTrip}
 
                 quoteDetails={quoteDetails}
                 quotePrice={quotePrice}
@@ -675,22 +753,28 @@ function QuoteContent(props: any) {
                                                 </select>
                                             </div>
 
-                                            {/* 2. Weight Range */}
+                                            {/* 2. Vehicle Selection (Replaces Weight) */}
                                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
-                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Peso Aproximado</label>
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Tipo de Vehículo</label>
                                                 <select
-                                                    value={props.weight || ''}
-                                                    onChange={(e) => props.setWeight(Number(e.target.value))}
+                                                    value={props.selectedVehicleType}
+                                                    onChange={(e) => {
+                                                        const vId = e.target.value;
+                                                        props.setSelectedVehicleType(vId);
+                                                        // Auto-set weight to capacity for calculation context
+                                                        const v = props.vehicles.find((x: any) => x.id === vId) || VEHICLE_TYPES.find(x => x.id === vId);
+                                                        if (v) {
+                                                            props.setWeight(v.capacity);
+                                                        }
+                                                    }}
                                                     className="w-full bg-transparent font-bold text-slate-700 outline-none p-1 border-none focus:ring-0 text-lg"
                                                 >
                                                     <option value="" disabled>-- Selecciona --</option>
-                                                    <option value="50">Menos de 50 kg</option>
-                                                    <option value="500">50 - 500 kg (Light)</option>
-                                                    <option value="1500">500 kg - 1.5 Ton (Van)</option>
-                                                    <option value="3500">1.5 - 3.5 Ton (3.5)</option>
-                                                    <option value="10000">3.5 - 10 Ton (Rabon)</option>
-                                                    <option value="14000">14 Ton (Torton)</option>
-                                                    <option value="24000">24 Ton (Trailer)</option>
+                                                    {VEHICLE_TYPES.map((v) => (
+                                                        <option key={v.id} value={v.id}>
+                                                            {v.name} ({v.capacity > 999 ? `${v.capacity / 1000} Ton` : `${v.capacity} kg`})
+                                                        </option>
+                                                    ))}
                                                 </select>
                                             </div>
 
@@ -1123,6 +1207,53 @@ function QuoteContent(props: any) {
                                                     )}
                                                 </div>
                                             </div>
+
+                                            {/* Date Selection */}
+                                            <div className="group relative p-1 rounded-2xl transition-all duration-300 bg-transparent">
+                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 hover:border-blue-400 transition-all shadow-sm hover:shadow-lg">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-2 mb-3">
+                                                        <Calendar size={14} className="text-blue-500" /> Fecha de Recolección (Obligatorio)
+                                                    </label>
+                                                    <input
+                                                        type="date"
+                                                        value={props.pickupDate}
+                                                        onChange={(e) => props.setPickupDate(e.target.value)}
+                                                        min={new Date().toISOString().split('T')[0]}
+                                                        className="w-full bg-white p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 shadow-sm"
+                                                    />
+                                                    {props.pickupDate && (
+                                                        <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-3">
+                                                            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-full shrink-0">
+                                                                <Clock size={18} />
+                                                            </div>
+                                                            <p className="text-sm text-emerald-800 font-medium">
+                                                                Tu recolección se realizará en un margen de <span className="font-bold text-emerald-900">48 horas</span> a partir del {new Date(props.pickupDate + 'T12:00:00').toLocaleDateString()}. Te confirmaremos la hora exacta una vez asignada la unidad.
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {props.matchedReturnTrip && (
+                                                <div className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-6 mt-6 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 shadow-lg">
+                                                    <div className="absolute top-0 right-0 bg-emerald-500 text-white font-bold text-xs uppercase px-3 py-1 rounded-bl-lg">
+                                                        ¡Match Encontrado!
+                                                    </div>
+                                                    <h3 className="text-xl font-bold text-emerald-900 mb-2 flex items-center gap-2">
+                                                        <Repeat size={24} className="text-emerald-600" />
+                                                        ¡Aprovecha un Regreso en Vacío!
+                                                    </h3>
+                                                    <p className="text-sm text-emerald-800 font-medium mb-3">
+                                                        Hemos detectado un transporte que recorrerá esta ruta cerca de tus fechas. Al elegirlo, se te priorizará en la recolección.
+                                                    </p>
+                                                    <div className="flex gap-4 items-center bg-white p-3 rounded-xl border border-emerald-100">
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-slate-400 uppercase">Ruta Base del Transportista</p>
+                                                            <p className="text-xs font-bold text-slate-700">{props.matchedReturnTrip.origin.address.split(',')[0]} ➔ {props.matchedReturnTrip.destination.address.split(',')[0]}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex justify-between pt-6">
@@ -1317,6 +1448,7 @@ function QuoteContent(props: any) {
                                     destination={props.destination ? { lat: props.destination.lat, lng: props.destination.lng } : null}
                                     onDistanceChange={props.setDistanceKm}
                                     onDurationChange={props.setDuration}
+                                    onDurationSecondsChange={props.setDurationSeconds}
                                     showTraffic={true}
                                 />
 

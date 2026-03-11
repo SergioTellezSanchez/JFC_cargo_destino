@@ -10,6 +10,7 @@ export const COLLECTIONS = {
     // Orders & Quotes
     QUOTES: 'quotes',
     ORDERS: 'orders',
+    RETURN_TRIPS: 'return_trips',
 
     // Auctions
     AUCTIONS: 'auctions',

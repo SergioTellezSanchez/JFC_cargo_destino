@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         for (const email of admins) {
             const snap = await usersRef.where('email', '==', email).get();
             snap.docs.forEach(doc => {
-                batch.update(doc.ref, { role: 'ADMIN_MASTER' });
+                batch.update(doc.ref, { role: 'ADMIN' });
             });
         }
 

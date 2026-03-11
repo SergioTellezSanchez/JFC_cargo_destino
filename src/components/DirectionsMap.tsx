@@ -8,11 +8,12 @@ interface DirectionsMapProps {
     destination: { lat: number; lng: number } | null;
     onDistanceChange?: (distanceKm: number) => void;
     onDurationChange?: (duration: string) => void;
+    onDurationSecondsChange?: (durationSeconds: number) => void;
     onMapClick?: (e: MapMouseEvent) => void;
     showTraffic?: boolean;
 }
 
-function DirectionsController({ origin, destination, onDistanceChange, onDurationChange, showTraffic }: DirectionsMapProps) {
+function DirectionsController({ origin, destination, onDistanceChange, onDurationChange, onDurationSecondsChange, showTraffic }: DirectionsMapProps) {
     const map = useMap(); // Access parent map instance reliably
     const routesLibrary = useMapsLibrary('routes');
     const mapsLibrary = useMapsLibrary('maps'); // For TrafficLayer
@@ -87,6 +88,7 @@ function DirectionsController({ origin, destination, onDistanceChange, onDuratio
                 const distanceMeters = leg.distance?.value || 0;
                 // Use duration_in_traffic if available, else duration
                 const durationText = leg.duration_in_traffic?.text || leg.duration?.text || '';
+                const durationSeconds = leg.duration_in_traffic?.value || leg.duration?.value || 0;
 
                 if (onDistanceChange) {
                     onDistanceChange(distanceMeters / 1000);
@@ -94,11 +96,14 @@ function DirectionsController({ origin, destination, onDistanceChange, onDuratio
                 if (onDurationChange && durationText) {
                     onDurationChange(durationText);
                 }
+                if (onDurationSecondsChange && durationSeconds) {
+                    onDurationSecondsChange(durationSeconds);
+                }
             }
         }).catch(err => {
             console.error('Directions failed', err);
         });
-    }, [directionsService, directionsRenderer, origin, destination, onDistanceChange, onDurationChange, map]);
+    }, [directionsService, directionsRenderer, origin, destination, onDistanceChange, onDurationChange, onDurationSecondsChange, map]);
 
     return (
         <>

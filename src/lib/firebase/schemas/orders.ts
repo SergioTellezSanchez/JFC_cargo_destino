@@ -70,6 +70,7 @@ export interface Order {
     interestedCarriers?: string[]; // Carrier IDs who requested this load
     assignmentStatus?: 'unassigned' | 'carrier_requested' | 'carrier_assigned' | 'driver_assigned';
     publishedToMarketplace?: boolean;
+    matchedReturnTripId?: string; // If this order was created from a return trip marketplace
 
     // Additional fields from logistics.ts
     seller?: string;
@@ -85,7 +86,7 @@ export interface Order {
     actualDeliveryTime?: Timestamp;
     deliveryDuration?: number; // milliseconds
 
-    // Rating 
+    // Rating
     rating?: number;
     ratingCategories?: {
         punctuality: number;
@@ -133,6 +134,39 @@ export interface Bid {
     carrierId: string;
     bidAmount: number;
     status: 'pending' | 'accepted' | 'rejected';
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+// ============================================================================
+// RETURN TRIPS (MARKETPLACE)
+// ============================================================================
+
+export interface ReturnTrip {
+    id: string;
+    originalOrderId?: string; // If created from an existing order
+    carrierId: string;
+    vehicleId?: string; // Optional but good for capacity checks
+
+    // The route of the return trip
+    origin: Location;       // Usually the destination of originalOrderId
+    destination: Location;  // Usually the base of the carrier
+
+    availableFrom: Timestamp; // When the truck is empty and ready
+    availableUntil: Timestamp; // The expiration of this offer
+
+    // Truck capacity available
+    capacity?: {
+        weight: number;
+        volume?: number;
+    };
+    vehicleType?: string;
+
+    status: 'active' | 'matched' | 'expired' | 'cancelled';
+
+    // If a customer matches and requests this trip
+    matchedOrderId?: string;
+
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }

@@ -82,6 +82,15 @@ export default function Dashboard() {
                     onClick={() => router.push('/portal')}
                     gradient="linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)"
                 />
+
+                {/* Carrier Portal Entry */}
+                <ModuleCard
+                    title="Carrier Portal"
+                    description="Gestiona órdenes, flota y viajes de regreso."
+                    icon={<Truck size={32} color="white" />}
+                    onClick={() => router.push('/carrier')}
+                    gradient="linear-gradient(135deg, #4f46e5 0%, #312e81 100%)"
+                />
             </div>
 
             {/* Section: Gestión */}
