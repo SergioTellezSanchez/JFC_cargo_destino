@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { VEHICLE_TYPES } from '@/lib/calculations';
 
 const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json();
-        const { origin, destination } = body; // Expects { lat, lng } objects
+        const { origin, destination, vehicleType } = body; // Expects { lat, lng } objects
 
         if (!origin || !destination) {
             return NextResponse.json({ error: 'Origin and Destination are required' }, { status: 400 });
@@ -66,13 +67,36 @@ export async function POST(request: Request) {
             }
         }
 
-        // Return raw Google Tolls (usually for standard vehicles)
-        // User requested to remove manual multipliers
+        // Calculate multiplier based on vehicle type and axles
+        let multiplier = 1.0;
+        if (vehicleType) {
+            const vehicleInfo = VEHICLE_TYPES.find(v => v.id === vehicleType);
+            if (vehicleInfo && vehicleInfo.axles) {
+                if (vehicleInfo.axles === 2) {
+                    // Vans pay like cars (1x), Rabón pays more (1.5x)
+                    multiplier = vehicleInfo.id === 'van' ? 1.0 : 1.5; 
+                } else if (vehicleInfo.axles === 3) {
+                    multiplier = 2.0; // Torton
+                } else if (vehicleInfo.axles === 4) {
+                    multiplier = 2.5;
+                } else if (vehicleInfo.axles === 5) {
+                    multiplier = 3.0; // Trailer
+                } else if (vehicleInfo.axles === 6) {
+                    multiplier = 3.5;
+                } else if (vehicleInfo.axles > 6) {
+                    multiplier = 4.0; // Full / Tren
+                }
+            }
+        }
+
+        const adjustedTolls = totalTolls * multiplier;
 
         return NextResponse.json({
-            tolls: totalTolls,
+            tolls: adjustedTolls,
             distanceMeters: route?.distanceMeters,
             duration: route?.duration,
+            rawTolls: totalTolls,
+            multiplier,
             raw: route // Optional: for debugging
         });
 

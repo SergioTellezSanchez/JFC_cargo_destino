@@ -1,5 +1,5 @@
 import { Timestamp, GeoPoint } from 'firebase/firestore';
-import { Location, Cargo } from './shared';
+import { Location, Cargo, CartaPorte } from './shared';
 import { Vehicle } from './vehicles';
 import { Pricing } from './pricing';
 
@@ -25,6 +25,7 @@ export interface Quote {
     folio?: string;
     loadType?: 'FTL' | 'PTL' | 'LTL';
     cargoType?: 'hazardous' | 'perishable' | 'machinery' | 'furniture' | 'packages' | 'general';
+    cartaPorte?: CartaPorte;
 
     // Service Requirements
     requiresLoadingSupport?: boolean;
@@ -80,6 +81,7 @@ export interface Order {
     loadType?: 'FTL' | 'PTL' | 'LTL';
     cargoType?: 'hazardous' | 'perishable' | 'machinery' | 'furniture' | 'packages' | 'general';
     packageCount?: number;
+    cartaPorte?: CartaPorte;
 
     // Timing
     actualPickupTime?: Timestamp;

@@ -51,6 +51,7 @@ export default function QuotePage() {
     const [duration, setDuration] = useState('');
     const [durationSeconds, setDurationSeconds] = useState<number>(0);
     const [pickupDate, setPickupDate] = useState<string>('');
+    const [deliveryDate, setDeliveryDate] = useState<string>('');
     const [matchedReturnTrip, setMatchedReturnTrip] = useState<ReturnTrip | null>(null);
     const [activeReturnTrips, setActiveReturnTrips] = useState<ReturnTrip[]>([]);
 
@@ -83,12 +84,16 @@ export default function QuotePage() {
 
     // New Logistics State
     const [transportType, setTransportType] = useState<'FTL' | 'PTL' | 'LTL'>('FTL');
-    const [cargoType, setCargoType] = useState<'heavy' | 'hazard' | 'packages'>('heavy');
+    const [cargoType, setCargoType] = useState<'heavy' | 'hazardous' | 'packages' | 'perishable' | 'furniture' | 'machinery'>('heavy');
     const [requiresLoadingSupport, setRequiresLoadingSupport] = useState(false);
     const [requiresUnloadingSupport, setRequiresUnloadingSupport] = useState(false);
     const [isStackable, setIsStackable] = useState(false);
     const [requiresStretchWrap, setRequiresStretchWrap] = useState(false);
     const [insuranceSelection, setInsuranceSelection] = useState<'jfc' | 'own'>('jfc');
+
+    // Carta Porte
+    const [cartaPorteRequired, setCartaPorteRequired] = useState<boolean>(true);
+    const [claveProdServCP, setClaveProdServCP] = useState<string>('');
 
     const [quotePrice, setQuotePrice] = useState(0);
     const [quoteDetails, setQuoteDetails] = useState<any>(null);
@@ -185,7 +190,7 @@ export default function QuotePage() {
 
     const isPackageDetailsValid = !!weight && Number(weight) > 0 && !!packageType;
     const isVehicleSelectedValid = !!selectedVehicleType;
-    const isRouteValid = !!origin && !!destination && !!pickupDate;
+    const isRouteValid = !!origin && !!destination && !!pickupDate && !!deliveryDate;
 
     const isStep1Valid = isPackageDetailsValid;
     const isStep2Valid = isStep1Valid && isRouteValid;
@@ -393,11 +398,8 @@ export default function QuotePage() {
 
         try {
             // Calculate delivery date based on pickup date + duration
-            let calculatedPickupDate = new Date(pickupDate + 'T12:00:00'); // Default to noon
-            let calculatedDeliveryDate = new Date(calculatedPickupDate);
-            if (durationSeconds) {
-                calculatedDeliveryDate = new Date(calculatedPickupDate.getTime() + (durationSeconds * 1000));
-            }
+            let finalPickupDate = pickupDate ? new Date(pickupDate).toISOString() : new Date().toISOString();
+            let finalDeliveryDate = deliveryDate ? new Date(deliveryDate).toISOString() : new Date(new Date(finalPickupDate).getTime() + (durationSeconds * 1000)).toISOString();
 
             const packageData = {
                 origin: origin ? {
@@ -408,8 +410,8 @@ export default function QuotePage() {
                     address: destination.address,
                     coords: { lat: destination.lat, lng: destination.lng }
                 } : null,
-                pickupDate: calculatedPickupDate.toISOString(),
-                deliveryDate: calculatedDeliveryDate.toISOString(),
+                pickupDate: finalPickupDate,
+                deliveryDate: finalDeliveryDate,
                 weight,
                 dimensions: `${dimensions.length}x${dimensions.width}x${dimensions.height}`,
                 packageCount: packageCount || 1,
@@ -431,6 +433,9 @@ export default function QuotePage() {
                 isStackable,
                 requiresStretchWrap,
                 insuranceSelection,
+                cartaPorteRequired,
+                claveProdServCP,
+                materialPeligroso: cargoType === 'hazardous',
                 // Nature Flags
                 isChemical,
                 isPerishable,
@@ -550,6 +555,10 @@ export default function QuotePage() {
                 setRequiresStretchWrap={setRequiresStretchWrap}
                 insuranceSelection={insuranceSelection}
                 setInsuranceSelection={setInsuranceSelection}
+                cartaPorteRequired={cartaPorteRequired}
+                setCartaPorteRequired={setCartaPorteRequired}
+                claveProdServCP={claveProdServCP}
+                setClaveProdServCP={setClaveProdServCP}
                 loadTypeDetails={loadTypeDetails}
                 setLoadTypeDetails={setLoadTypeDetails}
                 showLoadInfoModal={showLoadInfoModal}
@@ -571,6 +580,8 @@ export default function QuotePage() {
                 setDurationSeconds={setDurationSeconds}
                 pickupDate={pickupDate}
                 setPickupDate={setPickupDate}
+                deliveryDate={deliveryDate}
+                setDeliveryDate={setDeliveryDate}
                 matchedReturnTrip={matchedReturnTrip}
 
                 quoteDetails={quoteDetails}
@@ -735,6 +746,13 @@ function QuoteContent(props: any) {
                                         <div>
                                             <h2 className="text-2xl font-bold text-slate-800">¿Qué vas a enviar?</h2>
                                             <p className="text-slate-500">Cuéntanos sobre tu carga para asignarte la unidad perfecta.</p>
+                                            <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-2 max-w-2xl">
+                                                <ShieldCheck size={20} className="text-blue-600 shrink-0 mt-0.5" />
+                                                <p className="text-sm text-blue-800">
+                                                    <strong>Importante:</strong> La información capturada en este paso es oficialmente requerida por el <span className="font-bold">SAT</span> 
+                                                    {' '} para emitir el complemento <span className="font-bold underline">Carta Porte</span>. Debe ser exacta y verídica para evitar multas en carretera.
+                                                </p>
+                                            </div>
                                         </div>
 
                                         {/* Section 1: Main Product Details */}
@@ -954,6 +972,40 @@ function QuoteContent(props: any) {
                                                 className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none resize-none h-24 placeholder:text-slate-300 transition-all font-medium text-slate-700"
                                                 placeholder="Ej. Tubería de acero al carbón, estibada en tarimas, requiere cuidado especial..."
                                             ></textarea>
+                                        </div>
+
+                                        {/* Carta Porte (SAT) */}
+                                        <div className="pt-6 border-t border-slate-100">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Cumplimiento SCT (Carta Porte)</h3>
+                                                <label className="flex items-center gap-3 cursor-pointer">
+                                                    <span className="text-xs font-bold text-slate-500">¿Requiere Carta Porte?</span>
+                                                    <div className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${props.cartaPorteRequired ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                                                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform ${props.cartaPorteRequired ? 'translate-x-6' : 'translate-x-0'}`} />
+                                                    </div>
+                                                    <input type="checkbox" className="hidden" checked={props.cartaPorteRequired} onChange={(e) => props.setCartaPorteRequired(e.target.checked)} />
+                                                </label>
+                                            </div>
+                                            {props.cartaPorteRequired && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Clave Producto SAT (Opcional)</label>
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="Ej. 24101600" 
+                                                            value={props.claveProdServCP}
+                                                            onChange={(e) => props.setClaveProdServCP(e.target.value)}
+                                                            className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-700"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <div className="p-3 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 text-xs flex gap-2">
+                                                            <Info size={16} className="shrink-0 text-blue-600" />
+                                                            <p>Según las disposiciones del SAT, es indispensable proporcionar la clave correcta para evitar multas en carretera.</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex justify-end pt-6">
@@ -1210,27 +1262,34 @@ function QuoteContent(props: any) {
 
                                             {/* Date Selection */}
                                             <div className="group relative p-1 rounded-2xl transition-all duration-300 bg-transparent">
-                                                <div className="bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 hover:border-blue-400 transition-all shadow-sm hover:shadow-lg">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-2 mb-3">
-                                                        <Calendar size={14} className="text-blue-500" /> Fecha de Recolección (Obligatorio)
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={props.pickupDate}
-                                                        onChange={(e) => props.setPickupDate(e.target.value)}
-                                                        min={new Date().toISOString().split('T')[0]}
-                                                        className="w-full bg-white p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 shadow-sm"
-                                                    />
-                                                    {props.pickupDate && (
-                                                        <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-3">
-                                                            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-full shrink-0">
-                                                                <Clock size={18} />
-                                                            </div>
-                                                            <p className="text-sm text-emerald-800 font-medium">
-                                                                Tu recolección se realizará en un margen de <span className="font-bold text-emerald-900">48 horas</span> a partir del {new Date(props.pickupDate + 'T12:00:00').toLocaleDateString()}. Te confirmaremos la hora exacta una vez asignada la unidad.
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 hover:border-blue-400 transition-all shadow-sm hover:shadow-lg">
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-2 mb-3">
+                                                            <Calendar size={14} className="text-blue-500" /> Fecha y Hora de Carga (Obligatorio)
+                                                        </label>
+                                                        <input
+                                                            type="datetime-local"
+                                                            value={props.pickupDate}
+                                                            onChange={(e) => props.setPickupDate(e.target.value)}
+                                                            className="w-full bg-white p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 shadow-sm"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-2 mb-3">
+                                                            <Calendar size={14} className="text-emerald-500" /> Fecha y Hora de Entrega (Obligatorio)
+                                                        </label>
+                                                        <input
+                                                            type="datetime-local"
+                                                            value={props.deliveryDate}
+                                                            onChange={(e) => props.setDeliveryDate(e.target.value)}
+                                                            className="w-full bg-white p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-700 shadow-sm"
+                                                        />
+                                                        {(!props.deliveryDate && props.pickupDate && props.durationSeconds > 0) && (
+                                                            <p className="text-[10px] text-slate-400 mt-2 font-medium">
+                                                                * Sugerencia de mapa: {new Date(new Date(props.pickupDate).getTime() + props.durationSeconds * 1000).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
                                                             </p>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
 

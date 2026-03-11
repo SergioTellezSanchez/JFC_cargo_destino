@@ -14,10 +14,33 @@ export interface Address {
 
 export interface Location {
     address: string;
+    detailedAddress?: Address;
     coords: {
         lat: number;
         lng: number;
     };
+}
+
+export interface CartaPorteItem {
+    satProductCode: string; // Clave de Producto/Servicio SAT
+    description: string; // Descripción de los bienes
+    quantity: number; // Cantidad
+    satUnitCode: string; // Clave de unidad de medida SAT
+    weightInKg: number; // Peso en kilogramos
+    isHazardousMaterial?: boolean | '0' | '1' | '0,1'; // Material peligroso
+    hazardousMaterialCode?: string; // Clave del material peligroso
+    packagingCode?: string; // Clave de tipo de embalaje
+    packagingDescription?: string; // Descripción del embalaje
+}
+
+export interface CartaPorte {
+    isInternationalTransport: boolean;
+    senderRfc?: string; // RFC del Remitente
+    receiverRfc?: string; // RFC del Destinatario
+    totalGrossWeight: number;
+    weightUnit: string; // e.g., 'KGM'
+    totalItems: number;
+    items: CartaPorteItem[];
 }
 
 export interface Cargo {
