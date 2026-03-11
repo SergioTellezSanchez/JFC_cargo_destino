@@ -2,12 +2,20 @@
 description: Protocolo de cierre que valida calidad, actualiza documentación, ejecuta mentoría y sube cambios a Git.
 ---
 ## Pasos
-1. **Entrevista de Cierre (Closure Interview):** Valida la promesa vs el entregable. Pregunta al usuario sobre alcance real completado y si queda deuda técnica (Known Issues). *Espera respuesta.*
+1. **Entrevista de Cierre (Closure Interview):**
+   - Pregunta: ¿Cuáles eran los objetivos? ¿Qué se entregó? ¿Hubo cambios de alcance? ¿Hay Known Issues pendientes? *Espera respuesta.*
 2. **Sanity Check y QA Local:**
-   - Busca red flags en el código: `console.log` olvidados, tipos `any`, valores hardcodeados.
-   - Valida que el build compile de forma exitosa (`npx next build` o equivalente local). Arregla errores de TypeScript inmediatamente.
-3. **Actualización de Documentación:**
-   - Escribe en `docs/MINUTA.md` un histórico con la fecha, el alcance y los archivos clave alterados.
-   - Constata si hay alteraciones estructurales para reflejarlos en `docs/ARCHITECTURE.md`.
-4. **Flujo de Versionado Git:** Incluye archivos modificados pero evita la subida de archivos basura. Confirma con un commit semántico y consolida (push) a ramas como `dev` o `staging` (según aplique). Evita subidas directas a `main` sin UAT (User Acceptance Testing).
-5. **Protocolo de Mentoría:** Añade un "Deep Dive" explicando de manera sencilla al usuario una decisión arquitectónica o mejora implementada (fomento de curiosidad).
+   - Revisa `git diff <branch> --stat`.
+   - Elimina `console.log` de producción, asegúrate de no usar `any`, sin valores hardcodeados ni archivos temporales.
+3. **Build Verification (Obligatorio):**
+   - Corre `npx next build` localmente (o equivalente).
+   - Corrige errores de TypeScript inmediatos hasta lograr exit code 0. No continues sin esto.
+4. **Actualización de Documentación:**
+   - **MINUTA.md:** Añade en top histórico la fecha, alcance y archivos clave modificados. Actualiza el snapshot del proyecto. (Mantén el historial).
+   - **ARCHITECTURE.md & PROCESS_FLOWS.md:** Valida y documenta si hubo alteraciones de backend/esquemas.
+5. **Flujo de Versionado Git:**
+   - Haz commit semántico (`feat:`, `fix:`, `refactor:` detallando cambios y Docs).
+   - Haz push a la rama en curso (ej. `dev`).
+   - Sube (merge) los cambios a `staging` para pruebas.
+   - 🚫 **Nunca fusiones a `main` sin UAT (User Acceptance Testing) y confirmación expresa del usuario.**
+6. **Protocolo de Mentoría:** Añade un "Deep Dive" explicando de manera sencilla al usuario alguna decisión arquitectónica o mejora proactiva tomada en el código (SOLID, DRY, Clean Architecture).

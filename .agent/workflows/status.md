@@ -9,4 +9,6 @@ description: Audita el estado actual del código frente a la documentación para
    - Código que viola la arquitectura definida o desvía de los `PROCESS_FLOWS`.
    - Tecnologías usadas no declaradas en el stack.
    - Tareas en el plan que no coinciden con el progreso listado en `MINUTA.md`.
-5. **Resolución:** Pregunta al usuario si prefiere actualizar los documentos o refactorizar el código para alinearlos.
+   - Revisa dependencias (`package.json`) y nuevos módulos instalados. Contrastalos con `TECH_STACK.md` y `ARCHITECTURE.md`.
+5. **Detección de "Documentation Drift" (Deriva):** Si se detecta un cambio de arquitectura, integración de APIs o estructura de BD no reflejado, levanta un flag CRÍTICO.
+6. **Resolución:** Pregunta al usuario si prefiere actualizar los documentos (Architecture, Process Flows) o refactorizar el código para alinearlo al molde original.
