@@ -10,7 +10,7 @@ export default function Header() {
     const pathname = usePathname();
     const router = useRouter();
     const { language, setLanguage } = useLanguage();
-    const { logout } = useUser();
+    const { logout, user } = useUser();
     const t = useTranslation(language);
 
     const isHome = pathname === '/';
@@ -60,6 +60,31 @@ export default function Header() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+
+                {user && (
+                    <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginRight: '0.5rem', borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--foreground)' }}>
+                                {user.name?.split(' ')[0] || 'Usuario'}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', textTransform: 'capitalize' }}>
+                                {user.role?.toLowerCase() || 'Cliente'}
+                            </span>
+                        </div>
+                        {user.photoURL ? (
+                            <img 
+                                src={user.photoURL} 
+                                alt="User Avatar" 
+                                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} 
+                                referrerPolicy="no-referrer"
+                            />
+                        ) : (
+                            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1rem' }}>
+                                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem', borderRadius: '0.6rem', border: '1px solid var(--border)', background: 'var(--card-bg)' }}>
                     <Globe size={18} color="var(--primary)" />

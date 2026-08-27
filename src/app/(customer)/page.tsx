@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Truck, Package, Users, Warehouse, Settings, FileText, ShieldCheck, History } from 'lucide-react';
 import { useUser } from '@/lib/UserContext';
@@ -12,6 +13,12 @@ export default function Dashboard() {
     const { user, loading, loginWithGoogle, isAdmin } = useUser();
     const { language } = useLanguage();
     const t = useTranslation(language);
+
+    useEffect(() => {
+        if (!loading && user && user.role === 'CLIENT') {
+            router.push('/portal');
+        }
+    }, [user, loading, router]);
 
     if (loading) {
         return (
@@ -58,13 +65,13 @@ export default function Dashboard() {
     return (
         <main className="container min-h-[90vh] p-8">
             {/* Header & Welcome */}
-            <div className="mb-12 flex justify-between items-center flex-wrap gap-4">
+            <div className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-center flex-wrap gap-4 bg-gradient-to-r from-[var(--card-bg)] to-[var(--secondary-bg)] p-8 rounded-3xl shadow-sm border border-[var(--border)]">
                 <div>
-                    <h1 className="text-gradient text-5xl font-extrabold">
-                        {t('dashboardTitle')}
+                    <h1 className="text-4xl md:text-5xl font-extrabold mb-2" style={{ background: 'linear-gradient(135deg, var(--foreground) 0%, var(--primary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        ¡Hola, {user.name?.split(' ')[0] || 'Usuario'}!
                     </h1>
                     <p className="text-lg text-[var(--secondary)]">
-                        {t('welcome')}, {user.name}
+                        ¿Qué deseas gestionar el día de hoy?
                     </p>
                 </div>
             </div>
@@ -125,16 +132,16 @@ export default function Dashboard() {
                     gradient="linear-gradient(135deg, var(--accent) 0%, #c5a059 100%)"
                 />
 
-                {/* Admin */}
-                <ModuleCard
-                    title={t('adminTitle')}
-                    description={t('adminPanelDesc')}
-                    icon={<Settings size={32} color="white" />}
-                    onClick={() => router.push('/admin')}
-                    gradient="linear-gradient(135deg, var(--foreground) 0%, #000000 100%)"
-                    disabled={!isAdmin}
-                    locked={!isAdmin}
-                />
+                {/* Admin - Only visible to Admins */}
+                {isAdmin && (
+                    <ModuleCard
+                        title={t('adminTitle')}
+                        description={t('adminPanelDesc')}
+                        icon={<Settings size={32} color="white" />}
+                        onClick={() => router.push('/admin')}
+                        gradient="linear-gradient(135deg, var(--foreground) 0%, #000000 100%)"
+                    />
+                )}
             </div>
         </main>
     );
